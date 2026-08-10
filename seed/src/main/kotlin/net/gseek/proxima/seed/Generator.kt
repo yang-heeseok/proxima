@@ -193,7 +193,10 @@ class Generator(
             // The primary key is (item_id, concept_id), so the set must be distinct.
             val concepts = LinkedHashSet<Int>()
             concepts.add(items.primaryConcept[i])
-            val extra = r.nextInt(scale.extraConceptsPerItem + 1)
+            // At least one further concept, up to `extraConceptsPerItem`. Drawing from
+            // 0..n instead put the average at 2.0 concepts per item and produced 200,295
+            // rows against the 250,000 in domain-model.md -- see that field's comment.
+            val extra = 1 + r.nextInt(scale.extraConceptsPerItem)
             var guard = 0
             while (concepts.size < 1 + extra && guard < 20) {
                 guard++

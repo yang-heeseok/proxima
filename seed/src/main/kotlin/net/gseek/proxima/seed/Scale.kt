@@ -20,7 +20,14 @@ data class Scale(
     /** Prerequisite edges per concept, capped by how many concepts precede it. */
     val prerequisitesPerConcept: Int,
     val items: Int,
-    /** Extra concepts an item exercises, beyond its primary one. */
+    /**
+     * Concepts an item exercises beyond its primary one: between 1 and this many.
+     *
+     * The lower bound of 1 is load-bearing. Drawing from `0..n` gives an average of 2.0
+     * concepts per item and 200,295 rows, against the 250,000 in `domain-model.md` — which
+     * is what the first run of the generator produced. The document owns the row counts,
+     * so the generator was changed to meet it rather than the other way round.
+     */
     val extraConceptsPerItem: Int,
     val attemptsPerLearner: Int,
     val masteryConceptsPerLearner: Int,

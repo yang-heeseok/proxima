@@ -20,7 +20,6 @@ silence, and it discharges the `PUB-4` row that says so.
 
 | # | Question | Why it is not decided yet | Deadline |
 | --- | --- | --- | --- |
-| `OPEN-1` | **Which Spring Boot line** | The choice is between the line most likely to match a production system a reader already runs, and the newest one. It should be made against the current GA list rather than from memory | Before the first build file. `ADR-000` |
 | `OPEN-2` | **How QueryDSL is generated on Kotlin** | `kapt` is in maintenance; the Jakarta classifier and the community fork are both plausible. A 30-minute timebox decides it, and the fallback — JPQL with constructor projections — is acceptable | Before the first repository class. `ADR-001` |
 | `OPEN-3` | **Identifier generation strategy** | `IDENTITY` prevents Hibernate from batching inserts; a sequence with an allocation size does not, but changes what the ids look like. This interacts with how the seed is loaded and is worth measuring rather than assuming | Before the seed generator. `ADR-003` |
 | `OPEN-4` | **Whether a cache layer is in scope at all** | Caching would improve every number in this repository, and would also hide which of them were bad for structural reasons. Deciding to leave it out is a real decision and should be recorded as one | Before any report claims a latency ceiling |
@@ -32,4 +31,4 @@ silence, and it discharges the `PUB-4` row that says so.
 
 | # | Question | Closed by |
 | --- | --- | --- |
-| — | — | — |
+| `OPEN-1` | **Which Spring Boot line** | `ADR-000` — **Spring Boot 4.1.0 on JDK 21**, 2026-08-10. The near-miss was 3.5.x, the line most readers run in production; it lost because its OSS support ended 2026-06-30 and `start.spring.io` no longer offers it |

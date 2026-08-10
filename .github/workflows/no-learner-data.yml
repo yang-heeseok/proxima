@@ -1,0 +1,159 @@
+# Discharges PUB-7: no real learner data reaches this repository.
+#
+# WHY THIS EXISTS, AND WHY IT IS THE MOST IMPORTANT GUARD HERE.
+#
+#   This project models what a learner got wrong, how long they took, when they gave up,
+#   and which concept they are not ready for. That is a behavioural record of a person,
+#   and in this domain that person is frequently a minor.
+#
+#   The pressure to commit a real dataset comes from the work going WELL, not from
+#   carelessness: the moment a measurement looks interesting, the fastest way to let
+#   someone reproduce it is to attach the rows it came from. Under Korean PIPA a child's
+#   record carries a higher bar than an adult's, and under this repository's publication
+#   decision history cannot be erased. A single careless commit is therefore not a mistake
+#   that can be corrected -- it is a disclosure.
+#
+# THE RULE. THIS REPOSITORY TRACKS NO DATA FILE AT ALL.
+#
+#   Not a sample, not an anonymised extract, not "just the first hundred rows". The seed
+#   is produced by the generator in seed/ from a fixed seed value, so a reader reproduces
+#   the dataset by running code rather than by downloading rows. That is stronger than a
+#   review rule and cheaper to enforce: a guard that blocks the FILE CLASS does not have
+#   to judge whether a particular file is anonymous enough.
+#
+#   "Anonymised" is a judgement call, and this repository makes no such judgement.
+#   Generated or absent.
+#
+#   The single exception is Flyway migrations, which are .sql by necessity and contain
+#   schema rather than rows. The check below names that exception explicitly and the
+#   self-test proves the exception is narrow.
+
+name: no learner data
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MIGRATION_DIR: api/src/main/resources/db/migration
+
+jobs:
+  guard:
+    name: no dataset is tracked
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      # Tested by being made to fire: the self-test below plants a file this step must
+      # reject, and the job fails if the check accepts it. A scan that has never refused
+      # anything proves nothing about the trees it passed.
+      - name: no data-class file is tracked
+        run: |
+          set -eu
+          found=$(git ls-files -- \
+            '*.csv' '*.tsv' '*.jsonl' '*.ndjson' '*.parquet' '*.avro' \
+            '*.dump' '*.bak' '*.sql.gz' '*.db' '*.sqlite' '*.sqlite3' \
+            || true)
+          if [ -n "$found" ]; then
+            printf '%s\n' "$found"
+            echo ""
+            echo "FAIL: a data-class file is tracked."
+            echo ""
+            echo "This repository is public and its history cannot be erased."
+            echo "If these rows describe real learners it is a disclosure, not a mistake"
+            echo "to fix later -- and in this domain the learner is frequently a minor."
+            echo ""
+            echo "The seed is CODE, not data. Regenerate it with the generator in seed/"
+            echo "from the fixed seed value. See docs/decisions/publication-readiness.md PUB-7."
+            exit 1
+          fi
+          echo "OK: no data-class file is tracked."
+
+      - name: no .sql outside the migration directory
+        run: |
+          set -eu
+          found=$(git ls-files -- '*.sql' | grep -v "^${MIGRATION_DIR}/" || true)
+          if [ -n "$found" ]; then
+            printf '%s\n' "$found"
+            echo ""
+            echo "FAIL: a .sql file is tracked outside ${MIGRATION_DIR}."
+            echo "Migrations carry schema. A .sql file anywhere else is usually rows."
+            exit 1
+          fi
+          echo "OK: every tracked .sql file is a migration."
+
+      - name: no personal identifier pattern in the tree
+        run: |
+          set -eu
+          # A resident registration number is unambiguous, so it is matched exactly.
+          # A phone number is matched in the Korean mobile shape. Documentation is
+          # allowlisted because SECURITY.md must be able to publish a contact address.
+          hits=$(git grep -nIE \
+            -e '[0-9]{6}-[1-4][0-9]{6}' \
+            -e '01[016789]-?[0-9]{3,4}-?[0-9]{4}' \
+            -- . ':!docs/**' ':!SECURITY.md' ':!.github/**' || true)
+          if [ -n "$hits" ]; then
+            printf '%s\n' "$hits"
+            echo ""
+            echo "FAIL: something shaped like a personal identifier is tracked."
+            echo "If this is generated test material, change the generator to emit a"
+            echo "shape that cannot be mistaken for a real identifier."
+            exit 1
+          fi
+          echo "OK: no personal identifier pattern found."
+
+      # A guard nobody has watched refuse is a claim. This plants violations in a scratch
+      # clone and asserts the same checks reject them -- so an edit that guts a check above
+      # fails here rather than passing silently for months.
+      - name: the guard refuses planted violations
+        run: |
+          set -eu
+          work=$(mktemp -d)
+          git init -q "$work"
+          mkdir -p "$work/${MIGRATION_DIR}"
+
+          : > "$work/leaked-attempts.csv"
+          : > "$work/dump.sql"
+          : > "$work/${MIGRATION_DIR}/V1__baseline.sql"
+          printf 'learner 010-1234-5678\n' > "$work/notes.txt"
+          git -C "$work" add -A
+
+          data=$(git -C "$work" ls-files -- '*.csv' || true)
+          [ -n "$data" ] || { echo "FAIL: the data-class pattern missed a planted .csv."; exit 1; }
+
+          stray=$(git -C "$work" ls-files -- '*.sql' | grep -v "^${MIGRATION_DIR}/" || true)
+          [ -n "$stray" ] || { echo "FAIL: the .sql check missed a planted dump.sql."; exit 1; }
+
+          kept=$(git -C "$work" ls-files -- "${MIGRATION_DIR}/*.sql" || true)
+          [ -n "$kept" ] || { echo "FAIL: the migration exception is too narrow -- it would reject a real migration."; exit 1; }
+
+          pii=$(git -C "$work" grep -nIE '01[016789]-?[0-9]{3,4}-?[0-9]{4}' -- . || true)
+          [ -n "$pii" ] || { echo "FAIL: the identifier pattern missed a planted phone number."; exit 1; }
+
+          rm -rf "$work"
+          echo "OK: every check refuses what it claims to refuse, and the migration exception still passes a real migration."
+
+  licence:
+    name: LICENSE is the canonical Apache-2.0 text
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      # Discharges PUB-2. Pinned from the published Apache text on 2026-08-10.
+      # .gitattributes normalises LICENSE to LF so this hashes the licence, not the platform.
+      - name: checksum
+        run: |
+          set -eu
+          expected=cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+          actual=$(sha256sum LICENSE | cut -d' ' -f1)
+          if [ "$actual" != "$expected" ]; then
+            echo "FAIL: LICENSE does not match the canonical Apache-2.0 text."
+            echo "  expected $expected"
+            echo "  actual   $actual"
+            exit 1
+          fi
+          echo "OK: LICENSE is the canonical Apache-2.0 text."

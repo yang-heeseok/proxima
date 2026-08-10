@@ -1,0 +1,74 @@
+# gitleaks configuration.
+#
+# Discharges PUB-1: the repository contains no secrets.
+#
+# ROTATION LEDGER
+# ---------------
+# History cannot be erased, so a secret found in history is not removed -- the credential
+# is rotated, and the finding is recorded with the date it was rotated.
+#
+# The rule that makes this observable rather than aspirational:
+#
+#     A finding that is NOT recorded has not been rotated.
+#
+# That keeps every alert from the scheduled full-history scan actionable. Recording
+# happens in .gitleaksignore, one fingerprint per rotated finding, each preceded by a
+# comment line naming what leaked, the rotation date, and who rotated:
+#
+#     # <what leaked> | rotated <YYYY-MM-DD> by <who>
+#     <commit>:<file>:<rule-id>:<line>
+#
+# A fingerprint names exactly one finding. A commit allowlist is deliberately NOT used:
+# a commit SHA there exempts EVERY finding in that commit, which is wider than any
+# rotation ever is. Do not record a finding you have not actually rotated -- that
+# converts the one guard PUB-1 has into a comment.
+#
+# THIS REPOSITORY IS PUBLIC. That makes the scheduled lane's finding an incident rather
+# than a warning: a credential in a public commit must be assumed harvested within
+# minutes, so rotation is immediate and is not scheduled for later.
+
+[extend]
+useDefault = true
+
+# This project's likely credential set is named explicitly so that a new module cannot
+# introduce a key class nothing scans for. The default rule set covers the major cloud
+# providers; what follows covers the shapes this repository will actually grow.
+
+[[rules]]
+id = "proxima-jdbc-url-with-password"
+description = "JDBC connection string carrying an inline password"
+regex = '''jdbc:(?:postgresql|mysql)://[^\s'"]*[?&](?:password|pwd)=([^\s&'"]{6,})'''
+secretGroup = 1
+keywords = ["jdbc:postgresql", "jdbc:mysql"]
+
+[[rules]]
+id = "proxima-datasource-password"
+description = "Datasource password assigned in configuration"
+regex = '''(?i)\b(?:spring\.datasource\.password|datasource[_-]?password|db[_-]?password|postgres_password)\b\s*[:=]\s*['"]?([^\s'"#]{8,})['"]?'''
+secretGroup = 1
+keywords = ["datasource", "db_password", "postgres_password"]
+
+[[rules]]
+id = "proxima-jwt-signing-key"
+description = "JWT signing key or HMAC secret assigned in configuration"
+regex = '''(?i)\b(?:jwt[_-]?(?:secret|signing[_-]?key)|hmac[_-]?secret|app[_-]?secret)\b\s*[:=]\s*['"]?([A-Za-z0-9+/=_\-]{16,})['"]?'''
+secretGroup = 1
+keywords = ["jwt_secret", "jwt-secret", "signing_key", "hmac_secret"]
+
+[allowlist]
+description = "Documentation and example material that names a credential without holding one"
+paths = [
+  '''\.env\.example$''',
+  '''(^|/)docs/.*\.md$''',
+  '''(^|/)\.gitleaks\.toml$''',
+  # Testcontainers supplies throwaway credentials for a container that lives for the
+  # duration of one test run and is never reachable from outside the runner. They are
+  # deliberately in the tree, because a test whose credentials are hidden is a test
+  # nobody else can run.
+  '''(^|/)src/test/resources/.*''',
+]
+regexes = [
+  '''(?i)(example|sample|placeholder|redacted|your[_-]?key|xxxx+|<[a-z_-]+>)''',
+  # The literal values Testcontainers' PostgreSQL module defaults to.
+  '''(?i)\b(test|postgres|password)\b''',
+]

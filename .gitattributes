@@ -1,0 +1,32 @@
+# Line endings are normalised to LF everywhere.
+#
+# This is not a style preference. The LICENSE checksum guard compares a sha256 taken from
+# the published Apache text; if a checkout on Windows rewrote the file to CRLF, the same
+# file would hash differently on a developer machine and in CI, and the guard would be
+# reporting the platform rather than the licence.
+#
+# The same reasoning covers shell scripts and Gradle wrapper scripts, which must be LF to
+# run at all on a Linux runner.
+
+* text=auto eol=lf
+
+LICENSE text eol=lf
+gradlew text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+
+gradlew.bat text eol=crlf
+
+# Binary.
+*.jar binary
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary
+*.gz binary
+
+# Measurement output is evidence, and a diff of it should be readable. These are text and
+# are deliberately not marked binary -- a report that cites a number must be able to show
+# the file the number came from changing.
+*.json text eol=lf
+*.csv text eol=lf

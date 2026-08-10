@@ -1,3 +1,33 @@
+// Plugin versions resolve from gradle.properties so that every version in this build
+// appears exactly once. See ADR-000 (Spring Boot line) and ADR-001 (QueryDSL on Kotlin).
+//
+// This block is first because Gradle requires it to be -- not by preference.
+pluginManagement {
+    val kotlinVersion: String by settings
+    val springBootVersion: String by settings
+    val springDependencyManagementVersion: String by settings
+
+    plugins {
+        kotlin("jvm") version kotlinVersion
+        kotlin("kapt") version kotlinVersion
+        kotlin("plugin.spring") version kotlinVersion
+        kotlin("plugin.jpa") version kotlinVersion
+        id("org.springframework.boot") version springBootVersion
+        id("io.spring.dependency-management") version springDependencyManagementVersion
+    }
+
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+
 rootProject.name = "proxima"
 
 // api  -- the Spring Boot application and its Flyway migrations.
@@ -5,8 +35,3 @@ rootProject.name = "proxima"
 //         a generator living inside the application's test sources would be tempting to
 //         run against a real database.
 include("api", "seed")
-
-// NOTE: no build.gradle.kts yet. Dependency versions are deliberately not committed until
-// ADR-000 (Spring Boot line) and ADR-001 (QueryDSL on Kotlin) are decided against the
-// current release list rather than from memory. A build file written first would make
-// those decisions silently.

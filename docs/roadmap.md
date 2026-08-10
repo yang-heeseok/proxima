@@ -50,7 +50,7 @@ because measuring it without those two would produce numbers nobody could trust.
 
 | # | Defect | State |
 | --- | --- | --- |
-| **T4** | **An index that exists and is not used.** Leading-column order; a column whose cardinality makes an index pointless; covering columns and an index-only scan; and **stale planner statistics after a bulk load**, measured deliberately before running `ANALYZE`, because that gap is a finding rather than a mistake. Then offset paging against keyset paging, at depth | ☐ |
+| **T4** | **An index that exists and is not used.** Leading-column order; a column whose cardinality makes an index pointless; covering columns and an index-only scan; and **stale planner statistics after a bulk load**, measured deliberately before running `ANALYZE`, because that gap is a finding rather than a mistake. Then offset paging against keyset paging, at depth | ☐ — **the stale-statistics state was captured on 2026-08-10** before it could be lost to autovacuum; numbers in commit `d7b2bf0`'s successor. No report yet, so the item is not started |
 | **T5** | **Updates lost under concurrency.** Count them first. Then compare optimistic locking, pessimistic locking, and a single atomic statement — on both correctness and throughput. Including the part that is easy to get wrong: **a retry placed inside the transaction it is retrying** | ☐ |
 | **T6** | **A uniqueness check two requests both pass.** An application-level existence check, then an insert. Then the constraint that actually enforces it, and the database-specific consequence of hitting it — on PostgreSQL the whole transaction is aborted, so catching the exception and continuing does not work without a savepoint | ☐ |
 

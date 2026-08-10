@@ -35,15 +35,36 @@ its numbers.
 
 ```
 측정 환경 / Measurement environment
-  Hardware       : <CPU model / cores / RAM>
-  OS             : Windows 11 + WSL2, Docker Desktop <version>
-  JVM            : Temurin 21.0.x, -Xmx512m
-  PostgreSQL     : Testcontainers postgres:16-alpine, default shared_buffers
-  Connection pool: HikariCP maximum-pool-size=10, connection-timeout=30000  (defaults)
+  Hardware       : Intel Core Ultra 7 258V, 8 cores / 8 threads, 31.5 GB RAM
+  OS             : Windows 11 Home 10.0.26200
+                   WSL2 Ubuntu 24.04, kernel 6.6.87.2-microsoft-standard-WSL2, 15 GiB
+  Docker         : Docker Engine 29.5.3 (API 1.54), NATIVE INSIDE WSL2 — not Docker Desktop
+  JVM            : Temurin 21.0.12+8 (JDK 21 toolchain, pinned in gradle.properties)
+  PostgreSQL     : postgres:16-alpine — server 16.14
+                   sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+                   default shared_buffers
+  Connection pool: HikariCP 7.0.2, maximum-pool-size=10, connection-timeout=30000 (defaults)
   Dataset        : seed value 20260810 — see domain-model.md for row counts
   Load           : k6, 30s warm-up DISCARDED, 3min measurement window
   Repetitions    : 3 runs, median reported; spread stated if >10%
 ```
+
+Filled in from the machine on 2026-08-10 rather than described. Two of those lines were
+wrong in the draft written before anything ran, and both were wrong in a way that would
+have cost a reader time:
+
+- **It said Docker Desktop.** There is no Docker Desktop here. The engine runs natively
+  inside WSL2, which is not a detail of taste — it means **Windows cannot reach the Docker
+  daemon at all**, so the entire build and test lane runs inside WSL2. A reader who
+  reproduced this on Docker Desktop would get different filesystem and network behaviour
+  than these numbers were taken with.
+- **It said `-Xmx512m`.** Nothing sets that. The heap flag is 미측정 as a property of these
+  runs, and the field is left out until a report actually pins it — a stated JVM flag that
+  no run used is worse than no flag, because it looks checkable and is not.
+
+The image digest is recorded alongside the tag because `16-alpine` is a moving tag. Two
+people running `postgres:16-alpine` a month apart are not necessarily running the same
+server, and the digest is what makes the row citable.
 
 ---
 

@@ -1,0 +1,21 @@
+# Test configuration.
+#
+# WHY THESE THREE VALUES EXIST AT ALL.
+#
+#   The main application.yml names its datasource with strict placeholders and no
+#   defaults, so that a missing environment variable fails at startup instead of silently
+#   falling back to something that happens to work on one machine. That is the right
+#   behaviour for a deployment and it makes the placeholders unresolvable in a test.
+#
+#   These values satisfy the placeholder, and nothing more. @ServiceConnection registers
+#   the container's real connection details as a bean, and a ConnectionDetails bean takes
+#   precedence over every spring.datasource.* property -- so none of the values below is
+#   ever dialled. They are deliberately shaped to say so out loud, because a plausible
+#   looking localhost URL here would be a trap for the next person debugging a connection
+#   failure.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://never-dialled.invalid:1/replaced-by-serviceconnection
+    username: replaced-by-serviceconnection
+    password: replaced-by-serviceconnection

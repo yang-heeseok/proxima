@@ -1,0 +1,52 @@
+# Application configuration.
+#
+# NOTHING HERE CARRIES A CREDENTIAL. Every value that could is an environment placeholder
+# with no default, so that a missing variable fails at startup rather than falling back to
+# something that happens to work on one machine. This repository is public and a pushed
+# secret is compromised at push time, not at discovery time -- see PUB-1.
+#
+# NOTE ON WHAT IS *NOT* SET HERE.
+#
+#   spring.jpa.open-in-view is left unset, which means it is ON.
+#
+#   That is deliberate and it is the subject of T1. The interesting property of this
+#   setting is not that it can be wrong -- it is that it is wrong BY DEFAULT, in a
+#   repository where nobody typed it. Writing `open-in-view: true` here would be a
+#   different and much less honest experiment, because it would document the very thing
+#   the report is about a team not knowing.
+#
+#   Spring logs a warning about it at startup. That warning is quoted in the T1 report
+#   rather than silenced.
+
+spring:
+  application:
+    name: proxima
+
+  datasource:
+    url: ${PROXIMA_DB_URL}
+    username: ${PROXIMA_DB_USER}
+    password: ${PROXIMA_DB_PASSWORD}
+
+  jpa:
+    # The schema is owned by Flyway. Hibernate never creates or alters a table here --
+    # ADR-002 depends on the migration sequence being the only thing that shapes the
+    # database, because that sequence is the argument the repository is making.
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# Actuator exposure is left at its default on purpose. T9 is a report about management
+# endpoints exposed wholesale, including the one that dumps the heap; the state in which
+# that is observable is created in that report's red commit, not here.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

@@ -41,22 +41,40 @@ regex = '''jdbc:(?:postgresql|mysql)://[^\s'"]*[?&](?:password|pwd)=([^\s&'"]{6,
 secretGroup = 1
 keywords = ["jdbc:postgresql", "jdbc:mysql"]
 
+# A secret assigned to a configuration key, in EITHER form Spring accepts.
+#
+# THIS RULE REPLACED TWO EARLIER ONES THAT DID NOT WORK, AND THE REASON IS WORTH KEEPING.
+#
+#   The originals matched the flattened property form only:
+#
+#       spring.datasource.password=...        matched
+#       jwt.secret=...                        matched
+#
+#   Which meant they matched nothing in the format Spring projects actually use:
+#
+#       spring:                               NOT matched
+#         datasource:
+#           password: ...                     <- the key on this line is just "password"
+#
+#   A planted secret in nested YAML went straight through. It was caught only by the
+#   default generic-api-key rule, by luck of being long and high-entropy -- a shorter
+#   password would have been missed entirely.
+#
+#   The fix is the `[\w.\-]*` prefix: the key may be dotted, underscored, or bare, so the
+#   nested form and the flattened form are the same rule.
+#
+# This rule was found to be broken by planting a secret and watching the scanner not
+# refuse it. That is the only way any of this is ever established.
 [[rules]]
-id = "proxima-datasource-password"
-description = "Datasource password assigned in configuration"
-regex = '''(?i)\b(?:spring\.datasource\.password|datasource[_-]?password|db[_-]?password|postgres_password)\b\s*[:=]\s*['"]?([^\s'"#]{8,})['"]?'''
+id = "proxima-config-secret-assignment"
+description = "Password, secret, or signing key assigned to a configuration key -- nested YAML or flattened property"
+regex = '''(?im)^[ \t]*[\w.\-]*(?:password|passwd|pwd|secret|signing[_-]?key|client[_-]?secret|auth[_-]?token)\s*[:=]\s*['"]?([^\s'"#]{8,})['"]?[ \t]*$'''
 secretGroup = 1
-keywords = ["datasource", "db_password", "postgres_password"]
-
-[[rules]]
-id = "proxima-jwt-signing-key"
-description = "JWT signing key or HMAC secret assigned in configuration"
-regex = '''(?i)\b(?:jwt[_-]?(?:secret|signing[_-]?key)|hmac[_-]?secret|app[_-]?secret)\b\s*[:=]\s*['"]?([A-Za-z0-9+/=_\-]{16,})['"]?'''
-secretGroup = 1
-keywords = ["jwt_secret", "jwt-secret", "signing_key", "hmac_secret"]
+entropy = 3.0
+keywords = ["password", "passwd", "pwd", "secret", "signing", "token"]
 
 [allowlist]
-description = "Documentation and example material that names a credential without holding one"
+description = "Material that names a credential without holding one"
 paths = [
   '''\.env\.example$''',
   '''(^|/)docs/.*\.md$''',
@@ -67,8 +85,21 @@ paths = [
   # nobody else can run.
   '''(^|/)src/test/resources/.*''',
 ]
+# ANCHORED, AND THE ANCHORING IS THE POINT.
+#
+# These were substring matches. A secret is exempted when it MATCHES one of these, and a
+# substring match meant any secret that happened to contain "example" or "placeholder"
+# anywhere inside it was exempted -- including, in the self-test that found this, a
+# deliberately planted one named `s3cr3t-not-a-placeholder-value`.
+#
+# An allowlist that can be defeated by naming a variable well is not an allowlist.
 regexes = [
-  '''(?i)(example|sample|placeholder|redacted|your[_-]?key|xxxx+|<[a-z_-]+>)''',
-  # The literal values Testcontainers' PostgreSQL module defaults to.
-  '''(?i)\b(test|postgres|password)\b''',
+  # Environment interpolation: the config names a secret it does not hold.
+  '''^\$\{[A-Za-z0-9_.]+\}$''',
+  '''^\$[A-Za-z_][A-Za-z0-9_]*$''',
+  # Obvious fill-in-the-blank shapes, matched WHOLE.
+  '''(?i)^(?:x{4,}|<[a-z0-9_-]+>|your[_-]?[a-z0-9_-]+|(?:example|sample|placeholder|redacted|dummy|changeme|todo)[a-z0-9_-]*)$''',
+  # The literal values Testcontainers' PostgreSQL module defaults to, and nothing that
+  # merely contains them.
+  '''^(?:test|postgres|password)$''',
 ]

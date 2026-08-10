@@ -100,6 +100,65 @@ is code, not data** — a generator with a fixed seed value, so a reader reprodu
 dataset by running something rather than by downloading rows. That is why the guard blocks
 the file class rather than reviewing the files.
 
+### A push is the publication — so the scan happens before it
+
+An earlier draft of this document justified the local scan by claiming that *a workflow
+running on push cannot cover the commit that adds it.* **That is not true of GitHub
+Actions** — workflow definitions are read from the ref being pushed, so the commit that
+introduces a scanner is scanned by it. The claim has been removed rather than quietly
+softened, because a requirement resting on a false premise is worse than no requirement:
+it gets satisfied, and nothing was checked.
+
+The real reason is simpler and does not depend on any CI platform's semantics:
+
+```
+git push  ─────────────►  published, irreversibly
+                             │
+                             └──►  CI starts  ──►  scanner finds it  ──►  notification
+```
+
+A credential in a public commit is compromised at push time, not at discovery time.
+Automated harvesters read public commits within minutes. **Every CI check is after the
+event it was supposed to prevent** — on a public repository the push lane is not
+prevention, it is incident detection with a short head start.
+
+Prevention has to happen where the irreversible act has not happened yet, which is
+locally. Hence the row above, and hence it names a date and a version rather than an
+intention.
+
+### What the self-test found
+
+The rules were tested the way everything else here is tested: by planting what they are
+supposed to catch and watching whether they refuse it. **Three secrets were planted and
+the custom rules caught one.** Two defects, both invisible to any amount of reading:
+
+1. **The rules matched only flattened property keys.** `spring.datasource.password=…`
+   matched; the nested YAML form — where the key on the line is just `password` — matched
+   nothing. That is the form Spring configuration actually takes. The repository scan had
+   been passing throughout, because there was nothing in the tree to find.
+2. **The placeholder allowlist matched substrings.** Any secret whose text happened to
+   contain `example` or `placeholder` anywhere inside it was exempted. The planted secret
+   that exposed this was named `s3cr3t-not-a-placeholder-value`, and it would have been
+   waved through on the strength of its own name. *An allowlist that can be defeated by
+   naming a variable well is not an allowlist.*
+
+There was a third, found by writing the test itself: the first version of the job embedded
+its planted secrets as literals, and the working-tree scan promptly reported the workflow
+file. Correctly — **a scanner cannot tell a fixture from a leak, and should not try.** The
+choice was to allowlist that file or to stop putting secrets in it. Allowlisting would have
+exempted the one file in the repository whose purpose is to contain secret-shaped text,
+which is a hole shaped exactly like the thing it catches. The values are generated at run
+time instead.
+
+All three are fixed, and the test that found them is now a CI job with a **negative** control
+as well as a positive one. A rule set that reports everything is as useless as one that
+reports nothing: findings that are routinely wrong are findings nobody reads, which is the
+same outcome as not scanning.
+
+The general lesson is the one this whole repository is organised around. **The scan was
+green before and after the defect was introduced.** Nothing about a passing check
+distinguishes "there is nothing to find" from "this cannot find anything."
+
 ## Checklist
 
 **A "state" column is a declaration, and declarations drift.** Each row therefore says how
@@ -112,7 +171,8 @@ observable.
 | --- | --- | --- |
 | `PUB-1` | A scanner runs inside the workflow, not as a hosted feature, so it survives a switch to private | **reviewed** — in place 2026-08-10; nothing yet stops its removal |
 | `PUB-1` | Full-history scan is clean, or every finding carries a rotation date | **observed** — the scheduled lane of `secret-scan.yml` |
-| `PUB-1` | The commit that introduces the scanner was itself scanned | **reviewed** — a workflow running on push cannot cover the commit that adds it. Run `gitleaks detect` locally against the tree before the first public push; record the result here. **Not yet done** |
+| `PUB-1` | **The tree and history were scanned locally, before the first public push** | **reviewed** — done 2026-08-10. gitleaks v8.30.1, history (2 commits) and working tree, both clean. Why this is not left to CI: §*A push is the publication* below |
+| `PUB-1` | **The rules have been watched refuse a planted secret — and watched not refuse a non-secret** | **observed** — the `config-self-test` job of `secret-scan.yml`. It exists because running it for the first time found two real defects: §*What the self-test found* below |
 | `PUB-2` | `LICENSE` is the canonical Apache-2.0 text | **observed** — checksum guard, pinned 2026-08-10 |
 | `PUB-3` | `README.md` states purpose, structure, and current state | **reviewed** — written 2026-08-10 |
 | `PUB-3` | Every managed document carries `Created` and `Updated` | **reviewed** — no workflow enforces it yet |

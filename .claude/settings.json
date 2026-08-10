@@ -1,0 +1,64 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew:*)",
+      "Bash(gradle:*)",
+      "Bash(java -version)",
+      "Bash(javac -version)",
+
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote -v)",
+      "Bash(git blame:*)",
+      "Bash(git stash list)",
+
+      "Bash(docker ps:*)",
+      "Bash(docker images:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker stats --no-stream:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose logs:*)",
+
+      "Bash(psql:*)",
+      "Bash(pg_isready:*)",
+
+      "Bash(k6 run:*)",
+      "Bash(k6 version)",
+
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(du:*)",
+      "Bash(df:*)",
+      "Bash(file:*)",
+      "Bash(sha256sum:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+
+      "WebFetch(domain:api.spring.io)",
+      "WebFetch(domain:start.spring.io)",
+      "WebFetch(domain:docs.spring.io)",
+      "WebFetch(domain:hibernate.org)",
+      "WebFetch(domain:docs.jboss.org)",
+      "WebFetch(domain:www.postgresql.org)",
+      "WebFetch(domain:java.testcontainers.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.adoptium.net)",
+      "WebFetch(domain:central.sonatype.com)",
+      "WebFetch(domain:grafana.com)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fdx:*)",
+      "Bash(docker system prune:*)",
+      "Bash(docker volume rm:*)"
+    ]
+  }
+}

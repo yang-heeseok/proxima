@@ -151,10 +151,19 @@ exempted the one file in the repository whose purpose is to contain secret-shape
 which is a hole shaped exactly like the thing it catches. The values are generated at run
 time instead.
 
-All three are fixed, and the test that found them is now a CI job with a **negative** control
-as well as a positive one. A rule set that reports everything is as useless as one that
-reports nothing: findings that are routinely wrong are findings nobody reads, which is the
-same outcome as not scanning.
+All three are fixed. **The fixed state carries its own number, because a claim that
+something was repaired is exactly the kind of claim `PUB-4` refuses to take on trust:**
+
+| | Planted | Reported | |
+| --- | --- | --- | --- |
+| Before — custom rules as first written | 3 secrets | **1** | two missed outright |
+| After — positive control | 4 secrets | **4** | JDBC-inline, nested YAML password, nested YAML signing key, flattened property |
+| After — **negative control** | 4 non-secrets | **0** | `postgres`, `${VAR}`, `<your-token-here>`, `xxxx` |
+| After — repository itself | — | **0** | git history and working tree, gitleaks v8.30.1 |
+
+The negative control is half the test, not a courtesy. A rule set that reports everything is
+as useless as one that reports nothing: findings that are routinely wrong are findings
+nobody reads, which is the same outcome as not scanning.
 
 The general lesson is the one this whole repository is organised around. **The scan was
 green before and after the defect was introduced.** Nothing about a passing check

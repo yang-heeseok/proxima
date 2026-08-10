@@ -1,0 +1,95 @@
+#!/bin/sh
+# The refusal rung of PUB-7.
+#
+# THREE RUNGS, AND THIS IS THE ONLY ONE THAT CAN REFUSE ANYTHING IN TIME.
+#
+#   edit-time    feedback   -- tells you after the write has already happened
+#   pre-commit   REFUSAL    -- this file. The last point before the act
+#   CI           authority  -- runs after a push, and a push to a public
+#                             repository IS the publication
+#
+#   docs/decisions/publication-readiness.md §"A push is the publication" owns the
+#   reasoning. The short version: no-learner-data.yml is real, it works, and it
+#   reports a disclosure rather than preventing one. On a public repository the
+#   rows are already gone by the time it speaks.
+#
+# WHY IT EXISTS NOW AND NOT BEFORE. It was deliberately not written while the
+# repository held no data -- a guard that protects nothing is not free, it is
+# unbanked, and this project has already paid a day for building one early
+# (AGENTS.md §Scope). The condition changed when the generator ran: seed-out/
+# now holds seven .tsv files and 3,963,719 rows. There is finally something to
+# refuse.
+#
+# WHY A FILE-CLASS BLOCK AND NOT A REVIEW. Deciding whether a particular
+# extract is anonymous enough is a judgement, and PUB-7 declines to make it.
+# The seed is code. A dataset in a commit is a dataset whose provenance nobody
+# can check, and in this domain the rows describe minors.
+#
+# .gitignore ALREADY COVERS seed-out/ AND *.tsv, AND THAT IS NOT THE POINT.
+# .gitignore is a default, and `git add -f` overrides it without comment. This
+# refuses. The two failure modes it actually catches are a forced add, and a
+# generator that one day writes .dat or .ndjson instead -- a name .gitignore
+# does not list yet.
+#
+# INSTALL (once per clone -- hooks are not cloned):
+#     git config core.hooksPath .githooks
+# Its absence is invisible, so CONTRIBUTING-level docs say so and CI stays the
+# authority regardless. A hook nobody installed must never be the only guard.
+#
+# BYPASS. `git commit --no-verify` skips this. That is deliberate and is not a
+# hole to close: a refusal that cannot be overridden gets the hook uninstalled
+# instead, and then nothing checks. The bypass exists so that the guard survives
+# the one commit somebody genuinely needs to force.
+
+set -eu
+
+fail=0
+
+# 1. No data-class file, whatever it is called and however it was added.
+data=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -Ei '\.(csv|tsv|jsonl|ndjson|parquet|avro|dump|bak|db|sqlite3?|sql\.gz)$' || true)
+if [ -n "$data" ]; then
+  printf '\nREFUSED -- a data-class file is staged:\n'
+  printf '  %s\n' $data
+  printf '\nThe seed is code. Regenerate it with seed/ from the fixed seed value.\n'
+  printf 'This repository is public and its history cannot be erased; if these rows\n'
+  printf 'describe real learners, committing them is a disclosure, not a mistake to\n'
+  printf 'fix later. See docs/decisions/publication-readiness.md PUB-7.\n'
+  fail=1
+fi
+
+# 2. No .sql outside the migration directory. Migrations carry schema; a .sql
+#    anywhere else is usually rows.
+MIGRATION_DIR=api/src/main/resources/db/migration
+stray=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -Ei '\.sql$' | grep -v "^${MIGRATION_DIR}/" || true)
+if [ -n "$stray" ]; then
+  printf '\nREFUSED -- a .sql file is staged outside %s:\n' "$MIGRATION_DIR"
+  printf '  %s\n' $stray
+  fail=1
+fi
+
+# 3. Nothing shaped like a personal identifier. A resident registration number
+#    is unambiguous; a phone number is matched in the Korean mobile shape.
+#    Documentation is exempt so SECURITY.md can publish a contact address.
+pii=$(git diff --cached --name-only --diff-filter=AM \
+  | grep -v '^docs/' | grep -v '^SECURITY\.md$' | grep -v '^\.github/' || true)
+if [ -n "$pii" ]; then
+  hits=$(printf '%s\n' $pii | xargs -r git grep -nIE \
+    -e '[0-9]{6}-[1-4][0-9]{6}' \
+    -e '01[016789]-?[0-9]{3,4}-?[0-9]{4}' \
+    --cached -- 2>/dev/null || true)
+  if [ -n "$hits" ]; then
+    printf '\nREFUSED -- something shaped like a personal identifier is staged:\n%s\n' "$hits"
+    printf '\nIf this is generated material, change the generator to emit a shape that\n'
+    printf 'cannot be mistaken for a real identifier.\n'
+    fail=1
+  fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+  printf '\n(To override deliberately: git commit --no-verify)\n\n'
+  exit 1
+fi
+
+exit 0

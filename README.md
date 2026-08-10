@@ -4,9 +4,12 @@
 under load and concurrency.**
 
 > **Created**: 2026-08-10 · **Updated**: 2026-08-10
-> **Status: no application code yet.** This repository currently holds documents, CI
-> guards, and a baseline schema. Everything below that has no number in it has no number
-> because it has not been measured — see `docs/explanation/measurement-discipline.md`.
+> **Status: the build stands up and the dataset loads. No defect has been reproduced yet.**
+> There is a Gradle build on Spring Boot 4.1.0 and JDK 21, a schema that applies to a real
+> PostgreSQL under test, and a generator that produces and loads 3,963,719 rows from a
+> fixed seed value. **Every row of the results table below is still 미측정**, because the
+> reports are the product and none exists yet — see
+> `docs/explanation/measurement-discipline.md`.
 
 ---
 

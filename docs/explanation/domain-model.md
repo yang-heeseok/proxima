@@ -3,7 +3,9 @@
 > **Created**: 2026-08-10
 > **Updated**: 2026-08-10
 
-**Status:** Baseline schema settled (`V1__baseline.sql`). No application code yet.
+**Status:** Baseline schema settled (`V1__baseline.sql`) and verified to apply against
+PostgreSQL 16.14 under test. The scale table below is **generated and loaded** as of
+2026-08-10 — see `seed/README.md`. No domain entities exist yet.
 
 This document owns **what the data means, how much of it there is, and where it comes
 from.**
@@ -88,6 +90,12 @@ Fixed, so that every report in this repository is comparing like with like.
 | `item_concept` | ~250,000 | |
 | `attempt` | **3,000,000** | ~3,000 per learner, spread over 18 months |
 | `mastery` | ~600,000 | |
+
+**Realised 2026-08-10**, counted in the database rather than in the generator: `learner`
+1,000 · `concept` 3,000 · `concept_edge` 8,994 · `item` 100,000 · `item_concept` 249,725 ·
+`attempt` 3,000,000 · `mastery` 600,000 — **3,963,719 rows**. The two approximate rows are
+approximate by construction: prerequisite edges and item-concept links are drawn per row,
+so the totals land near the figure above rather than on it.
 
 Three million rows is chosen because it is the smallest size at which the difference
 between a good plan and a bad plan is unambiguous on a developer machine. Below roughly a

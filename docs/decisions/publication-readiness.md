@@ -3,8 +3,9 @@
 > **Created**: 2026-08-10
 > **Updated**: 2026-08-10
 
-**Status:** Requirements settled. The checklist is in progress — this repository currently
-holds documents, guards, and a baseline schema, and no application code yet.
+**Status:** Requirements settled. The checklist is in progress — this repository holds
+documents, guards, a baseline schema, a Gradle build, and a dataset generator. No defect
+has been reproduced and no report exists yet.
 
 This document owns **the standing requirements for publication, and what discharges each.**
 
@@ -177,7 +178,7 @@ observable.
 | `PUB-3` | `README.md` states purpose, structure, and current state | **reviewed** — written 2026-08-10 |
 | `PUB-3` | Every managed document carries `Created` and `Updated` | **reviewed** — no workflow enforces it yet |
 | `PUB-4` | Every document states what it does not own | **reviewed** |
-| `PUB-4` | No prose claims an implementation state that does not exist | **reviewed** — the repository currently has no application code, and every document says so |
+| `PUB-4` | No prose claims an implementation state that does not exist | **reviewed** — re-checked 2026-08-10 when the build landed. Three documents had gone stale in the same hour by still saying "no application code yet", which is the failure mode this row exists to catch: the claim was true when written and nothing re-reads it |
 | `PUB-4` | **Every published number carries its measurement environment** | **reviewed** — the report template carries the block; **no workflow enforces it yet.** This row is a candidate for becoming observable |
 | `PUB-4` | **Every report has a non-empty *남는 위험* section** | **reviewed** — a machine can see the heading exists, not that it is honest. Making the heading observable is worth doing anyway |
 | `PUB-4` | Every undecided item is recorded as undecided | **observed by presence** — `docs/decisions/open.md` |
@@ -186,5 +187,5 @@ observable.
 | `PUB-7` | No data-class file is tracked anywhere | **observed** — `no-learner-data.yml`, and the guard is self-tested against planted violations |
 | `PUB-7` | No `.sql` outside the migration directory | **observed** — same workflow. Migrations carry schema; a `.sql` elsewhere is usually rows |
 | `PUB-7` | Nothing shaped like a personal identifier is tracked | **observed** — pattern check, self-tested |
-| `PUB-7` | The seed is produced by code from a fixed seed value | **reviewed** — the design; see `docs/explanation/domain-model.md`. Becomes observable once the generator exists and CI regenerates it |
+| `PUB-7` | The seed is produced by code from a fixed seed value | **partly observed** — the generator exists and `GeneratorTest` asserts that one seed value yields byte-identical output, plus a control that a *different* seed differs, so a generator emitting constants cannot pass. Still **reviewed** rather than observed for the part that matters most: no CI lane regenerates and compares, so reproducibility is established on one machine only |
 | `PUB-7` | No generated identifier can be mistaken for a real one | **reviewed** — a machine can see a shape, not an intention |

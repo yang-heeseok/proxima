@@ -11,6 +11,7 @@ plugins {
 
 val javaToolchainVersion: String by project
 val querydslVersion: String by project
+val archunitVersion: String by project
 
 kotlin {
     jvmToolchain(javaToolchainVersion.toInt())
@@ -48,6 +49,12 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // The T3 regression gate. These rules are structural: they read bytecode and fail when
+    // a shape returns that made @Transactional inert, which is a class of defect no runtime
+    // test can catch cheaply -- the runtime test needs a container, a schema, and a
+    // deliberately failing unit of work to see it.
+    testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
 }
 
 tasks.withType<Test> {

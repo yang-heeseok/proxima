@@ -1,0 +1,75 @@
+# The test lane.
+#
+# WHY THIS EXISTS, AND WHY IT DID NOT EXIST UNTIL NOW.
+#
+#   Until T3 there was nothing for it to protect: the repository held documents, guards, a
+#   schema, and a generator with its own tests. Adding a CI lane before there was code to
+#   break is the kind of unbanked infrastructure AGENTS.md Scope warns about.
+#
+#   T3 changed the condition. Its regression gate is a set of ArchUnit rules, and a rule
+#   that nothing runs is a comment. The gate and the lane that runs it arrive together.
+#
+# WHAT THIS LANE MAY NOT BECOME.
+#
+#   It reports pass or fail. It does NOT publish numbers, and it must not start to without
+#   closing OPEN-5 first: a measurement taken on a shared runner of unstated size is not
+#   comparable to one taken on the machine in measurement-discipline.md, and this
+#   repository's product is comparable numbers. If a load lane is ever wanted here, the
+#   environment has to be stated per-run or the lane stops publishing.
+
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: gradlew test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      # The toolchain version is NOT repeated here. gradle.properties owns it, and Gradle
+      # resolves the toolchain itself -- a version pinned in two places is a version that
+      # will disagree with itself. This step only has to provide a JDK new enough to run
+      # Gradle; the build then selects the toolchain it was told to.
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      # Testcontainers needs a Docker daemon. GitHub's ubuntu runners provide one; this
+      # step fails loudly if that ever stops being true, rather than letting the test lane
+      # fail with a confusing connection error deep inside a Spring context.
+      - name: docker is reachable
+        run: |
+          set -eu
+          docker version --format 'server {{.Server.Version}}'
+
+      - name: test
+        run: ./gradlew test --no-daemon --console=plain
+
+      - name: publish the failing test output
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: |
+            api/build/reports/tests/
+            api/build/test-results/
+            seed/build/reports/tests/
+            seed/build/test-results/
+          retention-days: 7

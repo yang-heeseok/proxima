@@ -74,6 +74,18 @@ jobs:
       #   This is the lane telling the truth about itself, which is the same standard the
       #   guards in the other workflows are held to.
 
+      # The step that would have named the first failure of this lane immediately.
+      #
+      #   `gradlew` was committed from a Windows checkout as mode 100644. Every local run
+      #   was green because the working tree lives on a drvfs mount, which reports every
+      #   file as 0777 no matter what git records -- so the missing executable bit was
+      #   invisible on the machine that created it and fatal on every clean clone.
+      #
+      #   Without this step the failure lands on "compile", which is exactly the wrong
+      #   place to look: Gradle had not started.
+      - name: the wrapper is executable and runs
+        run: ./gradlew --version --no-daemon
+
       - name: compile, including test sources
         run: ./gradlew testClasses --no-daemon --console=plain --stacktrace
 

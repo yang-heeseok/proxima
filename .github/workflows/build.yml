@@ -59,14 +59,44 @@ jobs:
           set -eu
           docker version --format 'server {{.Server.Version}}'
 
-      - name: test
-        run: ./gradlew test --no-daemon --console=plain
+      # SPLIT ON PURPOSE, AND THE REASON IS WORTH KEEPING.
+      #
+      #   The first failure of this lane could not be diagnosed. Workflow logs need an
+      #   authenticated token to read through the API, the artifact upload needs one too,
+      #   and the run had produced no test-results to upload in the first place -- so the
+      #   only fact available was "the test step failed", which was consistent with a
+      #   compile error, a missing Docker daemon, and a genuine test failure alike.
+      #
+      #   Step CONCLUSIONS are readable without a token. Splitting one step into four turns
+      #   an opaque failure into a located one, without needing to read anything. The order
+      #   is cheapest-and-least-dependent first, so the first red step names the layer.
+      #
+      #   This is the lane telling the truth about itself, which is the same standard the
+      #   guards in the other workflows are held to.
 
-      - name: publish the failing test output
+      - name: compile, including test sources
+        run: ./gradlew testClasses --no-daemon --console=plain --stacktrace
+
+      - name: seed tests — pure JVM, no database
+        run: ./gradlew :seed:test --no-daemon --console=plain --stacktrace
+
+      - name: architecture rules — bytecode only, no database
+        run: >
+          ./gradlew :api:test --no-daemon --console=plain --stacktrace
+          --tests "net.gseek.proxima.arch.*"
+
+      - name: api tests — Testcontainers, real PostgreSQL
+        run: ./gradlew :api:test --no-daemon --console=plain --stacktrace
+
+      # Uploaded for a person to read, since the API route needs a token. `warn` rather
+      # than the default so that a run which failed BEFORE producing any results still
+      # completes this step instead of failing here and hiding the original cause.
+      - name: publish whatever the run produced
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results
+          if-no-files-found: warn
           path: |
             api/build/reports/tests/
             api/build/test-results/

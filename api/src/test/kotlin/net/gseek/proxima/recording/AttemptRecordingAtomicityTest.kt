@@ -1,0 +1,60 @@
+package net.gseek.proxima.recording
+
+import net.gseek.proxima.TestcontainersConfiguration
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
+import java.math.BigDecimal
+import kotlin.test.assertEquals
+
+/**
+ * The same operation, observed from outside a transaction. **This one discriminates.**
+ *
+ * The single difference from `AttemptRecordingServiceTest` is the absence of
+ * `@Transactional` on this class, and that absence is the entire experiment. Without it:
+ *
+ * - the service's writes are not swept up into a transaction the test opened,
+ * - so they commit or roll back on their own terms,
+ * - and a read afterwards sees what a *second request* would see, rather than what the
+ *   caller's own uncommitted transaction happens to contain.
+ *
+ * That is the only vantage point from which a transaction boundary is observable at all.
+ * The price is that cleanup becomes the test's own job, which is why `RecordingFixture`
+ * exists and why it commits.
+ *
+ * **This test is expected to FAIL at the commit that introduces it.** It is the `red` half
+ * of `T3` and it fails by finding one committed `attempt` row belonging to a unit of work
+ * that raised. The `green` commit makes it pass without changing a line of this file.
+ */
+@SpringBootTest
+@Import(TestcontainersConfiguration::class, RecordingFixture::class)
+class AttemptRecordingAtomicityTest {
+
+    @Autowired private lateinit var service: AttemptRecordingService
+    @Autowired private lateinit var fixture: RecordingFixture
+
+    @AfterEach
+    fun cleanUp() = fixture.clear()
+
+    @Test
+    fun `a recording that fails on its second write leaves no attempt behind`() {
+        val scene = fixture.scene()
+
+        assertThrows<IllegalArgumentException> {
+            service.recordAll(
+                scene.learnerId,
+                listOf(fixture.recording(scene, scoreDelta = BigDecimal("1.500"))),
+            )
+        }
+
+        assertEquals(
+            0L, fixture.countAttempts(),
+            "an attempt was committed by a unit of work that failed. The attempt and the " +
+                "mastery it updates are one unit -- a learner whose history and whose state " +
+                "disagree is not reconciled by anything downstream",
+        )
+    }
+}

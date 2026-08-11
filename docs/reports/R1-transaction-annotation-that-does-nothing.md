@@ -215,6 +215,20 @@ would be vacuous.
   round trips than one per batch.
 - **The rules are structural.** They answer *can this work* and not *does this work*. A
   boundary correctly placed around the wrong set of writes passes every rule here.
+- **The green claim in this report was originally made on evidence that did not support
+  it.** `9388743` and `4141a65` both say *"`./gradlew test` green, 27 tests"*. That was
+  green on one machine, with a warm dependency cache, against the working tree. CI was red
+  from the moment the lane existed — `gradlew` had been committed as mode `100644`, so no
+  clean clone could run it at all, and the working tree hid that because it lives on a
+  drvfs mount which reports every file as `0777` regardless of what git records. Fixed at
+  `56f304c`. **The numbers in §3 and §6 are unaffected** — they were taken by running the
+  tests, which did run here — but the *claim of a green suite* was not established until CI
+  passed at `56f304c`. The faithful local reproduction of a CI build is **a fresh clone
+  with an empty `GRADLE_USER_HOME`**; anything less shares state with the machine that
+  wrote the code, which is the thing under test.
+- **The gate has now run on exactly two machines and has never failed on the second.** One
+  green CI run is not a claim about the rule set's stability under other JDK patch levels,
+  container runtimes, or filesystem semantics. 미측정.
 - **What would break the conclusion:** a Spring release that stops proxying by subclassing,
   or a change to Spring Data so that repository methods no longer open their own
   transactions. The second is what makes the leaked row durable; without it the writes
@@ -238,3 +252,13 @@ T6가 다룰 주제를 T3 안에 끌고 들어온 셈이라 실패를 애플리�
 엔티티가 `final`이라 지연 프록시가 안 만들어진다"고 확신했다. 고치기 전에 바이트코드를 봤더니 틀렸다 —
 `kotlin("plugin.jpa")`가 이미 열고 있었다. **설정을 그럴듯하게 읽은 것은 동작을 관측한 것이 아니다.**
 이 저장소가 다루는 실수를 내가 20분 만에 작게 재현한 거라 커밋에 남겼다.
+
+네 번째는 가장 부끄럽고 가장 쓸모 있다. 이 리포트를 다 쓰고 푸시했더니 CI가 빨간불이었다. 원인은
+`gradlew`가 실행 권한 없이 커밋된 것 — Gradle이 시작조차 못 했다. 로컬에서 안 보인 이유는 작업 트리가
+WSL2의 drvfs 마운트 위에 있어서 **git이 뭘 기록했든 모든 파일이 0777로 보이기 때문**이었다. 그리고 내가
+"컴파일 문제 아님"이라고 기각한 근거는 `clean test`였는데, 그건 `build/`만 지우지 **의존성 캐시도
+추적 상태도 안 건드린다.** 임시 디렉터리로 클론해서 돌리니 첫 시도에 재현됐다.
+
+즉 나는 이 리포트에서 *"테스트가 초록이라는 사실이 무엇을 증명하는가"* 를 두 번 배웠다. 한 번은 T3에서
+테스트가 트랜잭션을 검증하지 않는다는 걸로, 한 번은 내 커밋 메시지의 `green`이 **이 기계, 이 캐시,
+이 작업 트리에서만** 초록이었다는 걸로. 두 번째가 첫 번째보다 덜 정교하지만 더 자주 물릴 것 같다.

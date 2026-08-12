@@ -67,7 +67,7 @@ because measuring it without those two would produce numbers nobody could trust.
 
 | # | Item | State |
 | --- | --- | --- |
-| **T7** | **A test that counts queries.** Asserting the number of statements a request issues, so an N+1 reintroduced later fails CI instead of being noticed in production. Performance held by a test rather than by review | ☐ |
+| **T7** | **A test that counts queries.** Asserting the number of statements a request issues, so an N+1 reintroduced later fails CI instead of being noticed in production. Performance held by a test rather than by review | **done** — `R8`. The shipped read is **1 statement at any row count**; the entity path `R4` rejected is **2 + n**. Counts are exact rather than upper bounds, because a bound drifts upward one honest commit at a time. **The finding: the service does not contain the N+1, it hands one out** — measured alone it costs 2 statements whatever the size, and a gate scoped to it would have certified an N+1 as clean. §8: this covers **one** read path out of everything the application does |
 | **T8** | **What an in-memory database does not tell you.** Cases that pass against H2 and fail against PostgreSQL — upsert syntax, types, collation-dependent ordering, reserved words, and identifier generation, which quietly decides whether inserts can be batched at all. Plus container reuse, with the CI time before and after | ☐ |
 | **T9** | **Authorisation, exposure, tokens.** An endpoint that authenticates and does not authorise; management endpoints exposed wholesale, including the one that dumps the heap and everything that was in it; token expiry and clock skew | ☐ |
 

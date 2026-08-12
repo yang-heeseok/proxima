@@ -19,3 +19,14 @@ spring:
     url: jdbc:postgresql://never-dialled.invalid:1/replaced-by-serviceconnection
     username: replaced-by-serviceconnection
     password: replaced-by-serviceconnection
+
+  # Statement counting for T7, on in tests and off in production.
+  #
+  #   Hibernate keeps these counters only when asked, and asking costs a little on every
+  #   statement. That is a fine price for a test lane and not one to pay on every request
+  #   in production for a number nobody reads there -- so it lives in the profile that only
+  #   tests activate, and StatementCounter fails loudly if it is ever missing.
+  jpa:
+    properties:
+      hibernate:
+        generate_statistics: true

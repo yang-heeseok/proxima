@@ -4,9 +4,11 @@
 > **Updated**: 2026-08-12
 > **Red commit**: `cceec6a` — the state in which the mechanism was observed
 > **Green commit**: **none. This report does not have one.**
-> **Status**: **The mechanism is established. The remedy is not.** `T1` is deferred until
-> `T4` lands, for the reason in §5. This is not a summary of finished work — it is the
-> record of an experiment that could not answer its own question yet.
+> **Status**: **Superseded by `R4`**, which concluded `T1` after `T4` shipped the index.
+> This report is kept rather than rewritten: it established the mechanism, refused to choose
+> a remedy on evidence that could not support one, and its §5 is why `T4` ran first. It also
+> contains an arm comparison that `R4` showed was **measuring two arms that both held the
+> connection** — see `R4` §3.2. Reading the two together is the point.
 
 ```
 측정 환경 / Measurement environment

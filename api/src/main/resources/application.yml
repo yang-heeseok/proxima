@@ -5,18 +5,25 @@
 # something that happens to work on one machine. This repository is public and a pushed
 # secret is compromised at push time, not at discovery time -- see PUB-1.
 #
-# NOTE ON WHAT IS *NOT* SET HERE.
+# NOTE ON open-in-view, WHICH IS NOW SET.
 #
-#   spring.jpa.open-in-view is left unset, which means it is ON.
+#   It was deliberately left unset -- and therefore ON -- until T1 measured what that cost.
+#   It is now off, and R4 carries the numbers: at 200 VU, p99 9064 ms -> 5919 ms with the
+#   pool unchanged at ten connections. With it on, 8 of those 10 connections were idle at
+#   any instant while 189 requests queued for one.
 #
-#   That is deliberate and it is the subject of T1. The interesting property of this
-#   setting is not that it can be wrong -- it is that it is wrong BY DEFAULT, in a
-#   repository where nobody typed it. Writing `open-in-view: true` here would be a
-#   different and much less honest experiment, because it would document the very thing
-#   the report is about a team not knowing.
+#   TURNING IT OFF IS HALF OF THE FIX AND DOES NOT WORK ALONE. With it off, any lazy
+#   association touched after the transaction raises LazyInitializationException. The other
+#   half is proxima.recommendation.strategy=projection below, which is why both changed in
+#   the same commit.
 #
-#   Spring logs a warning about it at startup. That warning is quoted in the T1 report
-#   rather than silenced.
+#   Measured, not assumed: switching only the strategy and leaving this ON changes nothing
+#   at all -- the connection is held for the whole request whether or not anything lazy is
+#   touched. R4 §3.2.
+#
+#   Setting it explicitly also silences Spring's startup warning. That warning is about not
+#   having decided, not about the value: pinning it to `true` to quieten the log keeps the
+#   behaviour and loses the notice.
 
 spring:
   application:
@@ -28,6 +35,9 @@ spring:
     password: ${PROXIMA_DB_PASSWORD}
 
   jpa:
+    # See the note at the top of this file. Off, with the code that makes it survivable.
+    open-in-view: false
+
     # The schema is owned by Flyway. Hibernate never creates or alters a table here --
     # ADR-002 depends on the migration sequence being the only thing that shapes the
     # database, because that sequence is the argument the repository is making.

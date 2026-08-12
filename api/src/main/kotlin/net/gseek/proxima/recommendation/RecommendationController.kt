@@ -46,9 +46,15 @@ class RecommendationController(
      * sequences sitting alongside the difference being measured. One process, one flag, and
      * the only thing that changes between runs is the code path.
      *
-     * The default is `entities`, which is the state `T1` reports as `red`.
+     * The default is now `projection` — `R4` chose it, and `application.yml` turns
+     * `open-in-view` off beside it because **neither half works alone**.
+     *
+     * `entities` is kept so the `red` state stays runnable, and it **requires
+     * `--spring.jpa.open-in-view=true`**. With the shipped configuration it raises
+     * `LazyInitializationException`, which is not a bug in this class: it is the finding
+     * from `R2` §3.1 that the code and the setting are one decision, not two.
      */
-    @Value("\${proxima.recommendation.strategy:entities}")
+    @Value("\${proxima.recommendation.strategy:projection}")
     private val strategy: String,
 ) {
 

@@ -83,25 +83,54 @@ class UniquenessRaceTest {
     }
 
     /**
-     * **The red state.** Eight requests, one concept, and the database is happy to store
-     * eight masteries of it.
+     * The naive path, now that `V3` enforces the rule.
      *
-     * `V1` omits `unique (learner_id, concept_id)` on purpose — `ADR-002` — so this is what
-     * the domain rule is worth when only the application enforces it.
+     * Before `V3` this produced **eight rows and zero failures** (`ad474d8`). The constraint
+     * does not make the code correct — it makes the code's incorrectness visible, by turning
+     * seven silent duplicates into seven exceptions. That is the trade the report weighs.
      */
     @Test
-    fun `an application-level existence check does not make anything unique`() {
+    fun `the constraint turns silent duplicates into loud failures`() {
         val (learnerId, conceptId) = scene("nai")
         val r = race(learnerId, conceptId) { l, c -> provisioner.findOrCreateNaive(l, c) }
         report("naive check-then-insert", r)
 
-        assertEquals(0, r.failures, "nobody failed, which is why nobody notices")
+        assertEquals(1, r.rows, "the constraint must permit exactly one row")
         assertTrue(
-            r.rows > 1,
-            "expected duplicate mastery rows and found ${r.rows}. If this is 1, either the " +
-                "race did not happen or something is now enforcing uniqueness -- and if it " +
-                "is a constraint, this test should be measuring the constraint instead",
+            r.failures > 0,
+            "expected the losers to fail loudly; none did, so either the race did not " +
+                "happen or something is swallowing the violation",
         )
+    }
+
+    /**
+     * The repair that reads the winner's row after losing — **in the same transaction**.
+     *
+     * This is the natural fix and it is where PostgreSQL differs from other databases: a
+     * constraint violation aborts the entire transaction, so the recovery read runs inside
+     * a transaction that can no longer execute anything. `R1` §9 met this by accident while
+     * measuring `T3`; here it is the subject.
+     */
+    @Test
+    fun `catching the violation and reading again, in the same transaction`() {
+        val (learnerId, conceptId) = scene("cat")
+        val r = race(learnerId, conceptId) { l, c -> provisioner.findOrCreateCatching(l, c) }
+        report("catch + re-read (same tx)", r)
+
+        assertEquals(1, r.rows)
+    }
+
+    /** The same repair with the insert in its own transaction, so the failure is confined. */
+    @Test
+    fun `isolating the insert lets the recovery read succeed`() {
+        val (learnerId, conceptId) = scene("iso")
+        val r = race(learnerId, conceptId) { l, c ->
+            provisioner.findOrCreateIsolatingTheInsert(l, c)
+        }
+        report("catch + re-read (inner tx)", r)
+
+        assertEquals(1, r.rows)
+        assertEquals(0, r.failures, "every caller should end up with the winner's row")
     }
 
     /**
@@ -119,12 +148,12 @@ class UniquenessRaceTest {
      * change is the point.
      */
     @Test
-    fun `the upsert cannot even run without the constraint it conflicts on`() {
+    fun `the upsert works, now that there is something to conflict on`() {
         val (learnerId, conceptId) = scene("ups")
         val r = race(learnerId, conceptId) { l, c -> provisioner.findOrCreateByUpsert(l, c) }
         report("upsert (on conflict)", r)
 
-        assertEquals(racers, r.failures, "expected every upsert to be rejected outright")
-        assertEquals(0, r.rows, "and to have created nothing")
+        assertEquals(1, r.rows, "one statement, one row, whoever wins")
+        assertEquals(0, r.failures, "and nobody has to lose")
     }
 }

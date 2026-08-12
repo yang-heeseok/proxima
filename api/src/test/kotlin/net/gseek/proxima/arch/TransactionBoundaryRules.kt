@@ -120,11 +120,25 @@ object TransactionBoundaryRules {
     )
 }
 
+/**
+ * Kotlin compiles a function with default arguments into the function plus a synthetic
+ * static bridge named `foo$default`, and the bridge calls the real method. ArchUnit sees
+ * that as a self-invocation and it is not one: the bridge receives the **proxy** as its
+ * receiver argument and dispatches through it, so the advice applies normally.
+ *
+ * Established by measurement rather than by reading — `R6` §3.3 exercised such a method
+ * under concurrency and it behaved transactionally throughout. Without this exclusion the
+ * rule reports every `@Transactional` method that has a default argument, and **a rule that
+ * is routinely wrong is a rule nobody reads**, which is the same outcome as not having one.
+ */
+private fun JavaMethod.isKotlinDefaultArgumentBridge(): Boolean = name.endsWith("\$default")
+
 private fun notBeCalledFromWithinTheirOwnClass() =
     object : ArchCondition<JavaMethod>("not be called from within their own class") {
         override fun check(method: JavaMethod, events: ConditionEvents) {
             method.accessesToSelf
                 .filter { it.originOwner == method.owner }
+                .filterNot { (it.origin as? JavaMethod)?.isKotlinDefaultArgumentBridge() == true }
                 .forEach { access ->
                     events.add(
                         SimpleConditionEvent.violated(

@@ -71,7 +71,7 @@ class BaselineMigrationTest {
         )
 
         assertEquals(
-            listOf("1", "2"), applied.map { it["version"] },
+            listOf("1", "2", "3"), applied.map { it["version"] },
             "the migration sequence changed -- it is the argument this repository makes, " +
                 "so a change to it needs a report (ADR-002)",
         )
@@ -109,8 +109,12 @@ class BaselineMigrationTest {
     }
 
     @Test
-    fun `the omissions ADR-002 depends on are still omitted`() {
-        // The uniqueness race in T6 requires that two concurrent inserts can both land.
+    fun `the domain rule mastery has always claimed is now enforced`() {
+        // This assertion began life as its own opposite: "mastery must NOT yet have a unique
+        // constraint", because T6 needed the race to be reproducible. It was, at ad474d8 --
+        // eight concurrent requests, eight rows, no exception -- and V3 closed it in the
+        // same commit as the report. The inversion is ADR-002's process completing, and it
+        // is left visible rather than rewritten as if the constraint had always been there.
         val masteryUnique = jdbc.queryForList(
             """
             select conname
@@ -120,10 +124,10 @@ class BaselineMigrationTest {
             """.trimIndent(),
             String::class.java,
         )
-        assertTrue(
-            masteryUnique.isEmpty(),
-            "mastery must NOT yet have a unique constraint -- it arrives in the same " +
-                "commit as the failing test and the report, see ADR-002. Found: $masteryUnique",
+        assertEquals(
+            listOf("uk_mastery_learner_concept"), masteryUnique,
+            "a learner has exactly one mastery of one concept, and only the database can " +
+                "hold that. See ADR-002 and docs/reports/R7",
         )
     }
 }

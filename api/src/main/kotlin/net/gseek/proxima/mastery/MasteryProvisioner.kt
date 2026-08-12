@@ -42,12 +42,42 @@ interface MasteryUpsertQueries : Repository<Mastery, Long> {
  * `REQUIRES_NEW` throughout, so a caller driving these concurrently gets one transaction
  * per call rather than one transaction total.
  */
+/**
+ * The insert, on its own bean, so that `REQUIRES_NEW` actually starts a new transaction.
+ *
+ * **This began as a method on [MasteryProvisioner] and did not work.** Called through
+ * `this`, it never crossed the proxy, the "isolated" insert ran in the caller's transaction,
+ * and the constraint violation poisoned it exactly as the unisolated version did — 7
+ * failures out of 8, identical to the strategy it was supposed to improve on.
+ *
+ * The `T3` ArchUnit rule caught it, three reports after `T3` was written. See `R7` §3.4.
+ */
+@Service
+class MasteryInserter(
+    private val masteries: MasteryRepository,
+    private val learners: LearnerRepository,
+    private val concepts: ConceptRepository,
+) {
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun insertInNewTransaction(learnerId: Long, conceptId: Long) {
+        masteries.saveAndFlush(
+            Mastery(
+                learner = learners.getReferenceById(learnerId),
+                concept = concepts.getReferenceById(conceptId),
+                score = BigDecimal("0.000"),
+            ).apply { updatedAt = Instant.EPOCH },
+        )
+    }
+}
+
 @Service
 class MasteryProvisioner(
     private val masteries: MasteryRepository,
     private val learners: LearnerRepository,
     private val concepts: ConceptRepository,
     private val upserts: MasteryUpsertQueries,
+    private val inserter: MasteryInserter,
 ) {
 
     /**
@@ -112,23 +142,12 @@ class MasteryProvisioner(
     fun findOrCreateIsolatingTheInsert(learnerId: Long, conceptId: Long): Long {
         masteries.findByLearnerIdAndConceptId(learnerId, conceptId)?.let { return it.id!! }
         try {
-            insertInNewTransaction(learnerId, conceptId)
+            inserter.insertInNewTransaction(learnerId, conceptId)
         } catch (e: RuntimeException) {
             // the failure was confined to the inner transaction
         }
         return masteries.findByLearnerIdAndConceptId(learnerId, conceptId)?.id
             ?: throw IllegalStateException("no row after insert and recovery")
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    fun insertInNewTransaction(learnerId: Long, conceptId: Long) {
-        masteries.saveAndFlush(
-            Mastery(
-                learner = learners.getReferenceById(learnerId),
-                concept = concepts.getReferenceById(conceptId),
-                score = BigDecimal("0.000"),
-            ).apply { updatedAt = Instant.EPOCH },
-        )
     }
 
     /** No check, no race, no exception: one statement that cannot conflict with itself. */

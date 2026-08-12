@@ -28,6 +28,28 @@ class RecommendationService(
     private val clock: Clock,
 ) {
 
+    /**
+     * The remedy: everything the response needs, fetched while the transaction is open.
+     *
+     * **Same rule, same SQL shape, one difference — the caller is left holding values.**
+     * Nothing returned here can trigger a round trip later, so the connection returns to
+     * the pool when this method does and is not held across whatever the request does next.
+     *
+     * It also collapses the two statements [nextItems] issues into one. That is a second
+     * improvement riding along with the first and the two **cannot be separated by this
+     * measurement** — the report says so rather than attributing the whole difference to
+     * the connection hold.
+     */
+    @Transactional(readOnly = true)
+    fun nextRows(learnerId: Long, limit: Int): List<RecommendationRow> =
+        queries.findRecommendations(
+            learnerId = learnerId,
+            minDifficulty = DIFFICULTY_BAND.first,
+            maxDifficulty = DIFFICULTY_BAND.last,
+            notAttemptedSince = Instant.now(clock).minus(RECENCY_WINDOW),
+            limit = limit,
+        )
+
     @Transactional(readOnly = true)
     fun nextItems(learnerId: Long, limit: Int): List<Item> {
         val ids = queries.findRecommendedItemIds(

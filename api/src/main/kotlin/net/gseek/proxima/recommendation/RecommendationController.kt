@@ -1,5 +1,6 @@
 package net.gseek.proxima.recommendation
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -39,13 +40,30 @@ data class RecommendationView(
 class RecommendationController(
     private val recommendations: RecommendationService,
     private val content: ContentGateway,
+    /**
+     * **Both arms of `T1`'s comparison live in one binary on purpose.** Measuring them from
+     * two builds would mean two JIT histories, two page-cache states and two startup
+     * sequences sitting alongside the difference being measured. One process, one flag, and
+     * the only thing that changes between runs is the code path.
+     *
+     * The default is `entities`, which is the state `T1` reports as `red`.
+     */
+    @Value("\${proxima.recommendation.strategy:entities}")
+    private val strategy: String,
 ) {
 
     @GetMapping("/{learnerId}/recommendations")
     fun recommend(
         @PathVariable learnerId: Long,
         @RequestParam(defaultValue = "10") limit: Int,
-    ): List<RecommendationView> {
+    ): List<RecommendationView> = when (strategy) {
+        "entities" -> viaEntities(learnerId, limit)
+        "projection" -> viaProjection(learnerId, limit)
+        else -> error("unknown proxima.recommendation.strategy: $strategy")
+    }
+
+    /** `red`. The connection is held from (2) until the response is written. */
+    private fun viaEntities(learnerId: Long, limit: Int): List<RecommendationView> {
         val items = recommendations.nextItems(learnerId, limit)
 
         // (2) lazy association, outside the transaction that loaded `items`
@@ -60,6 +78,22 @@ class RecommendationController(
                 conceptName = conceptNames.getValue(item.id!!),
                 difficulty = item.difficulty,
                 renderHint = hints.getValue(item.id!!),
+            )
+        }
+    }
+
+    /** `green`. Nothing after the transaction can reach the database. */
+    private fun viaProjection(learnerId: Long, limit: Int): List<RecommendationView> {
+        val rows = recommendations.nextRows(learnerId, limit)
+
+        val hints = content.renderHints(rows.map { it.itemId })
+
+        return rows.map { row ->
+            RecommendationView(
+                itemCode = row.itemCode,
+                conceptName = row.conceptName,
+                difficulty = row.difficulty,
+                renderHint = hints.getValue(row.itemId),
             )
         }
     }

@@ -36,6 +36,15 @@ the connection-pool work establishes the load harness, and the transaction work 
 that the tests can tell truth from silence. Indexing is more interesting and comes second
 because measuring it without those two would produce numbers nobody could trust.
 
+> **Amended 2026-08-12, by measurement.** That argument is true and it is only half of one.
+> `T1` was attempted first, established its mechanism, and then could not choose a remedy:
+> the effect it measures is 150 ms per request, and on an unindexed schema the query beside
+> it moves between 140 ms and 555 ms depending on contention. **Indexing has to exist before
+> pool numbers can be trusted, exactly as much as the harness had to exist before indexing
+> numbers could be.** The two items need each other rather than ordering cleanly, and the
+> harness — which is what `T1` was placed first to build — now exists either way. `T4` runs
+> before `T1` resumes. See `R2` §5.
+
 ---
 
 ## Tier 1 — the foundation
@@ -43,7 +52,7 @@ because measuring it without those two would produce numbers nobody could trust.
 | # | Defect | State |
 | --- | --- | --- |
 | **T3** | **A transaction annotation that does nothing.** Self-invocation through `this`; a `final` class where the proxy cannot be created at all; an entity declared as a `data class`, whose generated `equals` meets a lazy proxy; an exception swallowed inside the boundary, so the outer commit fails with a rollback-only marker instead. Nothing in a passing test run reports any of it | **partly done** — `R1`, red `21e7162` / green `9388743` / gate `4141a65`. **Self-invocation is reproduced, fixed, and gated.** The other three are gated structurally but **not reproduced**: the `final` class and `data class` traps are prevented by ArchUnit rules watched refusing planted violations, and the **swallowed exception / rollback-only case is not done at all** — it belongs with `T6`, since the same PostgreSQL transaction-abort behaviour surfaced while writing `R1` |
-| **T1** | **A connection pool exhausted by a default.** The session stays open past the transaction, so a request that also calls something slow holds a database connection while doing so. The database is idle; the application times out | ☐ |
+| **T1** | **A connection pool exhausted by a default.** The session stays open past the transaction, so a request that also calls something slow holds a database connection while doing so. ~~The database is idle; the application times out~~ — **that last clause is false on this system and the measurement says so**: 5–9 of 10 pooled connections are executing a query at any instant | **deferred, deliberately** — `R2`, red `cceec6a`, **no green**. The mechanism is established (a connection is held for the whole slow call; turning the setting off raises `LazyInitializationException` rather than helping). The remedy is **not chosen**: the effect being measured is 150 ms per request and the noise around it is a 140 ms query that costs 555 ms under contention, because the index this needs is `T4`'s. **`T4` goes first; `T1` returns after it.** The ordering argument at the top of this document runs both ways and only said one |
 | **T2** | **A page that is paginated in memory.** A collection join with paging, where the framework fetches the whole result and slices it in the heap. There is a warning in the log and no error anywhere. Also: two collection joins at once, and what happens to the row count when the obvious fix is applied | ☐ |
 
 ## Tier 2 — the data layer

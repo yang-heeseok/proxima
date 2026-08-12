@@ -65,26 +65,29 @@ class BaselineMigrationTest {
     }
 
     @Test
-    fun `flyway records V1 as the only applied migration, and it succeeded`() {
+    fun `every migration applied, and all of them succeeded`() {
         val applied = jdbc.queryForList(
             "select version, success from flyway_schema_history order by installed_rank",
         )
 
-        assertEquals(1, applied.size, "expected exactly one applied migration at baseline")
-        assertEquals("1", applied[0]["version"])
-        assertEquals(true, applied[0]["success"])
+        assertEquals(
+            listOf("1", "2"), applied.map { it["version"] },
+            "the migration sequence changed -- it is the argument this repository makes, " +
+                "so a change to it needs a report (ADR-002)",
+        )
+        assertEquals(
+            emptyList(), applied.filterNot { it["success"] == true },
+            "a migration is recorded as failed",
+        )
     }
 
     @Test
-    fun `the omissions ADR-002 depends on are still omitted`() {
-        // The indexing report's first EXPLAIN is supposed to show a sequential scan.
-        // PostgreSQL creates an index for a primary key and for each unique constraint, so
-        // this counts only indexes that are neither -- which at baseline is none.
-        //
-        // flyway_schema_history is excluded because Flyway owns it and indexes it itself
-        // (flyway_schema_history_s_idx). This test found that index on its first run, which
-        // is a fair illustration of why the assertion is written as an exact set: a check
-        // that merely counted "some indexes exist" would have said nothing either way.
+    fun `the performance indexes are exactly those a report has justified`() {
+        // This assertion started as "there must be NO performance index", which was correct
+        // for as long as V1 was the whole story. V2 added one, and the test changed in the
+        // same commit as the report that measured it -- which is the process ADR-002
+        // describes, working. It is still an exact set: an index nobody measured is exactly
+        // what this is here to catch.
         val performanceIndexes = jdbc.queryForList(
             """
             select i.indexname
@@ -99,11 +102,14 @@ class BaselineMigrationTest {
             String::class.java,
         )
         assertEquals(
-            emptyList(), performanceIndexes,
-            "V1 must carry no performance index -- an index added here erases the " +
-                "measurement it was supposed to justify, see ADR-002",
+            listOf("ix_attempt_learner_attempted_at"), performanceIndexes,
+            "an index exists that no report justified, or one a report justified is gone. " +
+                "See ADR-002 and docs/reports/R3",
         )
+    }
 
+    @Test
+    fun `the omissions ADR-002 depends on are still omitted`() {
         // The uniqueness race in T6 requires that two concurrent inserts can both land.
         val masteryUnique = jdbc.queryForList(
             """

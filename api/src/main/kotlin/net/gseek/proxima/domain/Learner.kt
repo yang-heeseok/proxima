@@ -2,6 +2,8 @@ package net.gseek.proxima.domain
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
+import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import java.time.Instant
 
@@ -28,4 +30,22 @@ class Learner(
      */
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     var createdAt: Instant? = null
+
+    /**
+     * **These two collections exist for `T2` and are the shape that defect needs.**
+     *
+     * A learner has about three thousand attempts in the generated dataset, so mapping them
+     * as a collection is already a decision worth arguing about — and it is exactly the
+     * decision people make, because the object model reads well. Nothing here fetches them
+     * eagerly; the defect `T2` reproduces is what happens when a *query* asks for them
+     * alongside a page.
+     *
+     * Two of them, deliberately. One collection fetched with paging is one defect; two
+     * fetched at once is a different one, and the roadmap names both.
+     */
+    @OneToMany(mappedBy = "learner", fetch = FetchType.LAZY)
+    var attempts: MutableList<Attempt> = mutableListOf()
+
+    @OneToMany(mappedBy = "learner", fetch = FetchType.LAZY)
+    var masteries: MutableList<Mastery> = mutableListOf()
 }

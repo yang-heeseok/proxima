@@ -171,21 +171,47 @@ Same session, arms interleaved, same schema, same dataset.
 
 ## 7. 회귀 게이트 / Regression gate
 
-**Weak, and named as weak.** `application.yml` now sets `open-in-view: false` explicitly, so
-the value is reviewable — but nothing fails if someone removes the line, and Spring's
-startup warning is silenced by the very act of setting it.
+`api/src/test/kotlin/net/gseek/proxima/recommendation/ConnectionHoldingGateTest.kt`, run by
+`.github/workflows/build.yml`. Both halves, asserted as **effects rather than as settings**:
 
-An `ArchUnit`-style assertion cannot see this: it is a property of configuration and of the
-order of three statements in a controller, not of a class's shape. **A test that boots the
-context and asserts the resolved property is the obvious gate and it is not written.** That
-is the most valuable thing this report is leaving undone, and it is recorded rather than
-implied.
+| Assertion | What it catches |
+| --- | --- |
+| no `OpenEntityManagerInViewInterceptor` bean is registered | `open-in-view` back on. Boot registers that interceptor only when the property resolves true, so the bean's absence is the behaviour, not a re-read of the file just written |
+| a real HTTP request returns 200 with the concept name populated | the two halves separated. If `open-in-view` goes off without the projection, this is a 500 with `LazyInitializationException` |
+
+The second test inserts the minimum data that makes the recommendation return a row, and
+asserts on the content — **an empty response would assert nothing**, which is how a gate
+quietly stops guarding.
+
+### What writing this gate found
+
+**It failed on its first run, and it was right to.** `spring.jpa.open-in-view: false` is in
+`src/main/resources/application.yml`, and the interceptor was registered anyway.
+
+`src/test/resources/application.yml` **shadows** the main file rather than adding to it:
+both resolve to `classpath:/application.yml`, Spring loads the first match, and test
+resources come first. The test file mentioned nothing but the datasource, so every other
+setting in the shipped configuration — `open-in-view`, `ddl-auto: validate`, actuator
+exposure — fell back to a framework default **in every test this repository has ever run.**
+
+Fixed by making the test file a profile (`application-test.yml`, activated from
+`api/build.gradle.kts`), which is additive. One consequence worth stating: `ddl-auto:
+validate` is now actually applied under test, and the entity mappings pass it — a claim
+`EntityMappingTest` had been making in its own documentation since `0a05991` **without it
+being true**.
 
 ## 8. 남는 위험 / Remaining risk
 
-- **No regression gate exists.** §7. The fix is two coupled edits and nothing enforces that
-  they stay coupled — remove `open-in-view: false` and the application still starts, still
-  passes every test, and quietly returns to arm A.
+- **Every measurement in this repository before 2026-08-12 ran against a test context that
+  had never loaded the shipped configuration.** §7. It does not invalidate the load numbers
+  here — those come from `bootRun`, which reads the real file — but it does mean the test
+  suite was weaker than its own documentation claimed, for six days, and nothing noticed
+  until a gate was written that asserted an effect instead of a value.
+- **The steady-state check is new and has not yet refused a run.** `load/recommendations.js`
+  now splits its measurement window in half and flags a run whose first half is more than
+  1.3× slower than its second. That threshold is **chosen, not derived** — no distribution
+  of half-ratios across good runs was collected. It would have caught the discarded `A-r1`
+  by a wide margin, and where it sits relative to a merely noisy run is 미측정.
 - **One concurrency level, again.** 200 VU only, and p50 of 3–4 s means every arm is far past
   its knee. Where the knee is, and whether D still wins below it, is **미측정**. `R2` raised
   this and it is still not answered.

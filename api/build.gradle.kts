@@ -59,4 +59,21 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+
+    // WHY THE TEST CONFIGURATION IS A PROFILE AND NOT `application.yml`.
+    //
+    //   It used to be src/test/resources/application.yml, which SHADOWS the main one
+    //   rather than adding to it: both are `classpath:/application.yml` and Spring loads
+    //   the first match, which is the test resource. So the test suite was configuring the
+    //   application from a file that mentioned nothing but the datasource, and every other
+    //   setting fell back to its framework default.
+    //
+    //   That meant the tests had never once exercised the configuration that ships. It was
+    //   found by a T1 regression gate asserting that no OpenEntityManagerInViewInterceptor
+    //   is registered: the gate failed against a main config that sets open-in-view=false,
+    //   because the main config was not being read.
+    //
+    //   A profile-specific file is ADDITIVE. application.yml loads, application-test.yml
+    //   layers the test-only datasource over it.
+    systemProperty("spring.profiles.active", "test")
 }

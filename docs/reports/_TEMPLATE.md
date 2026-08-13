@@ -17,6 +17,23 @@
   Repetitions    : 3 runs, median reported
 ```
 
+<!--
+  IF ANY NUMBER IN THIS REPORT CAME FROM A CI RUN, it carries that run's own environment
+  block and its run id -- measurement-discipline rule 9, ADR-004. The lane prints one before
+  it runs anything, so there is no excuse for quoting "on GitHub Actions" and stopping there.
+
+  AND A NUMBER FROM ONE MACHINE IS NEVER COMBINED ARITHMETICALLY WITH ONE FROM ANOTHER.
+  Rule 3 already said so and was broken anyway, in R9 §3.6, by someone who had read it: a
+  container-start figure measured locally divided by a step timing read off the workflow API.
+  If the number you want does not exist on this machine, the honest output is 미측정 -- not a
+  ratio assembled from two places.
+
+  A report that measures no durations -- a scorecard, an audit -- replaces this block with
+  what its evidence actually is, rather than pasting hardware none of its numbers came from.
+  R0 does this on purpose.
+-->
+
+
 > Rules for every number below: `docs/explanation/measurement-discipline.md`.
 > **미측정 means not measured.** It never means "roughly the same".
 

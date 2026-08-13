@@ -85,6 +85,36 @@ be broken. Rewriting it would delete the evidence.
   apart are comparable, and that is exactly why the block is per-run rather than written down
   once.
 - **The cost of the step itself.** It is a handful of shell commands and was not timed.
-- **Whether any other report quotes a cross-machine number.** `R9` §3.6 was found by looking
-  for it after `R12` was written. **The other eleven reports were not audited**, and that is a
-  gap this decision does not close.
+- ~~**Whether any other report quotes a cross-machine number.**~~ **Audited 2026-08-14. See
+  below.**
+
+## The audit, 2026-08-14
+
+The bullet above said the other reports had not been checked. They have been now, and the
+result is worth recording precisely because it is boring — an audit that finds nothing is
+evidence only if what it looked for is written down.
+
+**What was looked for**, across `R0`–`R12`:
+
+1. any report quoting a figure produced on a machine other than the one in its environment
+   block — CI, the workflow API, another report's run;
+2. any ratio or difference computed from figures with different provenance;
+3. any report publishing numbers with no environment block at all.
+
+**What was found:**
+
+| | result |
+| --- | --- |
+| Reports quoting a CI number | **one — `R9` §3.6**, already annotated above. Every other mention of `.github/workflows/build.yml` names it as the thing that runs a gate and carries no figure |
+| Ratios computed across provenances | **none.** `R12`'s 3.4× and 4.6×, `R6`'s 5.1×, `R3`'s 8.3× and 660×, `R9`'s 10× are each computed from arms measured in the same execution. `R4`'s 1.3× is a chosen threshold and says so |
+| Cross-report citations | present and **attributed rather than combined** — `R12` §5 quotes *"`R6` measured it: 623 of 1,000"* and does no arithmetic with it |
+| Reports with no environment block | **one — `R0`**, deliberately. It carries `근거 / Evidence base` instead, because everything it counts is machine-independent: commits, tests, which control caught which failure. **Recorded here so that nobody later "corrects" it** by pasting in a hardware block that none of its numbers came from |
+
+**So the violation rate is one in thirteen, and the one was already known.** That does not make
+the rule safe — it makes the sample small. `R9` §3.6 happened because a number was needed and
+only one was available, and nothing in this audit says that pressure has gone away.
+
+**What this audit did not check:** whether any number *within* a report was taken on a
+different day from the others in the same table. Report headers carry a single environment
+block and a `Created` date, and neither records per-figure timestamps, so the question cannot
+be answered from the tree as it stands. **미측정, and it is the obvious next hole.**

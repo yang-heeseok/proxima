@@ -249,9 +249,29 @@ Reuse takes roughly **1.2 s** off a container start. For scale, in the same run:
 
 `BaselineMigrationTest` also measured **422.0 s** on an earlier run in this same session.
 That spread is far beyond 10% and **what drives it is 미측정** — both runs are quoted rather
-than the convenient one. Either way the comparison holds: **the container costs 1.5 s and one
-existing test class costs between 198 and 422.** Removing PostgreSQL to save 1.5 s would
-change the wall time by well under one percent, and would cost §3.2 and §3.4.
+than the convenient one.
+
+**And those local numbers are not the ones to argue from.** The same `./gradlew :api:test`,
+with no filter, completes in **65 s** on a GitHub `ubuntu-latest` runner — commit `96ad9bb`,
+step *api tests — Testcontainers, real PostgreSQL*, read from the workflow-run API. The
+local figures are dominated by something about this machine, most plausibly the project
+living on a `drvfs` mount, and that cause is **미측정**.
+
+So the honest form of the trade is a range, not a slogan:
+
+| | container start | whole `:api:test` | share |
+| --- | --- | --- | --- |
+| this machine (WSL2, `/mnt/c`) | 1.5 s | 198–422 s | 0.4–0.8% |
+| GitHub `ubuntu-latest` | 1.5 s *(local figure; not re-measured there)* | 65 s | ~2% |
+
+An earlier draft of this section said "well under one percent" full stop. That was true of the
+machine it was measured on and it is not true of the runner the gate actually runs on. Two
+percent is still not the reason to give up §3.2 and §3.4 — but the number that survives is
+the range, not the flattering end of it.
+
+**미측정 — per-class timings in CI.** The workflow uploads test results only `if: failure()`,
+so a green run leaves no artefact to read them from. The 65 s above is the whole step, and it
+includes pulling `postgres:16-alpine`, which never appears in the local numbers at all.
 
 **미측정 — CI time before and after reuse.** The roadmap asked for it and the honest answer
 is that the question does not apply: Testcontainers reuse works by leaving a container
@@ -339,8 +359,14 @@ Two tests, run by `.github/workflows/build.yml`:
   there. That argument is reasoning, not a measurement, and it is the kind this repository
   has been wrong about before.
 - **`EmbeddedSubstitutionControlTest` adds a second Spring context to every CI run** —
-  different configuration, so the context cache misses. Measured at 21.9 s here. That is the
-  price of the control and it is worth it, but it is a real cost paid on every build.
+  different configuration, so the context cache misses. Measured at 21.9 s **on this machine**;
+  its share of CI's 65 s is 미측정, because a green run uploads no test-results artefact
+  (§3.6). That is the price of the control and it is worth it, but it is a real cost paid on
+  every build and nobody can currently say how large it is where it is paid.
+- **The cost argument in §3.6 was overstated in its first draft** and is now a range spanning
+  0.4% to 2% depending on the machine. It is still the weakest part of this report: the
+  container-start figure was measured here and not on the runner, so the 2% is a local number
+  divided by a remote one.
 - **What would break the conclusion**: a PostgreSQL-compatible embedded database that does
   implement `on conflict` and transaction-abort semantics. The finding is about H2, not about
   in-memory databases as a category, and the title of this report is broader than its

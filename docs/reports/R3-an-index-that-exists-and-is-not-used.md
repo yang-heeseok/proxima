@@ -125,6 +125,23 @@ analysed" sentinel and then indexed, the table reported `reltuples = 3000000` be
 So on this schema, across both attempts, stale statistics never produced a wrong plan.
 Recorded as a defect that **did not reproduce**, not quietly dropped.
 
+> **Answered 2026-08-14 by `R13`. The suspicion in §8 and §9 was right, and there was a second
+> reason nobody suspected.**
+>
+> With one learner holding 30 % of a table instead of an equal share, the same experiment
+> flips the plan: **Bitmap Heap Scan → Parallel Seq Scan**, on a **60× underestimate** — 5,000
+> rows predicted against 300,000 actual — and 46.2 ms against 29.2 ms. On a uniform column the
+> estimate above is 5× wrong and it does not matter, because at 3,000 rows in three million
+> there is no plan boundary anywhere near. **A uniform dataset does not make the planner
+> correct; it makes the planner's correctness irrelevant.**
+>
+> The second reason is this section's own query. `order by attempted_at desc limit 20` is
+> served by the index at *any* selectivity, so **no estimate however wrong could have changed
+> that plan** — the question was asked in a shape that could not hold the answer. `R13` had to
+> use an aggregate to ask it, and `R13` §8 records that choosing a query which can show an
+> effect is itself a step away from what the application does. **The query above is the one
+> that ships.**
+
 ### 3.6 Offset paging against keyset paging
 
 **This domain's actual access pattern**, scoped to one learner — bounded at ~3,000 rows:
@@ -221,6 +238,9 @@ is used and is still wrong. A gate that asserts the plan would be stronger and i
   would bite, and this dataset has **no skew at all**: every learner has exactly 3,000
   attempts, evenly spread. **The generator's uniformity may be hiding this defect
   entirely.**
+  > **Confirmed 2026-08-14 by `R13`.** It was. Give one learner 30 % of a table and the plan
+  > flips on a 60× underestimate. The word "may" is what this bullet got right — and it stayed
+  > "may" for three days, which is what `R13` §9 is about.
 - **Index size is measured on a table that is never updated.** `attempt` is append-only and
   was bulk loaded. Bloat, `REINDEX` cost, and the write amplification the `(correct)` index
   would cause are all 미측정.

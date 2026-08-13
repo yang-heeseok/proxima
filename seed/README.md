@@ -119,3 +119,16 @@ and is what a genuinely stale table looks like.
   the same number of attempts, spread evenly across 18 months. Real usage is bursty and
   heavy-tailed, and a heavy tail is exactly what breaks pagination and caching. Any report
   whose finding depends on skew has to say that this dataset has none.
+
+  **And now there is a number for what that costs.** `docs/reports/R13` built the same table
+  twice — a million rows, same index, same query — with one learner holding an equal share and
+  then 30 % of it. On the uniform copy, deleting the column statistics leaves the plan
+  unchanged and nothing measurable happens. On the skewed copy the planner underestimates by
+  **60×**, picks a Bitmap Heap Scan where a parallel sequential scan is right, and the query
+  takes **46.2 ms against 29.2 ms**.
+
+  That is `T4`'s fifth strand — *an index that exists and is not used* — which `R3` §3.5 twice
+  failed to reproduce **on this data**. The uniformity did not make the planner correct. It
+  made the planner's correctness irrelevant, and removed a defect from view. Anything measured
+  here that depends on **distribution rather than volume** inherits that, and `T4`'s fifth
+  strand is the one that was found, not necessarily the only one.

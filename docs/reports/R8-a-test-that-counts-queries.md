@@ -125,6 +125,11 @@ knows.
 - **Batch inserts are not counted at all.** `OPEN-3` — whether `IDENTITY` prevents batching —
   is precisely a statement-count question, and this counter could answer it. It has not been
   pointed at it.
+  > **Answered 2026-08-13, `ADR-003`.** It does: 1,000 rows cost 1,000 statements under
+  > `IDENTITY` and 40 under `SEQUENCE(allocationSize = 50)`. The counter used was a standalone
+  > `SessionFactory`'s statistics rather than this one, for the reason `ADR-003` gives — the
+  > throwaway entities must not join the application's persistence unit. **This bullet was
+  > repeated verbatim in `R9` §8 before anyone acted on it.**
 - **What would break the conclusion:** a second-level cache, which would make the count
   depend on what previous tests had loaded and turn these assertions flaky. There is none
   today, and adding one means revisiting every number here.

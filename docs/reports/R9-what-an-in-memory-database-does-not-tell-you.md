@@ -347,10 +347,15 @@ Two tests, run by `.github/workflows/build.yml`:
 - **`COPY … FROM STDIN` was not probed.** On PostgreSQL it is a driver API (`CopyManager`),
   not a statement, so a SQL-level probe would have failed on both databases and printed a row
   implying PostgreSQL cannot do it. The bulk-load path does not exist yet either (`OPEN-3`).
-- **Identifier generation and batching were not measured.** The roadmap names it as a T8
-  strand and it is `OPEN-3`'s actual question — whether `IDENTITY` prevents JDBC batching. It
-  is a statement-count question and `R8`'s counter could answer it. It has still not been
-  pointed at it. **This is the second report in a row to say so.**
+- ~~**Identifier generation and batching were not measured.**~~ **Closed 2026-08-13 by
+  `ADR-003`**, the day after this was written and because writing it twice was embarrassing
+  enough to act on. Measured: `IDENTITY` costs 1,000 statements for 1,000 rows,
+  `SEQUENCE(allocationSize = 50)` costs 40 — about 10× — and `SEQUENCE(allocationSize = 1)`
+  costs 1,020 and gains nothing, so the win is the allocation size and not the sequence.
+  `IDENTITY` stays, because no path here inserts more than one row per transaction. The
+  original text is struck through rather than deleted: **this bullet said the same thing in
+  `R8` §8 first, and a risk that survives two reports unchanged is not being carried, it is
+  being avoided.**
 - **23 statements is not the application.** The probes cover the migrations, the
   recommendation query, and the statements named in `R2` through `R8`. Everything Hibernate
   generates on its own — every derived query, every `join fetch`, every dialect-specific

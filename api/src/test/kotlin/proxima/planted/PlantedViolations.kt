@@ -41,3 +41,23 @@ data class PlantedDataClassEntity(
     val id: Long? = null,
     val label: String = "",
 )
+
+/**
+ * Violates `HANDLERS_TAKING_A_PATH_VARIABLE_AUTHORISE`.
+ *
+ * **This is what a second endpoint looks like.** It authenticates — the filter runs on every
+ * `/api/v1` path regardless of what the handler does — and it never asks whether the caller
+ * owns the learner it is about to read. `R11` §3.3 measured what that returns: `200`, with
+ * somebody else's data in the body.
+ *
+ * It is planted rather than imagined because a rule nobody has watched refuse anything is a
+ * comment. `R0` §4 counts exactly one gate in this repository that has ever been paid.
+ */
+@org.springframework.web.bind.annotation.RestController
+class PlantedUnauthorisedHandler {
+
+    @org.springframework.web.bind.annotation.GetMapping("/api/v1/learners/{learnerId}/planted")
+    fun read(
+        @org.springframework.web.bind.annotation.PathVariable learnerId: Long,
+    ): String = "learner $learnerId"
+}

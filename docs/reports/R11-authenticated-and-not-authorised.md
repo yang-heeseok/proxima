@@ -238,6 +238,21 @@ unit test at all.
   Everything added later starts unauthorised by default, and **nothing fails when it does** —
   the gate names one path. A structural rule in the `T3` style, asserting that every handler
   taking a `learnerId` also authorises, is the thing that would generalise it. Not written.
+  > **Written 2026-08-14.** `AuthorisationRules.HANDLERS_TAKING_A_PATH_VARIABLE_AUTHORISE`,
+  > with a planted violation it has been watched refuse. Two things had to change first, and
+  > both are the point rather than incidental:
+  >
+  > The comparison **moved out of the controller onto `ResourceAuthorisation`**, because a
+  > structural rule cannot require *"the handler compares two numbers"* but can require
+  > *"the handler calls this method"* — and that is only expressible when the method has one
+  > home. `T3` forced the same move twice, and `R6` and `R7` both needed it for their remedies.
+  >
+  > And the rule is keyed on **taking a path variable**, not on the string `learnerId`. Names
+  > are not reliably in bytecode; a rule spelled that way would pass on `@PathVariable("learner")`.
+  > The domain claim it makes instead — *in this application every path variable names
+  > somebody's resource* — means a genuinely public one will fail the rule and whoever adds it
+  > must say so deliberately. **A structural rule cannot make the decision correctly. It can
+  > make it explicit.**
 - **The token has no revocation and this report does not treat that as a defect.** With
   `skewed` the only way to end a session is to outlive it. That is a property of the fixture,
   not a finding, and a real system needs a different answer.

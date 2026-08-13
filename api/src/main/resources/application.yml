@@ -52,11 +52,54 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
-# Actuator exposure is left at its default on purpose. T9 is a report about management
-# endpoints exposed wholesale, including the one that dumps the heap; the state in which
-# that is observable is created in that report's red commit, not here.
+# WHAT THIS LIST IS, MEASURED. docs/reports/R10.
+#
+#   An earlier version of this comment said the exposure was "left at its default" and that
+#   the wide-open state would arrive in T9's red commit. Both halves were wrong. The default
+#   is `health` alone, so this list is already a decision; and R10 §5 declined to commit a
+#   wide-open surface at all -- a public repository carrying one in its history is a worked
+#   example for the wrong reader, and the finding reproduces from a test property.
+#
+#   Measured with the surface opened to "*": twelve of thirteen endpoints answer, including
+#   `env`, `configprops`, `beans`, `mappings`, `threaddump`, and `loggers` -- which is not a
+#   view but a control surface (POST -> 204, level null -> TRACE). `heapdump` stays 404
+#   because exposure and access are separate gates and its access defaults to `none`; opened,
+#   it returns 156 MB containing the datasource password that `env` masks.
+#
+#   `prometheus` was in this list and is gone. It was measured at 404 even with exposure set
+#   to "*", so this build has no such endpoint and the line had never done anything. R10 §3.6.
+#
+# ManagementSurfaceGateTest asserts this over HTTP rather than reading the list back.
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics
+
+# WHY THERE IS A TOKEN HERE AT ALL, AND WHAT IT IS NOT.
+#
+#   T9 needs a request that can be attributed to somebody: two of its three strands are about
+#   the gap between verifying a caller and deciding what that caller may reach, and neither
+#   exists without authentication. RequestToken is the smallest thing that produces the gap.
+#   It is a MEASUREMENT FIXTURE -- no rotation, no revocation, no issuer, no login. Read its
+#   KDoc before borrowing any of it.
+#
+#   The secret is a strict placeholder with no default, for the same reason the datasource
+#   ones are: a missing environment variable should fail at startup rather than fall back to
+#   something that happens to work on one machine. The test profile supplies its own.
+proxima:
+  security:
+    token-secret: ${PROXIMA_TOKEN_SECRET}
+
+    # Which arm of T9's strands ships. Both defaults are the `green` ones; the `red` arms
+    # exist so the red state stays runnable in one binary -- R4 §2's argument.
+    #
+    #   authorisation:  none   the path names the learner and the verified caller is ignored
+    #                   owner  the path must name the caller, or 403
+    #
+    #   expiry-policy:  ignored  the signature is checked and the timestamps are not
+    #                   strict   expired and not-yet-valid rejected, zero tolerance
+    #                   skewed   the same, with skew-tolerance-seconds of leeway
+    authorisation: owner
+    expiry-policy: skewed
+    skew-tolerance-seconds: 30

@@ -4,8 +4,8 @@
 > **Updated**: 2026-08-13
 > **Status**: **one strand of three.** This report covers *management endpoints exposed
 > wholesale*. The other two — *an endpoint that authenticates and does not authorise* and
-> *token expiry and clock skew* — are **not done**, and `docs/roadmap.md` says so rather than
-> this report implying otherwise by omission.
+> *token expiry and clock skew* — landed the same day in **`R11`**. §8's first bullet was
+> written while they were still outstanding and is left as it stood; `R11` is the answer to it.
 > **Red commit**: **none.** The shipped `application.yml` has restricted the surface since it
 > was written, so the `red` state here is a **test property override**, not a commit. §5 says
 > why pushing a wide-open surface to a public repository would be the wrong trade.

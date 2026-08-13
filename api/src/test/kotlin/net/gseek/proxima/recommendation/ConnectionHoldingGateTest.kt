@@ -4,7 +4,9 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 import net.gseek.proxima.TestcontainersConfiguration
+import net.gseek.proxima.security.RequestToken
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -51,9 +53,28 @@ class ConnectionHoldingGateTest {
     @Value("\${local.server.port}")
     private var port: Int = 0
 
-    private fun get(path: String): HttpResponse<String> =
+    /**
+     * **This gate acquired a dependency on authentication, and that is worth knowing.**
+     *
+     * `T9` put a token filter in front of everything under `/api/v1`. This test was the only
+     * one in the repository that called that path, and it began failing with
+     * `401 {"error":"missing-token"}` — measured, one failure out of 56, `R11` §3.1.
+     *
+     * It now signs a token for the learner it created. The cost is that a broken verifier
+     * makes **this** test red as well as `T9`'s, so a failure here no longer localises to the
+     * connection-holding question on its own. The assertion message below prints the response
+     * body precisely so that the distinction survives — which is how the 401 above was
+     * diagnosed in one read rather than by bisecting.
+     */
+    @Autowired
+    private lateinit var tokens: RequestToken
+
+    private fun get(path: String, asLearner: Long): HttpResponse<String> =
         HttpClient.newHttpClient().send(
-            HttpRequest.newBuilder(URI.create("http://localhost:$port$path")).GET().build(),
+            HttpRequest.newBuilder(URI.create("http://localhost:$port$path"))
+                .header("Authorization", "Bearer ${tokens.issue(asLearner, Duration.ofMinutes(5))}")
+                .GET()
+                .build(),
             HttpResponse.BodyHandlers.ofString(),
         )
 
@@ -128,13 +149,15 @@ class ConnectionHoldingGateTest {
             learnerId, conceptId,
         )
 
-        val response = get("/api/v1/learners/$learnerId/recommendations?limit=10")
+        val response = get("/api/v1/learners/$learnerId/recommendations?limit=10", asLearner = learnerId)
 
         assertEquals(
             200, response.statusCode(),
-            "the shipped configuration cannot serve this request. If the body mentions " +
-                "LazyInitializationException, open-in-view was turned off without moving " +
-                "the fetch inside the transaction -- R4 §3.2: the two are one decision. " +
+            "the shipped configuration cannot serve this request. Read the body before " +
+                "assuming which control failed: `LazyInitializationException` means " +
+                "open-in-view was turned off without moving the fetch inside the transaction " +
+                "(R4 §3.2 -- the two are one decision); an `error` field means the request " +
+                "never reached the controller and this is T9's filter, not T1's. " +
                 "Body: ${response.body()}",
         )
         val body = response.body().orEmpty()

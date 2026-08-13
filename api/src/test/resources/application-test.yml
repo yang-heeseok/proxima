@@ -22,6 +22,8 @@ spring:
 
   # Statement counting for T7, on in tests and off in production.
   #
+  # (proxima.security.token-secret is below, outside the `spring` block.)
+  #
   #   Hibernate keeps these counters only when asked, and asking costs a little on every
   #   statement. That is a fine price for a test lane and not one to pay on every request
   #   in production for a number nobody reads there -- so it lives in the profile that only
@@ -30,3 +32,21 @@ spring:
     properties:
       hibernate:
         generate_statistics: true
+
+# THE SIGNING KEY THE TESTS USE.
+#
+#   application.yml names this with a strict ${PROXIMA_TOKEN_SECRET} placeholder and no
+#   default, so a test has to supply one or nothing starts. This value is not a credential:
+#   it signs tokens for an application that is not deployed anywhere, and every token it
+#   signs is thrown away when the JVM exits.
+#
+#   It lives HERE and not in a Kotlin test source on purpose. `.gitleaks.toml` allowlists
+#   `src/test/resources/**` by path, with the same reasoning it applies to Testcontainers'
+#   throwaway database credentials -- a test whose credentials are hidden is a test nobody
+#   else can run. A literal in a test .kt file would sit outside that allowlist and would
+#   deserve to be flagged. Tests read this back through the Spring environment.
+#
+#   The scanner's rule was NOT relaxed to admit it. PUB-1.
+proxima:
+  security:
+    token-secret: test-profile-signing-key-not-a-credential

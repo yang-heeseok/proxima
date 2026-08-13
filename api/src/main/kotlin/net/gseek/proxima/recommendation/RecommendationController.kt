@@ -1,11 +1,15 @@
 package net.gseek.proxima.recommendation
 
+import net.gseek.proxima.security.RequestToken
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.server.ResponseStatusException
 
 data class RecommendationView(
     val itemCode: String,
@@ -56,16 +60,59 @@ class RecommendationController(
      */
     @Value("\${proxima.recommendation.strategy:projection}")
     private val strategy: String,
+    /**
+     * **`T9`'s second strand: the difference between knowing who is calling and deciding what
+     * they may have.**
+     *
+     * `TokenAuthenticationFilter` has already run by the time this method is entered. The
+     * request carries a verified subject. Every caller that reaches here is authenticated,
+     * and `authorisation = none` is what it looks like to stop there.
+     *
+     * | value | behaviour |
+     * | --- | --- |
+     * | `none` | the learner id comes from the **path** and the verified subject is ignored. **`red`** |
+     * | `owner` | the path must name the caller, or 403 |
+     *
+     * The `red` arm is not a strawman and it is not rare. It is what this endpoint did before
+     * authentication existed at all, kept working unchanged after authentication was added,
+     * and passed every functional test in this repository both times — because every one of
+     * those tests asks for its own learner's data.
+     */
+    @Value("\${proxima.security.authorisation:owner}")
+    private val authorisation: String,
 ) {
 
     @GetMapping("/{learnerId}/recommendations")
     fun recommend(
         @PathVariable learnerId: Long,
         @RequestParam(defaultValue = "10") limit: Int,
-    ): List<RecommendationView> = when (strategy) {
-        "entities" -> viaEntities(learnerId, limit)
-        "projection" -> viaProjection(learnerId, limit)
-        else -> error("unknown proxima.recommendation.strategy: $strategy")
+        @RequestAttribute(name = RequestToken.SUBJECT_ATTRIBUTE) subject: Long,
+    ): List<RecommendationView> {
+        authorise(subject, learnerId)
+        return when (strategy) {
+            "entities" -> viaEntities(learnerId, limit)
+            "projection" -> viaProjection(learnerId, limit)
+            else -> error("unknown proxima.recommendation.strategy: $strategy")
+        }
+    }
+
+    /**
+     * The one comparison that separates the two arms.
+     *
+     * **403 and not 404.** Hiding existence behind a not-found is a real technique and a
+     * different decision with its own cost — it makes an authorisation failure and a typo
+     * indistinguishable in the logs. It is not taken here, and saying so is the point: an
+     * unexamined 404 would look like a considered choice.
+     */
+    private fun authorise(subject: Long, learnerId: Long) {
+        when (authorisation) {
+            "none" -> Unit
+            "owner" ->
+                if (subject != learnerId) {
+                    throw ResponseStatusException(HttpStatus.FORBIDDEN, "not your learner")
+                }
+            else -> error("unknown proxima.security.authorisation: $authorisation")
+        }
     }
 
     /** `red`. The connection is held from (2) until the response is written. */

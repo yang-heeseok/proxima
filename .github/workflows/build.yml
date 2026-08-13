@@ -11,11 +11,16 @@
 #
 # WHAT THIS LANE MAY NOT BECOME.
 #
-#   It reports pass or fail. It does NOT publish numbers, and it must not start to without
-#   closing OPEN-5 first: a measurement taken on a shared runner of unstated size is not
-#   comparable to one taken on the machine in measurement-discipline.md, and this
-#   repository's product is comparable numbers. If a load lane is ever wanted here, the
-#   environment has to be stated per-run or the lane stops publishing.
+#   It reports pass or fail. It does NOT publish numbers: a measurement taken on a shared
+#   runner of unstated size is not comparable to one taken on the machine in
+#   measurement-discipline.md, and this repository's product is comparable numbers.
+#
+#   `OPEN-5` is closed by `ADR-004`, and the useful part of closing it was finding that the
+#   rule had been leaking the other way round. `R9` §3.6 quoted this lane's own step timing
+#   in a report and divided it by a figure from a developer machine. So the decision has two
+#   halves: this lane states its environment per run (the step below), and a report that
+#   quotes a number from it carries that block and the run id. Assertions here stay
+#   machine-independent -- counts, statuses, exact row totals -- and those are safe anywhere.
 
 name: build
 
@@ -58,6 +63,30 @@ jobs:
         run: |
           set -eu
           docker version --format 'server {{.Server.Version}}'
+
+      # THE ENVIRONMENT THIS RUN'S NUMBERS WOULD BELONG TO. ADR-004, closing OPEN-5.
+      #
+      #   This lane still does not publish measurements. What changed is the other
+      #   direction: a REPORT quoted a number from a CI run -- R9 §3.6 took the "api tests"
+      #   step's 65 s off the workflow API and set it beside a container-start figure measured
+      #   on a developer machine. OPEN-5 was written to stop CI publishing numbers and had
+      #   nothing to say about that, and measurement-discipline rule 3 -- before and after
+      #   come from the same run conditions -- was broken without anyone noticing.
+      #
+      #   A number that escapes from here now has somewhere to point. This step costs a
+      #   second and makes every run self-describing, which is the difference between a
+      #   citable figure and a remembered one.
+      - name: the environment any number from this run belongs to
+        run: |
+          set -eu
+          echo "run           : ${GITHUB_RUN_ID}, attempt ${GITHUB_RUN_ATTEMPT}"
+          echo "runner image  : ${ImageOS:-unknown} ${ImageVersion:-unknown} (${RUNNER_OS} ${RUNNER_ARCH})"
+          echo "kernel        : $(uname -sr)"
+          echo "cpu           : $(nproc) x $(sed -n 's/^model name[ \t]*: //p' /proc/cpuinfo | head -1)"
+          echo "memory        : $(free -m | awk '/^Mem:/ {printf "%.1f GiB", $2/1024}')"
+          echo "disk (workdir): $(df -h . | awk 'NR==2 {print $2" total, "$4" free"}')"
+          echo "docker        : $(docker version --format '{{.Server.Version}}')"
+          echo "java          : $(java -version 2>&1 | head -1)"
 
       # SPLIT ON PURPOSE, AND THE REASON IS WORTH KEEPING.
       #

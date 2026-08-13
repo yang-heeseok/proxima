@@ -148,3 +148,9 @@ believes. That is the mechanism behind the first report in this repository.
 7. **The concurrency level is part of the number.** Never a bare percentile.
 8. **What was not measured is written down** — in the report's *남는 위험* section, which
    is why that section is not optional.
+9. **A number taken on CI carries that run's environment block and its run id**, and CI
+   asserts nothing that is a duration. Added 2026-08-13 by `ADR-004`, after rule 3 was broken
+   in `R9` §3.6 — a container-start figure from this machine divided by a step timing read off
+   the workflow API. Rule 3 already forbade it. **Rule 9 exists because rule 3 was not enough
+   to stop somebody who had read it**, and because the lane it concerns had no way to say what
+   it ran on until now.

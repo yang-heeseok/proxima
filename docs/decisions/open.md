@@ -21,7 +21,6 @@ silence, and it discharges the `PUB-4` row that says so.
 | # | Question | Why it is not decided yet | Deadline |
 | --- | --- | --- | --- |
 | `OPEN-4` | **Whether a cache layer is in scope at all** | Caching would improve every number in this repository, and would also hide which of them were bad for structural reasons. Deciding to leave it out is a real decision and should be recorded as one | Before any report claims a latency ceiling |
-| `OPEN-5` | **How the measurement environment is pinned in CI** | A number taken on a developer machine and a number taken on a runner are not comparable, and this repository publishes numbers. Either CI stops publishing numbers, or the environment is stated per-run | Before CI runs a load lane |
 
 ### `OPEN-3` — closed 2026-08-13, and the reason it stayed open was wrong
 
@@ -64,5 +63,6 @@ precisely the class of defect this repository exists to collect.
 | # | Question | Closed by |
 | --- | --- | --- |
 | `OPEN-1` | **Which Spring Boot line** | `ADR-000` — **Spring Boot 4.1.0 on JDK 21**, 2026-08-10. The near-miss was 3.5.x, the line most readers run in production; it lost because its OSS support ended 2026-06-30 and `start.spring.io` no longer offers it |
+| `OPEN-5` | **How the measurement environment is pinned in CI** | `ADR-004` — **the lane states its environment per run**, 2026-08-13. Closed by the hazard arriving rather than by the deadline: this row guarded *CI publishing numbers*, and what actually happened is that a **report reached into CI and took one** — `R9` §3.6 divided a container-start figure from this machine by a step timing read off the workflow API. That breaks `measurement-discipline.md` **rule 3**, which predates every measurement here, and the report's own §8 was uneasy about the sentence without noticing which rule it broke. `measurement-discipline.md` gains rule 9, and `R9` §3.6 is annotated rather than corrected |
 | `OPEN-3` | **Identifier generation strategy** | `ADR-003` — **`IDENTITY` stays**, 2026-08-13. Measured rather than assumed: 1,000 inserts cost 1,000 statements under `IDENTITY` and 40 under `SEQUENCE(allocationSize = 50)`, about 10× — and `SEQUENCE(allocationSize = 1)` costs 1,020 and wins nothing, so the gain is the allocation size and not the sequence. No path here inserts more than one row per transaction, so the 10× is unclaimed rather than lost. `IdentifierGenerationTest` is the trip-wire |
 | `OPEN-2` | **How QueryDSL is generated on Kotlin** | `ADR-001` — **the community fork `io.github.openfeign.querydsl` 7.0 via `kapt`**, 2026-08-10. Timebox 30 min, used ~15. Both candidates were built and run against PostgreSQL and **both passed**; the predicted classifier friction did not occur. The fork won on maintenance, not on capability |

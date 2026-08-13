@@ -269,6 +269,16 @@ machine it was measured on and it is not true of the runner the gate actually ru
 percent is still not the reason to give up §3.2 and §3.4 — but the number that survives is
 the range, not the flattering end of it.
 
+> **Amended 2026-08-13 by `ADR-004`: the `~2%` cell breaks this repository's own rule 3.**
+> *Before and after come from the same run conditions.* The container-start figure was
+> measured on this machine; the 65 s was read off the workflow API. Dividing one by the other
+> is exactly the comparison rule 3 forbids — and §8 below was uneasy about that sentence for a
+> different reason without noticing which rule it broke. **`OPEN-5` had been guarding CI
+> against publishing numbers, and the number left through the other door: a report reached in
+> and took one.** The row stays, annotated rather than deleted, because it is the evidence
+> that the rule as written was not enough. `ADR-004` adds a per-run environment block to the
+> lane, so whoever measures both ends on the runner can make this comparison properly.
+
 **미측정 — per-class timings in CI.** The workflow uploads test results only `if: failure()`,
 so a green run leaves no artefact to read them from. The 65 s above is the whole step, and it
 includes pulling `postgres:16-alpine`, which never appears in the local numbers at all.

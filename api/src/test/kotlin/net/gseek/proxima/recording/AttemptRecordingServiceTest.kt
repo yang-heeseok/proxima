@@ -3,13 +3,13 @@ package net.gseek.proxima.recording
 import net.gseek.proxima.TestcontainersConfiguration
 import net.gseek.proxima.domain.MasteryRepository
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * **This is the test that proves nothing, and it is green.**
@@ -53,12 +53,19 @@ class AttemptRecordingServiceTest {
     fun `a recording that violates the score bound is rejected`() {
         val scene = fixture.scene()
 
-        assertThrows<IllegalArgumentException> {
-            service.recordAll(
-                scene.learnerId,
-                listOf(fixture.recording(scene, scoreDelta = BigDecimal("1.500"))),
-            )
-        }
+        // Since R14 the batch reports rather than throws. The rejection itself is unchanged
+        // -- AttemptRecorder.record still raises; recordAll is what stopped propagating it.
+        val outcomes = service.recordAll(
+            scene.learnerId,
+            listOf(fixture.recording(scene, scoreDelta = BigDecimal("1.500"))),
+        )
+
+        val rejection = outcomes.single()
+        assertTrue(rejection is RecordingOutcome.Rejected, "the recording was accepted: $outcomes")
+        assertTrue(
+            rejection.reason.contains("IllegalArgumentException"),
+            "rejected for the wrong reason, so this passes on an accident: ${rejection.reason}",
+        )
     }
 
     /**
@@ -86,12 +93,11 @@ class AttemptRecordingServiceTest {
     fun `what this test can see after a failed recording, and why that is not the property`() {
         val scene = fixture.scene()
 
-        assertThrows<IllegalArgumentException> {
-            service.recordAll(
-                scene.learnerId,
-                listOf(fixture.recording(scene, scoreDelta = BigDecimal("1.500"))),
-            )
-        }
+        val outcomes = service.recordAll(
+            scene.learnerId,
+            listOf(fixture.recording(scene, scoreDelta = BigDecimal("1.500"))),
+        )
+        assertTrue(outcomes.single() is RecordingOutcome.Rejected, "the recording was accepted: $outcomes")
 
         val insideThisTransaction =
             masteries.findByLearnerIdAndConceptId(scene.learnerId, scene.conceptId)

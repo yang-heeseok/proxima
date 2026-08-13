@@ -100,6 +100,17 @@ proxima:
   recording:
     mastery-update: atomic-guarded
 
+    # WHAT A BATCH DOES WHEN ONE RECORDING IN IT IS REJECTED. docs/reports/R14.
+    #
+    #   stop-at-first-failure  the rejection propagates and everything after it is never
+    #                          attempted. The caller is told that something failed and not
+    #                          what landed. `red` -- and it is what shipped from 21e7162.
+    #   per-item-outcomes      every recording is attempted and its result returned.
+    #
+    #   The per-recording transaction is unchanged either way. AttemptRecorder.record is
+    #   still the unit of work and a rejected recording still leaves nothing behind.
+    batch: per-item-outcomes
+
   security:
     token-secret: ${PROXIMA_TOKEN_SECRET}
 

@@ -3,12 +3,12 @@ package net.gseek.proxima.recording
 import net.gseek.proxima.TestcontainersConfiguration
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The same operation, observed from outside a transaction. **This one discriminates.**
@@ -43,12 +43,24 @@ class AttemptRecordingAtomicityTest {
     fun `a recording that fails on its second write leaves no attempt behind`() {
         val scene = fixture.scene()
 
-        assertThrows<IllegalArgumentException> {
-            service.recordAll(
-                scene.learnerId,
-                listOf(fixture.recording(scene, scoreDelta = BigDecimal("1.500"))),
-            )
-        }
+        // `recordAll` returns outcomes rather than throwing since R14 -- a decision about the
+        // BATCH. The unit of work is unchanged and so is what this test asserts: a recording
+        // that failed leaves nothing behind. The rejection is checked first, because "no
+        // attempt row" is also what a batch that never ran would leave.
+        val outcomes = service.recordAll(
+            scene.learnerId,
+            listOf(fixture.recording(scene, scoreDelta = BigDecimal("1.500"))),
+        )
+
+        assertEquals(
+            1, outcomes.size,
+            "the batch did not report on the recording it was given: $outcomes",
+        )
+        assertTrue(
+            outcomes.single() is RecordingOutcome.Rejected,
+            "the recording was not rejected, so the assertions below are about a unit of " +
+                "work that succeeded: $outcomes",
+        )
 
         assertEquals(
             0L, fixture.countAttempts(),

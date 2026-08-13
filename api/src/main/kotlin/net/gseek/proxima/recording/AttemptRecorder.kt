@@ -38,14 +38,21 @@ import java.math.BigDecimal
  * once it is made the boundary has an obvious home — this class — and the proxy question
  * disappears rather than being worked around.
  *
- * ## What this still does not solve
+ * ## What this used to say it did not solve
  *
- * `AttemptRecordingService.recordAll` stops at the first failure, so a batch may be
- * partially recorded and the caller is not told which recordings landed. That is a
- * consequence of choosing per-recording atomicity and it is **not fixed here** — it is a
- * different decision (report per-item outcomes, or make the batch the unit) and it needs a
- * requirement, not a refactor. Recorded in the report's remaining-risk section rather than
- * quietly resolved.
+ * > `AttemptRecordingService.recordAll` stops at the first failure, so a batch may be
+ * > partially recorded and the caller is not told which recordings landed. […] it needs a
+ * > requirement, not a refactor.
+ *
+ * **That paragraph contradicted the one above it, in this file, for four days.** The
+ * paragraph above says a learner's invalid submission must not discard the valid recordings
+ * beside it; the loop discarded them, by never attempting them.
+ *
+ * *"It needs a requirement, not a refactor"* was true about **which shape to choose** and was
+ * used as a reason not to measure what was happening. `R14` measured it: of four valid
+ * recordings in a batch of five, **two landed.** Fixed by `proxima.recording.batch:
+ * per-item-outcomes` — every recording attempted, every outcome returned. The unit of work
+ * here is unchanged.
  */
 @Service
 class AttemptRecorder(

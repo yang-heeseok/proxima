@@ -1,8 +1,9 @@
 package net.gseek.proxima.recording
 
-import org.springframework.stereotype.Service
 import java.math.BigDecimal
 import java.time.Instant
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Service
 
 /** One learner meeting one item once, and what it does to their mastery of a concept. */
 data class Recording(
@@ -13,6 +14,22 @@ data class Recording(
     val at: Instant,
     val scoreDelta: BigDecimal,
 )
+
+/**
+ * What became of one recording in a batch.
+ *
+ * **There is no `NotAttempted`, and its absence is the finding.** A third state was drafted
+ * for *"the batch stopped before reaching this one"* and then removed, because under the `red`
+ * arm no list is returned at all — the caller gets an exception and nothing else. The
+ * recordings that were never attempted have no representation because **there was nothing to
+ * represent them in.** That is the defect, stated as a type.
+ */
+sealed interface RecordingOutcome {
+    val index: Int
+
+    data class Recorded(override val index: Int) : RecordingOutcome
+    data class Rejected(override val index: Int, val reason: String) : RecordingOutcome
+}
 
 /**
  * Records batches of attempts.
@@ -29,17 +46,58 @@ data class Recording(
 @Service
 class AttemptRecordingService(
     private val recorder: AttemptRecorder,
+    /**
+     * Which arm of `R14` is in force. Both live in one binary — `R4` §2's argument.
+     *
+     * | value | behaviour |
+     * | --- | --- |
+     * | `stop-at-first-failure` | the first rejection propagates; everything after it is never attempted, and the caller is told only that *something* failed. **`red`** |
+     * | `per-item-outcomes` | every recording is attempted and its result returned |
+     */
+    @Value("\${proxima.recording.batch:per-item-outcomes}")
+    private val batch: String,
 ) {
 
     /**
-     * Records each recording as its own unit of work.
+     * Records each recording as its own unit of work, and says what happened to each.
      *
-     * **Stops at the first failure**, so a batch may be partially recorded and the caller
-     * is told only that something failed, not which recordings landed. That follows from
-     * choosing per-recording atomicity and is a known gap rather than an oversight — see
-     * the remaining-risk section of the `T3` report.
+     * **Continuing past a rejection is not a softening of the rule — it is the rule.**
+     * `AttemptRecorder`'s KDoc has said since `T3` that the unit of work is one recording
+     * because *attempts are independent events, and one learner's invalid submission is not a
+     * reason to discard the valid ones recorded beside it.* The `red` arm below discards them
+     * anyway: it never attempts recordings four and five because recording three was bad.
+     * **The stated domain decision and the shipped loop disagreed, and `R14` §3 is the
+     * measurement of by how much.**
+     *
+     * The per-recording boundary is untouched. `AttemptRecorder.record` still throws, still
+     * runs in its own transaction, and a rejected recording still leaves nothing behind —
+     * `AttemptRecordingAtomicityTest` asserts exactly that, and this method's contract does
+     * not weaken it.
      */
-    fun recordAll(learnerId: Long, recordings: List<Recording>) {
-        recordings.forEach { recorder.record(learnerId, it) }
-    }
+    fun recordAll(learnerId: Long, recordings: List<Recording>): List<RecordingOutcome> =
+        when (batch) {
+            // The shipped loop from `21e7162` until R14. The first rejection propagates out
+            // of this method, so the list below is only ever reached when nothing failed --
+            // which is why the caller of a partially applied batch learns nothing about it.
+            "stop-at-first-failure" -> {
+                recordings.forEach { recorder.record(learnerId, it) }
+                recordings.indices.map { RecordingOutcome.Recorded(it) }
+            }
+
+            "per-item-outcomes" ->
+                recordings.mapIndexed { i, r ->
+                    try {
+                        recorder.record(learnerId, r)
+                        RecordingOutcome.Recorded(i)
+                    } catch (e: Exception) {
+                        // Deliberately broad. A recording rejected by the score guard, by a
+                        // constraint, or by a lock timeout are the same event to a caller
+                        // holding a batch: this one did not land, the others still can.
+                        // The reason is carried rather than flattened.
+                        RecordingOutcome.Rejected(i, e.javaClass.simpleName + ": " + e.message?.lineSequence()?.first())
+                    }
+                }
+
+            else -> error("unknown proxima.recording.batch: $batch")
+        }
 }

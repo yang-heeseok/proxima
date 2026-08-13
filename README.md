@@ -26,6 +26,7 @@ the reports carry the environment each number was taken in.*
 | 1,000 increments, 10 threads, one row | **864 lost, no exception** | 0 lost, and 5.1× faster | [`R6`](docs/reports/R6-updates-lost-under-concurrency.md) |
 | 8 concurrent requests, one (learner, concept) | 8 rows, 0 failures | **1 row, 0 failures** | [`R7`](docs/reports/R7-a-uniqueness-check-two-requests-both-pass.md) |
 | 1,000 concurrent recordings, one learner | **196 applied, 804 refused** | **1,000 applied, 0 refused** | [`R12`](docs/reports/R12-the-arm-the-application-kept.md) |
+| A batch of 5 with one invalid recording | **2 of 4 valid ones landed** | **4 of 4, each outcome named** | [`R14`](docs/reports/R14-the-batch-that-discarded-what-it-was-told-to-keep.md) |
 | One learner's token, another learner's data | 200, with their data | **403** | [`R11`](docs/reports/R11-authenticated-and-not-authorised.md) |
 
 **미측정 means not measured.** It does not mean "about the same". It still appears throughout

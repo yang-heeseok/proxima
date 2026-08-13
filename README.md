@@ -3,29 +3,44 @@
 **An API that chooses a learner's next problem — and a record of how it actually breaks
 under load and concurrency.**
 
-> **Created**: 2026-08-10 · **Updated**: 2026-08-10
-> **Status: the build stands up and the dataset loads. No defect has been reproduced yet.**
-> There is a Gradle build on Spring Boot 4.1.0 and JDK 21, a schema that applies to a real
-> PostgreSQL under test, and a generator that produces and loads 3,963,719 rows from a
-> fixed seed value. **Every row of the results table below is still 미측정**, because the
-> reports are the product and none exists yet — see
-> `docs/explanation/measurement-discipline.md`.
+> **Created**: 2026-08-10 · **Updated**: 2026-08-13
+> **Status: the nine traps on the roadmap are measured, in twelve reports.** Spring Boot
+> 4.1.0 on JDK 21, a schema that applies to a real PostgreSQL under test, a generator that
+> produces 3,963,719 rows from a fixed seed value, and 70 tests. Three of the nine turned out
+> to be **already fixed by the framework** — those reports say so and measure what is holding
+> them shut, rather than deleting the row. See `docs/explanation/measurement-discipline.md`
+> for what makes any number below citable.
 
 ---
 
 ## Results
 
-*This table is the point of the repository. It is empty because the work has not been done,
-and it will not be filled in with anything that was not measured.*
+*This table is the point of the repository. Nothing in it is here that was not measured, and
+the reports carry the environment each number was taken in.*
 
 | What | Before | After | Report |
 | --- | --- | --- | --- |
-| Recommendation API p99 @ 200 VU | 미측정 | 미측정 | — |
-| Concept listing — queries per request | 미측정 | 미측정 | — |
-| Attempt history, deep page | 미측정 | 미측정 | — |
-| Lost updates under 10,000 concurrent increments | 미측정 | 미측정 | — |
+| Recommendation API p99 @ 200 VU | 9064.1 ms | **5919.4 ms** | [`R4`](docs/reports/R4-the-fix-that-is-two-halves.md) |
+| Attempt history within a learner, deep page | 36.6 ms | **0.056 ms** | [`R3`](docs/reports/R3-an-index-that-exists-and-is-not-used.md) |
+| Recommendation read — statements per request | 2 + n | **1, at any row count** | [`R8`](docs/reports/R8-a-test-that-counts-queries.md) |
+| 1,000 increments, 10 threads, one row | **864 lost, no exception** | 0 lost, and 5.1× faster | [`R6`](docs/reports/R6-updates-lost-under-concurrency.md) |
+| 8 concurrent requests, one (learner, concept) | 8 rows, 0 failures | **1 row, 0 failures** | [`R7`](docs/reports/R7-a-uniqueness-check-two-requests-both-pass.md) |
+| One learner's token, another learner's data | 200, with their data | **403** | [`R11`](docs/reports/R11-authenticated-and-not-authorised.md) |
 
-**미측정 means not measured.** It does not mean "about the same".
+**미측정 means not measured.** It does not mean "about the same". It still appears throughout
+the reports, and deliberately: `R9` §3.6 quotes a range across two machines rather than the
+flattering end of it, and `R10` §8 records that a claim about `loggers` was mechanism rather
+than measurement until it was measured.
+
+### The report that scores the rest
+
+[**`R0`**](docs/reports/R0-the-scorecard.md) asks, for each trap: *did the draft step into the
+defect it was documenting, and what caught it?* **Six of nine.** What caught them was a
+deliberate measurement seven times, CI three times, a control planted inside an instrument
+twice, the compiler once — and **a regression gate exactly once**, when rules written at the
+end of one report refused the author's own remedy three reports later. Nine test classes here
+exist to refuse a future edit; **one has ever been paid**, and `R0` §4 says so instead of
+counting gates as evidence.
 
 ---
 
@@ -71,7 +86,7 @@ seed/         dataset generator — the data is code, never a committed file
 load/         k6 scenarios; warm-up is discarded by construction
 docs/
   roadmap.md            what is measured, in what order, and what is done
-  reports/              the numbers, one file per defect
+  reports/              the numbers, one file per defect — plus R0, which scores the rest
   decisions/            ADRs, open questions, publication requirements
   explanation/          domain model, measurement discipline
 .github/workflows/      guards that are self-tested against planted violations

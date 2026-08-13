@@ -83,7 +83,7 @@ because measuring it without those two would produce numbers nobody could trust.
 | Item | Why not |
 | --- | --- |
 | A learned recommendation model (BKT, DKT, …) | It would produce better recommendations and would not change one question this repository asks. A recommendation policy cannot be validated without learners, content, and teachers |
-| A cache layer | It would improve every number here and hide which of them were bad for structural reasons. Recorded as `OPEN-4` rather than silently skipped |
+| A cache layer | **Decided by `ADR-005`, with measurements rather than the argument.** PostgreSQL's buffer cache had already moved a conclusion here — 576.8 ms cold against 140 ms warm on the same statement, and `R2` reported the cold figure as fact. A cache would have hidden `R3`'s 36.6 ms scan entirely, reaches at most half of the recommendation request, and none of `R12`'s write path |
 | Full frontend | One back-office screen, for looking at what the API returns |
 | Container orchestration | Out of proportion to the system |
 | Coverage percentage | A number that is easy to raise without making anything safer. The regression gates in §Tier 3 are the claim being made instead |

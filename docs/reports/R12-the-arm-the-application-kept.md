@@ -218,6 +218,9 @@ the green arm would be being compared against nothing.
 - **The guard duplicates `ck_mastery_score`.** The band now lives in two places — a `CHECK`
   in `V1` and a predicate in `RecordingQueries`. They agree today. Nothing enforces that they
   keep agreeing, and the constraint is the one that is authoritative.
+  > **Moved to `OPEN-6` on 2026-08-13, the same day.** This was on the wrong shelf. A bullet
+  > here is something someone chose to live with; this is something someone still has to
+  > decide, and leaving it in a *남는 위험* section would have meant nobody ever had to.
 - **`@Version` is now maintained by hand on this path.** The native statement does
   `version = version + 1`. Any future statement that forgets to leaves the optimistic-locking
   column claiming the row never moved. A structural rule could catch it; none is written.

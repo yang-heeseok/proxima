@@ -1,14 +1,12 @@
 package net.gseek.proxima.db
 
-import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 import java.sql.DriverManager
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import net.gseek.fixtures.open3.IdentityRow
+import net.gseek.fixtures.open3.SeededRow
+import net.gseek.fixtures.open3.SequenceRowAllocate1
+import net.gseek.fixtures.open3.SequenceRowAllocate50
 import net.gseek.proxima.TestcontainersConfiguration.Companion.POSTGRES_IMAGE
 import org.hibernate.SessionFactory
 import org.hibernate.boot.MetadataSources
@@ -47,12 +45,27 @@ import org.testcontainers.utility.DockerImageName
  * round trips do not. `R8` §8 says a statement count is not a duration; this is the case that
  * proves it.
  *
- * ## A standalone SessionFactory, not the application's
+ * ## A standalone SessionFactory, and a package that matters more than it
  *
- * These three entities exist to be measured and must not join the application's persistence
- * unit — Hibernate would then validate their tables in every other test in this module. Each
- * arm builds its own `SessionFactory` against the same container, with `hbm2ddl` creating
- * only the table that arm needs.
+ * Each arm builds its own `SessionFactory` against the same container, with `hbm2ddl`
+ * creating only the table that arm needs, so the measurement never touches the application's
+ * schema.
+ *
+ * **That is not what keeps these entities out of the application's persistence unit, and an
+ * earlier version of this comment claimed it was.** In commit `8e5843a` the four entities
+ * were nested inside this class, in `net.gseek.proxima.db`. Spring Boot's entity scan roots
+ * at `ProximaApplication`'s package and test sources share the classpath, so it found them,
+ * added them to the persistence unit, and Hibernate refused to start any context:
+ * `Schema validation: missing table [t_open3_identity]`. **34 of 52 tests failed across six
+ * classes, and none of them was this one.**
+ *
+ * The comment had identified the exact risk and asserted the wrong mitigation. What was
+ * missing was not understanding — it was running `:api:test` without `--tests`. The
+ * verification had been scoped to the class under change, and the damage was everywhere else.
+ *
+ * They now live in `net.gseek.fixtures.open3`, outside the scan root, and
+ * `PersistenceUnitGateTest` fails with a sentence rather than thirty-four stack traces if
+ * anything is ever added back.
  */
 class IdentifierGenerationTest {
 
@@ -75,48 +88,6 @@ class IdentifierGenerationTest {
             if (::pg.isInitialized) pg.stop()
         }
     }
-
-    // -----------------------------------------------------------------------------------
-    // The three arms, differing only in how an id is obtained
-    // -----------------------------------------------------------------------------------
-
-    @Entity
-    @Table(name = "t_open3_identity")
-    class IdentityRow(var payload: String = "") {
-        @Id
-        @GeneratedValue(strategy = GenerationType.IDENTITY)
-        var id: Long? = null
-    }
-
-    @Entity
-    @Table(name = "t_open3_seq_1")
-    class SequenceRowAllocate1(var payload: String = "") {
-        @Id
-        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "g1")
-        @SequenceGenerator(name = "g1", sequenceName = "seq_open3_1", allocationSize = 1)
-        var id: Long? = null
-    }
-
-    @Entity
-    @Table(name = "t_open3_seq_50")
-    class SequenceRowAllocate50(var payload: String = "") {
-        @Id
-        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "g50")
-        @SequenceGenerator(name = "g50", sequenceName = "seq_open3_50", allocationSize = 50)
-        var id: Long? = null
-    }
-
-    /** The seeded-database hazard `open.md` recorded but never reproduced. */
-    @Entity
-    @Table(name = "t_open3_seeded")
-    class SeededRow(var payload: String = "") {
-        @Id
-        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "gs")
-        @SequenceGenerator(name = "gs", sequenceName = "seq_open3_seeded", allocationSize = 1)
-        var id: Long? = null
-    }
-
-    // -----------------------------------------------------------------------------------
 
     private fun sessionFactory(vararg entities: Class<*>): SessionFactory {
         val registry = StandardServiceRegistryBuilder()

@@ -71,6 +71,37 @@ Three things follow, and only the first was expected.
 
    It was written down as a worry. It is now a measured fact with a test around it.
 
+### What this measurement broke on the way in
+
+**The commit that closed this decision, `8e5843a`, turned CI red**, and the way it did is worth
+more than the inconvenience.
+
+The four entity classes above were nested inside `IdentifierGenerationTest`, in
+`net.gseek.proxima.db`. Its KDoc named the exact risk — *these must not join the application's
+persistence unit* — and gave a mitigation: each arm builds a standalone `SessionFactory`, so
+nothing measured here touches the application's schema.
+
+That mitigation answers **who uses them.** The defect is **who finds them.**
+`@SpringBootApplication` roots the entity scan at `net.gseek.proxima`, and test sources share
+the classpath with main sources when tests run. Spring found all four, added them to the
+application's persistence unit, and Hibernate refused to start any context:
+
+```
+Schema validation: missing table [t_open3_identity]
+34 of 52 tests failed, across six classes -- none of them the one that changed
+```
+
+Local verification had been run as `--tests IdentifierGenerationTest`, which starts no Spring
+context at all. **The scope of the check excluded everything the change could break.** `R8`
+§3.1 says a test whose measurement scope is wrong passes and reassures; this is the same
+mistake applied to the verification scope rather than the assertion scope, on the same day
+that report's lesson was quoted in another commit message.
+
+Fixed by moving the entities to `net.gseek.fixtures.open3`, outside the scan root.
+`PersistenceUnitGateTest` now asserts the persistence unit's entity set exactly, so the next
+occurrence fails with one sentence naming the cause instead of thirty-four schema-validation
+stack traces in unrelated classes.
+
 ## Decision
 
 **`IDENTITY` stays.** `OPEN-3` closes as *decided*, not as *expired*.

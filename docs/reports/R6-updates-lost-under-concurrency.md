@@ -166,6 +166,14 @@ found itself in.
 
 ## 8. 남는 위험 / Remaining risk
 
+> **Discharged 2026-08-13 by `R12`, and the reason recorded below turned out not to hold.**
+> All three of its premises are true and the conclusion is not: a business rule does not have
+> to be a constraint, it can be a `WHERE` predicate — so a recording that would leave the band
+> matches no row instead of raising, and the transaction is never poisoned. Measured on the
+> application's own path, 10 threads × 100 recordings on one row: **196 of 1,000 applied
+> before, 1,000 of 1,000 after.** The bullet is left standing because *the argument that kept
+> a measured defect in place for three days* is worth more than a tidy edit.
+
 - **The application still uses the second-worst option.** `AttemptRecorder.record` reads a
   `Mastery`, mutates `attemptsCount` and `score`, and saves — the `entity + @Version` arm,
   which rejected 82 % of writes here. **It has not been changed**, because the fix is not a

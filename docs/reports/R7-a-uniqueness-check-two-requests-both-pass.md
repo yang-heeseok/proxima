@@ -163,6 +163,13 @@ cannot compute. **It costs a second connection while the first is held**, which 
 fails loudly instead of duplicating, which is an improvement, and moving it to the upsert is
 a change to the recording path that belongs with the `R6` §8 decision about `score`.
 
+> **Changed 2026-08-13 by `R12`**, together with that decision, which is where it belonged.
+> The naive pattern's cost in the application's own path was measured before it was replaced:
+> **3 and 4 `DataIntegrityViolationException`s** across two runs of 1,000 concurrent
+> recordings on one `(learner, concept)` — small, because the window only exists in the
+> instant before the row does, and **eight silent duplicates before `V3`**. The upsert arm
+> raises none.
+
 ## 6. 재계측 / Re-measurement
 
 | | before (`V1`) | after (`V3`) |

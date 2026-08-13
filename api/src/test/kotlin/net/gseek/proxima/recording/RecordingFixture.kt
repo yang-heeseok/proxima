@@ -7,6 +7,7 @@ import net.gseek.proxima.domain.Item
 import net.gseek.proxima.domain.ItemRepository
 import net.gseek.proxima.domain.Learner
 import net.gseek.proxima.domain.LearnerRepository
+import net.gseek.proxima.domain.Mastery
 import net.gseek.proxima.domain.MasteryRepository
 import org.springframework.boot.test.context.TestComponent
 import org.springframework.transaction.annotation.Propagation
@@ -74,4 +75,17 @@ class RecordingFixture(
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun countAttempts(): Long = attempts.count()
+
+    /**
+     * The mastery row **as a second request would find it** — `REQUIRES_NEW`, so this reads
+     * committed state rather than whatever the caller's own transaction happens to contain.
+     *
+     * That distinction is the whole of `AttemptRecordingServiceTest`'s thesis, and it stopped
+     * being theoretical in `R12`: the shipped recording path creates the row with
+     * `on conflict do nothing` **before** deciding whether to move it, so a failed recording
+     * leaves a row visible inside its own transaction and none at all once it rolls back.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun masteryOf(scene: Scene): Mastery? =
+        masteries.findByLearnerIdAndConceptId(scene.learnerId, scene.conceptId)
 }

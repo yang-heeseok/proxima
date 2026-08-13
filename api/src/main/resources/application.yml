@@ -88,6 +88,18 @@ management:
 #   ones are: a missing environment variable should fail at startup rather than fall back to
 #   something that happens to work on one machine. The test profile supplies its own.
 proxima:
+  # HOW ONE RECORDING MOVES A MASTERY ROW. docs/reports/R12.
+  #
+  #   read-modify-write  read the row, mutate it, save it -- R6's `entity + @Version` arm,
+  #                      which kept 180 of 1,000 increments and rejected 820, with R7's
+  #                      check-then-insert on top of it. `red`.
+  #   atomic-guarded     R7's `on conflict do nothing`, then R6's single statement with the
+  #                      0..1 business rule carried as a WHERE predicate rather than as a
+  #                      constraint -- so a rejected recording matches no row instead of
+  #                      aborting the transaction (R1 §9).
+  recording:
+    mastery-update: atomic-guarded
+
   security:
     token-secret: ${PROXIMA_TOKEN_SECRET}
 

@@ -56,5 +56,20 @@ class AttemptRecordingAtomicityTest {
                 "mastery it updates are one unit -- a learner whose history and whose state " +
                 "disagree is not reconciled by anything downstream",
         )
+
+        // MOVED HERE FROM AttemptRecordingServiceTest BY R12, BECAUSE ONLY HERE IS IT A CLAIM.
+        //
+        //   The shipped recording path creates the mastery row with `on conflict do nothing`
+        //   before deciding whether to move it. So during a failed unit of work a row exists,
+        //   and after it a row does not -- and the difference between those two statements is
+        //   a commit boundary, which is precisely what a test sharing a transaction with the
+        //   code under test cannot see. That test asserted `null`, passed for years' worth of
+        //   the wrong reason, and went red on a change that preserved the property.
+        assertEquals(
+            null, fixture.masteryOf(scene),
+            "a mastery row survived a unit of work that failed. It is created before the " +
+                "guarded update decides whether to move it, so this asserts the rollback " +
+                "rather than the absence of a write -- R12 §3",
+        )
     }
 }

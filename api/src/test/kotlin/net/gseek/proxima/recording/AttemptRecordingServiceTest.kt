@@ -61,8 +61,29 @@ class AttemptRecordingServiceTest {
         }
     }
 
+    /**
+     * **This assertion used to read `mastery == null`, and `R12` turned it red without
+     * breaking anything.** It is the sharpest demonstration this class has of its own thesis,
+     * so it is kept rather than repaired.
+     *
+     * The old assertion was never evidence about atomicity. It passed because the
+     * read-modify-write arm **never wrote a row** on the failure path — the statement that
+     * would have written it was the statement that threw. "No trace of a failed unit of work"
+     * and "nothing got as far as writing" produce the same `null`, and the test could not tell
+     * them apart.
+     *
+     * The shipped arm creates the row with `on conflict do nothing` and only then declines to
+     * move it. From **inside the caller's own transaction** — which is where this class reads,
+     * because `@Transactional` on the class binds one — that row is visible. From outside,
+     * after the rollback, it is not, and the domain property is exactly as true as it ever
+     * was: `AttemptRecordingAtomicityTest` asserts it there.
+     *
+     * So a change that preserved the property broke the test that claimed to check it. **A
+     * test that shares a transaction with the code under test does not merely fail to observe
+     * that code's boundaries — it can report their consequences backwards.**
+     */
     @Test
-    fun `mastery is left untouched when the recording fails`() {
+    fun `what this test can see after a failed recording, and why that is not the property`() {
         val scene = fixture.scene()
 
         assertThrows<IllegalArgumentException> {
@@ -72,13 +93,17 @@ class AttemptRecordingServiceTest {
             )
         }
 
-        // Reads as "the failed unit of work left no trace". It is not that. The mastery row
-        // was never written because the statement that would have written it is the one
-        // that failed -- so this assertion holds with or without a transaction.
+        val insideThisTransaction =
+            masteries.findByLearnerIdAndConceptId(scene.learnerId, scene.conceptId)
+
         assertEquals(
-            null,
-            masteries.findByLearnerIdAndConceptId(scene.learnerId, scene.conceptId),
-            "mastery must not exist after a failed recording",
+            BigDecimal("0.000"), insideThisTransaction?.score,
+            "the row exists and has not been moved -- if it had been, the guard did not " +
+                "refuse and this recording should not have thrown",
+        )
+        assertEquals(
+            0, insideThisTransaction?.attemptsCount,
+            "the counter moved on a recording that failed",
         )
     }
 }

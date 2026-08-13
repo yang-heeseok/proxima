@@ -4,9 +4,11 @@ import net.gseek.proxima.domain.Attempt
 import net.gseek.proxima.domain.AttemptRepository
 import net.gseek.proxima.domain.ConceptRepository
 import net.gseek.proxima.domain.ItemRepository
+import net.gseek.proxima.domain.Learner
 import net.gseek.proxima.domain.LearnerRepository
 import net.gseek.proxima.domain.Mastery
 import net.gseek.proxima.domain.MasteryRepository
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -52,6 +54,17 @@ class AttemptRecorder(
     private val items: ItemRepository,
     private val attempts: AttemptRepository,
     private val masteries: MasteryRepository,
+    private val queries: RecordingQueries,
+    /**
+     * **Which arm of `R12` is in force.** Both live in one binary — `R4` §2's argument.
+     *
+     * | value | behaviour |
+     * | --- | --- |
+     * | `read-modify-write` | read the row, mutate it, save it. **`red`** — the arm `R6` measured as second-worst, and `R7`'s check-then-insert on top of it |
+     * | `atomic-guarded` | ensure the row, then one statement carrying the rule as a predicate |
+     */
+    @Value("\${proxima.recording.mastery-update:atomic-guarded}")
+    private val masteryUpdate: String,
 ) {
 
     @Transactional
@@ -69,6 +82,25 @@ class AttemptRecorder(
             ),
         )
 
+        when (masteryUpdate) {
+            "read-modify-write" -> viaEntity(learnerId, recording, learner)
+            "atomic-guarded" -> viaGuardedStatement(learnerId, recording)
+            else -> error("unknown proxima.recording.mastery-update: $masteryUpdate")
+        }
+    }
+
+    /**
+     * `red`. Two measured defects in five lines, and neither is visible in a code review of
+     * the lines themselves.
+     *
+     * `findByLearnerIdAndConceptId(...) ?: Mastery(...)` is `R7`'s check-then-insert: two
+     * requests both find nothing and both insert. Since `V3` that raises instead of
+     * duplicating, which is better and is still a failure.
+     *
+     * The read, the mutate and the save are `R6`'s `entity + @Version` arm: **1,000
+     * increments on one row kept 180 and rejected 820.**
+     */
+    private fun viaEntity(learnerId: Long, recording: Recording, learner: Learner) {
         val mastery = masteries.findByLearnerIdAndConceptId(learnerId, recording.conceptId)
             ?: Mastery(learner = learner, concept = concepts.getReferenceById(recording.conceptId))
 
@@ -81,5 +113,35 @@ class AttemptRecorder(
         mastery.score = updated
         mastery.updatedAt = recording.at
         masteries.save(mastery)
+    }
+
+    /**
+     * `green`. `R7`'s upsert, then `R6`'s atomic statement with the business rule inside its
+     * `WHERE` clause.
+     *
+     * **The failure path is the interesting part.** `applyRecording` returning `0` is not an
+     * error the database raised — no constraint was violated and the transaction is intact —
+     * so the row can still be read to say what the score would have become. A rule expressed
+     * as `ck_mastery_score` could not do that: `R1` §9 measured PostgreSQL aborting the whole
+     * transaction on a constraint violation, after which every read fails for an unrelated
+     * reason.
+     */
+    private fun viaGuardedStatement(learnerId: Long, recording: Recording) {
+        queries.ensureExists(learnerId, recording.conceptId, recording.at)
+
+        val applied = queries.applyRecording(
+            learnerId = learnerId,
+            conceptId = recording.conceptId,
+            delta = recording.scoreDelta,
+            at = recording.at,
+        )
+
+        if (applied != 1) {
+            val current = masteries.findByLearnerIdAndConceptId(learnerId, recording.conceptId)
+            throw IllegalArgumentException(
+                "mastery score would reach ${current?.score?.add(recording.scoreDelta)}, " +
+                    "which is outside the 0..1 band",
+            )
+        }
     }
 }

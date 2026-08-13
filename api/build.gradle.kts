@@ -13,6 +13,7 @@ val javaToolchainVersion: String by project
 val querydslVersion: String by project
 val archunitVersion: String by project
 
+
 kotlin {
     jvmToolchain(javaToolchainVersion.toInt())
     compilerOptions {
@@ -55,6 +56,23 @@ dependencies {
     // test can catch cheaply -- the runtime test needs a container, a schema, and a
     // deliberately failing unit of work to see it.
     testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
+
+    // H2 IS HERE TO BE MEASURED, NOT TO BE USED. `T8` runs this repository's own migrations
+    // and statements against it and records what breaks -- docs/reports/R9.
+    //
+    // READ THIS BEFORE REMOVING IT, AND BEFORE RELYING ON IT.
+    //
+    //   Putting an embedded database on the test classpath is itself the hazard the report is
+    //   about: `@DataJpaTest` will substitute one for the configured datasource, and under
+    //   `replace = ANY` this repository ends up running Flyway against PostgreSQL and
+    //   Hibernate against H2 in the same context, with `missing table [attempt]` as the only
+    //   symptom. Measured, not supposed -- R9 §3.4.
+    //
+    //   Two tests hold that down. EmbeddedSubstitutionGateTest asserts the test lane reaches
+    //   PostgreSQL; EmbeddedSubstitutionControlTest asserts that substitution still works
+    //   when asked for, so that the gate cannot quietly become vacuous the day this line is
+    //   deleted. Deleting this dependency turns the control red on purpose.
+    testImplementation("com.h2database:h2")
 }
 
 tasks.withType<Test> {

@@ -1,7 +1,7 @@
 # Open decisions
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-10
+> **Updated**: 2026-08-14
 
 **Status:** Live. This file exists so that *undecided* is a recorded state rather than a
 silence, and it discharges the `PUB-4` row that says so.

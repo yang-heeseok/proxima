@@ -1,11 +1,18 @@
 # Domain model
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-10
+> **Updated**: 2026-08-14
 
-**Status:** Baseline schema settled (`V1__baseline.sql`) and verified to apply against
-PostgreSQL 16.14 under test. The scale table below is **generated and loaded** as of
-2026-08-10 — see `seed/README.md`. No domain entities exist yet.
+**Status:** Schema at `V3`. `V1__baseline.sql` applies against PostgreSQL 16.14 under test;
+`V2` adds the index `R3` measured; `V3` adds the `mastery` uniqueness `R7` measured — and,
+unintentionally, the index `R16` measured at 15× on the read path. The scale table below is
+**generated and loaded** — see `seed/README.md`. **Five entities exist**
+(`net.gseek.proxima.domain`: `Attempt`, `Concept`, `Item`, `Learner`, `Mastery`), asserted as
+an exact set by `PersistenceUnitGateTest`.
+
+> This line said *"No domain entities exist yet"* until 2026-08-14, four days after they did.
+> `PUB-4` requires that no prose claim a state that does not exist and the row is `reviewed`
+> rather than `observed`; nothing enforces it, and this was found by being asked.
 
 This document owns **what the data means, how much of it there is, and where it comes
 from.**

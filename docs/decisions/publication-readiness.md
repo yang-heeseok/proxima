@@ -1,7 +1,7 @@
 # Publication readiness
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-10
+> **Updated**: 2026-08-14
 
 **Status:** Requirements settled. The checklist is in progress — this repository holds
 documents, guards, a baseline schema, a Gradle build, and a dataset generator. No defect
@@ -187,7 +187,7 @@ observable.
 | `PUB-3` | `README.md` states purpose, structure, and current state | **reviewed** — written 2026-08-10 |
 | `PUB-3` | Every managed document carries `Created` and `Updated` | **reviewed** — no workflow enforces it yet |
 | `PUB-4` | Every document states what it does not own | **reviewed** |
-| `PUB-4` | No prose claims an implementation state that does not exist | **reviewed** — re-checked 2026-08-10 when the build landed. Three documents had gone stale in the same hour by still saying "no application code yet", which is the failure mode this row exists to catch: the claim was true when written and nothing re-reads it |
+| `PUB-4` | No prose claims an implementation state that does not exist | **reviewed, and it failed again** — re-checked 2026-08-10 when the build landed; three documents had gone stale in the same hour by still saying "no application code yet". **On 2026-08-14 two more were found stale**: `roadmap.md` still said *"Nothing below is done"* four days after the first item landed, and `domain-model.md` still said *"No domain entities exist yet"* with five of them in the tree. **Both were caught by the PO asking, not by anything here.** The row has now failed twice in five days, which makes it the strongest candidate in this table for becoming `observed`: a check that every `**Status:**` line and `**Updated**` date is newer than the newest commit touching its directory is mechanical, and nobody has written it |
 | `PUB-4` | **Every published number carries its measurement environment** | **reviewed** — the report template carries the block; **no workflow enforces it yet.** This row is a candidate for becoming observable |
 | `PUB-4` | **Every report has a non-empty *남는 위험* section** | **reviewed** — a machine can see the heading exists, not that it is honest. Making the heading observable is worth doing anyway |
 | `PUB-4` | Every undecided item is recorded as undecided | **observed by presence** — `docs/decisions/open.md` |

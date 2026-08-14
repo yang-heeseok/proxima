@@ -1,7 +1,7 @@
 # Measurement discipline
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-10
+> **Updated**: 2026-08-14
 
 **Status:** Settled before the first measurement, deliberately. Rules written after a
 number is inconvenient are not rules.

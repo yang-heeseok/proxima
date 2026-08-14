@@ -1,7 +1,7 @@
 # seed
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-10
+> **Updated**: 2026-08-14
 
 **Status:** Generator and loader work at full scale. Verified 2026-08-10 — 3,963,719 rows
 generated and loaded.

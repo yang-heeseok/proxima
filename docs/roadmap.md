@@ -1,10 +1,23 @@
 # Roadmap
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-10
+> **Updated**: 2026-08-14
 
-**Status:** Nothing below is done. The state column is the truth of this document and is
-updated as each item lands, not in advance.
+**Status:** **`T1`–`T9` are all done, in seventeen reports (`R0`–`R16`).** The state column
+remains the truth of this document — it is updated as each item lands, not in advance.
+
+**Two items do not satisfy every clause of *Definition of done* below, and neither is
+counted as if it did.** `R2` §7 records *"None. Nothing in CI would catch this returning"* —
+it is `T1`'s first attempt, kept because it established the mechanism and refused to choose a
+remedy; the gate arrived with `R4`, which concluded the item. `R13` §7 argues that a gate
+**cannot usefully exist** for what it measured, because the defect needs skew and the shipped
+dataset has none, so any assertion over this application's data would pass for the wrong
+reason.
+
+> **Status lines go stale in this repository and this one did.** It read *"Nothing below is
+> done"* for four days after the first item landed, and `PUB-4`'s row about prose claiming a
+> state that does not exist is `reviewed`, not `observed` — nothing enforces it. It was
+> caught on 2026-08-14 by being asked, not by a check.
 
 This document owns **what gets measured, in what order, and how far along it is.**
 

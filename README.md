@@ -3,7 +3,7 @@
 **An API that chooses a learner's next problem — and a record of how it actually breaks
 under load and concurrency.**
 
-> **Created**: 2026-08-10 · **Updated**: 2026-08-13
+> **Created**: 2026-08-10 · **Updated**: 2026-08-14
 > **Status: the nine traps on the roadmap are measured, in twelve reports.** Spring Boot
 > 4.1.0 on JDK 21, a schema that applies to a real PostgreSQL under test, a generator that
 > produces 3,963,719 rows from a fixed seed value, and 70 tests. Three of the nine turned out

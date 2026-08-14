@@ -100,7 +100,7 @@ Delete on mastery m  (cost=18832.00..34214.00 rows=0 width=0)
 
 | | planner cost | measured |
 | --- | --- | --- |
-| correlated subquery, as shipped | **9,139,221,232** | **not run** — §8 |
+| correlated subquery, as shipped | **9,139,221,232** | **> 32 minutes**, terminated unfinished — §3.3 |
 | aggregate pass and join | **34,214** | **768.1 ms**, 0 rows removed |
 
 **About 267,000× on cost.** The rewrite was executed inside a transaction and rolled back:
@@ -119,6 +119,34 @@ this delete removes nothing on this database. The whole cost is spent establishi
 That is not an argument for removing the statement. `V3`'s own comment says why it is there:
 *any database this migration meets in the wild may not be clean, and `CREATE UNIQUE INDEX`
 would fail on it.* The defect is the **shape** of the check, not the existence of one.
+
+### 3.3 A wall-clock floor, obtained by accident
+
+This section was written saying the original statement had *never been run to completion, so
+there is no wall-clock number for it* — only a planner cost and a 120-second timeout.
+
+The next load attempt failed to start with
+`Number of retries exceeded while attempting to acquire PostgreSQL advisory lock`. Something
+was holding Flyway's lock:
+
+```
+ pid | state               | running_for     | query
+  54 | idle in transaction | 00:32:07        | (holding the Flyway advisory lock)
+  55 | active              | 00:32:07        | -- V3 — the constraint the domain has required since V1 …
+```
+
+**The delete was still executing.** The JVM had been killed thirty minutes earlier;
+**terminating a client does not terminate its query.** PostgreSQL kept working on it until the
+backend was terminated explicitly, and the transaction then rolled back cleanly — schema back
+at version 2, `mastery` still 600,000 rows.
+
+So the floor is **32 minutes 7 seconds and unfinished**, against **768 ms**. That is a
+measured ratio of **at least 2,500×**, next to a planner estimate of 267,000×. The two numbers
+are answering different questions and both are quoted: one is what the planner believed, the
+other is a lower bound on what actually happened.
+
+It also cost thirty minutes of CPU on the machine that is the measurement environment, which
+is recorded in §8 as contamination of anything measured beside it.
 
 ### 3.2 Why no test caught it
 
@@ -181,10 +209,15 @@ the correctness of the very statement it was written to replace.
 
 ## 8. 남는 위험 / Remaining risk
 
-- **The original statement was never run to completion, so there is no wall-clock number for
-  it.** Only a planner cost and a 120-second timeout. Letting it finish would take an
-  unknown number of hours on a machine that is also the measurement environment. **미측정,
-  deliberately**, and the cost ratio is a planner estimate rather than two stopwatches.
+- ~~**The original statement was never run to completion, so there is no wall-clock number for
+  it.**~~ **Amended — §3.3.** It ran for **32 minutes 7 seconds** as an orphan after its client
+  was killed, and was still going when it was terminated. That is a floor, not a duration: the
+  statement never finished and **how long it would take is still 미측정.** The 267,000× remains
+  a planner estimate; the measured ratio is *at least* 2,500×.
+- **Thirty minutes of unbudgeted CPU ran on the measurement machine.** Anything measured on
+  this host between the first failed load attempt and the termination in §3.3 was measured
+  beside a saturated core. Nothing in this report is from that window, and **the load
+  measurement this was found during had to be restarted because of it.**
 - **The rewrite was measured on a table with no duplicates.** 768 ms is the cost of finding
   nothing. A database with real duplicates does the same scans plus the deletes, and that is
   **미측정** — the gate proves correctness on six rows, not cost on six hundred thousand.

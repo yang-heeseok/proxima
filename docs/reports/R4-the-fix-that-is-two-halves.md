@@ -183,6 +183,21 @@ The second test inserts the minimum data that makes the recommendation return a 
 asserts on the content — **an empty response would assert nothing**, which is how a gate
 quietly stops guarding.
 
+> **And the load runs above had no such guarantee. Measured 2026-08-14, `R16` §3.4: on this
+> seed the rule returns items for 210 learners in 1,000, so roughly four requests in five in
+> every run on this page answered `200` with an empty list.** The harness had a
+> `body is not empty` check the whole time and its threshold was `rate>=0.0`, so it passed
+> whatever it saw — the fifth instrument in this repository found reporting into nothing.
+>
+> That does not invalidate the arms: all three ran the same traffic mix and the comparison
+> between them is like for like. It does mean **p50 above is the empty path and p95/p99 are
+> the working one** — 21 % > 5 % > 1 % — so the two halves of this table describe different
+> code. The rule that *p99 decides* chose correctly here without knowing why.
+>
+> `R16` also measures what `V3`'s unique constraint — added for `T6`, two days after this —
+> is worth to this endpoint: **15× on p99.** These numbers are **not** comparable with
+> `R16`'s, and `R16` §7 sets out why rather than printing the ratio.
+
 ### What writing this gate found
 
 **It failed on its first run, and it was right to.** `spring.jpa.open-in-view: false` is in

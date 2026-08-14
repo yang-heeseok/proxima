@@ -20,7 +20,8 @@ the reports carry the environment each number was taken in.*
 
 | What | Before | After | Report |
 | --- | --- | --- | --- |
-| Recommendation API p99 @ 200 VU | 9064.1 ms | **5919.4 ms** | [`R4`](docs/reports/R4-the-fix-that-is-two-halves.md) |
+| Recommendation API p99 @ 200 VU — *2026-08-12* | 9064.1 ms | **5919.4 ms** | [`R4`](docs/reports/R4-the-fix-that-is-two-halves.md) |
+| The same endpoint without `V3`'s unique constraint — *2026-08-14* | 11334.6 ms | **743.5 ms** | [`R16`](docs/reports/R16-the-constraint-that-was-also-an-index.md) |
 | Attempt history within a learner, deep page | 36.6 ms | **0.056 ms** | [`R3`](docs/reports/R3-an-index-that-exists-and-is-not-used.md) |
 | Recommendation read — statements per request | 2 + n | **1, at any row count** | [`R8`](docs/reports/R8-a-test-that-counts-queries.md) |
 | 1,000 increments, 10 threads, one row | **864 lost, no exception** | 0 lost, and 5.1× faster | [`R6`](docs/reports/R6-updates-lost-under-concurrency.md) |
@@ -28,6 +29,16 @@ the reports carry the environment each number was taken in.*
 | 1,000 concurrent recordings, one learner | **196 applied, 804 refused** | **1,000 applied, 0 refused** | [`R12`](docs/reports/R12-the-arm-the-application-kept.md) |
 | A batch of 5 with one invalid recording | **2 of 4 valid ones landed** | **4 of 4, each outcome named** | [`R14`](docs/reports/R14-the-batch-that-discarded-what-it-was-told-to-keep.md) |
 | One learner's token, another learner's data | 200, with their data | **403** | [`R11`](docs/reports/R11-authenticated-and-not-authorised.md) |
+
+**The two latency rows are dated and are not a progression.** They were taken two days apart
+on a machine whose state changed in between, and `measurement-discipline.md` rule 3 says a
+comparison across that gap is not made. `R16` §7 declines to print the flattering ratio and
+shows why the caution was warranted — its own arm B, the closest thing to `R4`'s schema, lands
+2× away from `R4`'s figure for reasons nothing has attributed.
+
+**Roughly four requests in five in every load run here answer `200` with an empty list** — the
+rule yields items for 210 of 1,000 generated learners. So a p50 above measures the query
+ending early and a p99 measures it doing the work. `R16` §3.4.
 
 **미측정 means not measured.** It does not mean "about the same". It still appears throughout
 the reports, and deliberately: `R9` §3.6 quotes a range across two machines rather than the

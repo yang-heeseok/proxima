@@ -73,6 +73,17 @@ recommender would produce better recommendations and would not change a single o
 questions this repository is actually asking, which are about what happens to the data
 layer underneath it when 200 people ask at once.
 
+**What this rule yields on the shipped seed, measured 2026-08-14.** Step 2 is strict — *every*
+prerequisite mastered — and on 1,000 generated learners it leaves **210 with anything to
+recommend**. The other 790 get `200` and an empty list. That is not a defect and it is not
+tuned for: judging it would be judging the policy, which the paragraph below places out of
+scope.
+
+It is recorded here because it is **not** out of scope for the layer underneath. Every load
+number in this repository is taken against traffic that is **four-fifths empty-path**, so a
+median measures the query ending early and a 99th percentile measures it doing the work.
+`R16` §3.4 separates them; `R4`'s table predates the distinction and is annotated.
+
 An honest statement of the limit: **a recommendation policy cannot be validated without
 learners, content, and teachers.** What can be built alone is the layer it would run on,
 and whether that layer survives load, concurrency, and a dataset of realistic size.

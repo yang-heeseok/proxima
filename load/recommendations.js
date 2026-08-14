@@ -44,6 +44,19 @@ if (!TOKEN_SECRET) {
 const measured = new Trend('measured_duration', true)
 const measuredErrors = new Rate('measured_errors')
 
+// HOW MANY RESPONSES ACTUALLY CARRIED A RECOMMENDATION.
+//
+//   Reported, and deliberately NOT thresholded. `body is not empty` used to be a `check`,
+//   which made it a pass/fail assertion about something the domain does not guarantee: the
+//   rule only yields items for a learner who has an unmastered concept whose prerequisites
+//   are all mastered, and on this dataset that is 210 learners in 1,000.
+//
+//   So an empty body is not a defect. Measuring the endpoint without knowing how often it
+//   happens IS one -- 79 % of the traffic in a run like this exercises none of the work the
+//   report is about, and R4 published a p99 without saying so. The number belongs in the
+//   summary, next to the percentiles it explains.
+const measuredNonEmpty = new Rate('measured_nonempty')
+
 // STEADY-STATE CHECK. The measurement window is split in half and the halves are compared.
 //
 //   The 30-second warm-up above warms a JVM. It does not warm three million rows into a
@@ -155,10 +168,11 @@ export function measure(data) {
     measuredLate.add(res.timings.duration)
   }
 
-  check(res, {
-    'status is 200': (r) => r.status === 200,
-    'body is not empty': (r) => r.body && r.body.length > 2,
-  })
+  measuredNonEmpty.add(res.status === 200 && res.body && res.body.length > 2)
+
+  // Only the status is asserted. Emptiness is a property of the dataset, not of the system
+  // under test, and asserting it would fail every honest run on this seed.
+  check(res, { 'status is 200': (r) => r.status === 200 })
 }
 
 // The environment block for the report cannot be produced by k6 -- it has no way to know
@@ -197,6 +211,11 @@ export function handleSummary(data) {
       '  p99 : ' + data.metrics.measured_duration.values['p(99)'].toFixed(1) + ' ms\n' +
       '  err : ' + (data.metrics.measured_errors.values.rate * 100).toFixed(2) + ' %\n' +
       '  vus : ' + VUS + '\n' +
+      '  responses carrying a recommendation : ' +
+      (data.metrics.measured_nonempty.values.rate * 100).toFixed(1) + ' %\n' +
+      '    (the rest are 200 with an empty list -- a property of the seed, not a failure.\n' +
+      '     Percentiles above are over BOTH, so a low figure here means most of the\n' +
+      '     measured traffic did none of the work the report is about.)\n' +
       steady +
       '\n' +
       'Run this three times. Report the median. Fill in the environment block by hand.\n',

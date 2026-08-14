@@ -13,12 +13,31 @@
 // See docs/explanation/measurement-discipline.md.
 
 import http from 'k6/http'
+import crypto from 'k6/crypto'
 import { check } from 'k6'
 import { Trend, Rate } from 'k6/metrics'
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080'
 const VUS = parseInt(__ENV.VUS || '200', 10)
 const LEARNERS = parseInt(__ENV.LEARNERS || '1000', 10)
+
+// THE HARNESS HAD TO LEARN TO AUTHENTICATE, AND FINDING THAT OUT IS WHY R15 EXISTS.
+//
+//   R4's numbers were taken before T9 put a token filter in front of /api/v1. This script
+//   sent no Authorization header, so every request would now be answered 401 -- and the
+//   threshold below permitted an error rate of 1.0, so the run would have finished, printed
+//   a p99, and failed nothing. The number would have been the latency of being refused.
+//
+//   The signature must match RequestToken exactly: HMAC-SHA256 over `<sub>.<iat>.<exp>`,
+//   base64url with no padding. k6's 'base64rawurl' is Java's
+//   Base64.getUrlEncoder().withoutPadding().
+const TOKEN_SECRET = __ENV.PROXIMA_TOKEN_SECRET
+if (!TOKEN_SECRET) {
+  throw new Error(
+    'PROXIMA_TOKEN_SECRET is not set. Without it every request is 401 and the run measures ' +
+      'the cost of a refusal. See docs/reports/R15.',
+  )
+}
 
 // Measured separately from the built-in http_req_duration so that warm-up traffic,
 // which also hits http_req_duration, cannot contaminate the reported number.
@@ -67,8 +86,16 @@ export const options = {
     // Deliberately absent: a p99 threshold. The first run of this scenario is EXPECTED to
     // fail badly, and a threshold that made that run "fail" would say nothing the number
     // does not already say. What must hold is that the measurement itself is valid.
-    'measured_errors': ['rate<=1.0'], // placeholder; tightened once a baseline exists
-    'checks{phase:measure}': ['rate>=0.0'],
+    //
+    // THE ERROR THRESHOLD WAS A PLACEHOLDER — `rate<=1.0`, permitting every request to fail
+    // — with a comment saying it would be tightened "once a baseline exists". The baseline
+    // has existed since R4, which measured 0.00 % across all three arms, and the placeholder
+    // stayed. It is what would have let a run of nothing but 401s publish a p99.
+    //
+    // This script's own header says a threshold that only warns is a comment. So did that
+    // line, for four days.
+    'measured_errors': ['rate<0.01'],
+    'checks{phase:measure}': ['rate>0.99'],
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(95)', 'p(99)', 'max'],
 }
@@ -80,28 +107,44 @@ function pickLearnerId() {
   return ((__VU - 1) * 1013 + __ITER * 7919) % LEARNERS + 1
 }
 
-function callOnce() {
+function callOnce(tokens) {
   const id = pickLearnerId()
   return http.get(`${BASE_URL}/api/v1/learners/${id}/recommendations?limit=10`, {
+    headers: { Authorization: `Bearer ${tokens[id - 1]}` },
     tags: { name: 'recommendations' },
   })
 }
 
-// Wall-clock zero, so `measure` can tell which half of its window it is in.
+/**
+ * Wall-clock zero, so `measure` can tell which half of its window it is in — and one token
+ * per learner.
+ *
+ * **Signed here rather than per iteration.** An HMAC in the request loop is client-side work
+ * inside the thing being measured, and this script exists to measure a server. One hour of
+ * validity against a 3m30s run leaves no chance of an expiry landing mid-window and turning
+ * a latency measurement into an authentication measurement.
+ */
 export function setup() {
-  return { t0: Date.now() }
+  const iat = Math.floor(Date.now() / 1000)
+  const exp = iat + 3600
+  const tokens = []
+  for (let id = 1; id <= LEARNERS; id++) {
+    const body = `${id}.${iat}.${exp}`
+    tokens.push(`${body}.${crypto.hmac('sha256', TOKEN_SECRET, body, 'base64rawurl')}`)
+  }
+  return { t0: Date.now(), tokens }
 }
 
 // Warm-up: traffic is real, results are ignored on purpose.
-export function warmup() {
-  callOnce()
+export function warmup(data) {
+  callOnce(data.tokens)
 }
 
 const WARMUP_MS = 30000
 const MEASURE_MS = 180000
 
 export function measure(data) {
-  const res = callOnce()
+  const res = callOnce(data.tokens)
   measured.add(res.timings.duration)
   measuredErrors.add(res.status !== 200)
 

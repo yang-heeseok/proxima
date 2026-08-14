@@ -18,13 +18,40 @@
 -- that this migration is not entitled to make, and doing it silently would be worse than
 -- dropping the duplicates loudly in a report.
 
+-- WHY THIS IS A JOIN AGAINST ONE AGGREGATE PASS AND NOT A CORRELATED SUBQUERY.
+--
+--   It was the obvious form first:
+--
+--       delete from mastery m
+--        where m.id > (select min(m2.id) from mastery m2
+--                       where m2.learner_id = m.learner_id
+--                         and m2.concept_id = m.concept_id);
+--
+--   That reads correctly and IS correct. It is also quadratic: `mastery` carries no index on
+--   (learner_id, concept_id) -- this migration is what creates one -- so the planner scans the
+--   table once per row to evaluate the subquery. Measured against the seeded database, 600,000
+--   rows:
+--
+--       correlated subquery   cost 9,139,221,232   never completed
+--       this statement        cost        34,214   768 ms, 0 rows removed
+--
+--   About 267,000x. The first form passed every test in this repository, because every test
+--   applies this migration to an EMPTY schema -- the dedup runs against nothing. It was found
+--   when the application was pointed at the seeded database for a load run and Flyway sat on
+--   "Migrating schema to version 3" until the harness gave up. docs/reports/R15.
+--
+--   Semantics are unchanged: keep the lowest id of each (learner_id, concept_id) group.
+--   MigrationDeduplicationTest reads this statement out of this file, runs it against planted
+--   duplicates, and asserts that the lowest id is what survives.
 delete from mastery m
- where m.id > (
-     select min(m2.id)
-       from mastery m2
-      where m2.learner_id = m.learner_id
-        and m2.concept_id = m.concept_id
- );
+ using (
+     select learner_id, concept_id, min(id) as keep
+       from mastery
+      group by learner_id, concept_id
+ ) k
+ where m.learner_id = k.learner_id
+   and m.concept_id = k.concept_id
+   and m.id > k.keep;
 
 alter table mastery
     add constraint uk_mastery_learner_concept unique (learner_id, concept_id);

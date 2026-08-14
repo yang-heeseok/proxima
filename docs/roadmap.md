@@ -6,18 +6,36 @@
 **Status:** **`T1`–`T9` are all done, in seventeen reports (`R0`–`R16`).** The state column
 remains the truth of this document — it is updated as each item lands, not in advance.
 
-**Two items do not satisfy every clause of *Definition of done* below, and neither is
-counted as if it did.** `R2` §7 records *"None. Nothing in CI would catch this returning"* —
-it is `T1`'s first attempt, kept because it established the mechanism and refused to choose a
-remedy; the gate arrived with `R4`, which concluded the item. `R13` §7 argues that a gate
-**cannot usefully exist** for what it measured, because the defect needs skew and the shipped
-dataset has none, so any assertion over this application's data would pass for the wrong
-reason.
+### Where *done* is a word covering a deviation
 
-> **Status lines go stale in this repository and this one did.** It read *"Nothing below is
-> done"* for four days after the first item landed, and `PUB-4`'s row about prose claiming a
-> state that does not exist is `reviewed`, not `observed` — nothing enforces it. It was
-> caught on 2026-08-14 by being asked, not by a check.
+**`done` is one bit over a five-clause definition, and five entries deviate from a clause.**
+Each deviation is argued in its own report, and until 2026-08-14 that was the only place any
+of them could be read — five files, five different sentences. **The list below is the deviation
+made countable**, because a rule whose exceptions can only be found by reading everything is a
+rule nobody can check.
+
+| Entry | Clause | Why — and whether it is work waiting to be done |
+| --- | --- | --- |
+| `T2` / `R5` | 1 **and** 2 | **The defect does not exist on Hibernate 7.4.1.** There is no state in which it is observable, so there is no red commit to make. **Not debt** |
+| `T8` / `R9` | 1 | Same shape on Boot 4.1.0 — `@AutoConfigureTestDatabase.replace` defaults to `NON_TEST`, read out of the bytecode. **Not debt** |
+| `T9` / `R10`, `R11` | 1 | **A refusal, not an omission.** A wide-open management surface and a working IDOR, left in a public repository's history, is a worked example for the wrong reader. `R10` §5, `R11` §5. **Not debt — a decision** |
+| `R2` | 4 | Superseded rather than missing: `R2` is `T1`'s first attempt, kept because it established the mechanism and refused to choose a remedy. The gate arrived with `R4`. **Not debt** |
+| `R13` | 4 | A gate **cannot usefully exist**: the defect needs skew, the shipped dataset has none, so any assertion over this application's data would pass for the wrong reason. **Not debt** |
+
+**None of the five is unfinished work, and writing the missing artefact for any of them would
+be manufacturing compliance** — a red commit for a defect that does not exist, a gate that
+passes because it cannot fail. That is the failure this repository is organised against, so
+the deviations stay and are counted instead.
+
+What the table does show is that clauses 1 and 2 are written for **a defect that exists and
+stays reproducible**, and three of nine items are not that. The definition is not amended
+here, because an amendment written to fit the exceptions it just met is not a definition.
+
+> **Status lines go stale in this repository, and this one has now been wrong twice.** It read
+> *"Nothing below is done"* for four days after the first item landed. Corrected 2026-08-14 —
+> **and the same pass left `T1`'s cell claiming no regression gate existed**, two days after
+> `d30e326` added one and while `R4` §7 named the file. Both were caught by the PO asking.
+> `PUB-4`'s row for this is `reviewed`, not `observed`: **nothing here can go red.**
 
 This document owns **what gets measured, in what order, and how far along it is.**
 
@@ -65,7 +83,7 @@ because measuring it without those two would produce numbers nobody could trust.
 | # | Defect | State |
 | --- | --- | --- |
 | **T3** | **A transaction annotation that does nothing.** Self-invocation through `this`; a `final` class where the proxy cannot be created at all; an entity declared as a `data class`, whose generated `equals` meets a lazy proxy; an exception swallowed inside the boundary, so the outer commit fails with a rollback-only marker instead. Nothing in a passing test run reports any of it | **partly done** — `R1`, red `21e7162` / green `9388743` / gate `4141a65`. **Self-invocation is reproduced, fixed, and gated.** The other three are gated structurally but **not reproduced**: the `final` class and `data class` traps are prevented by ArchUnit rules watched refusing planted violations, and the **swallowed exception / rollback-only case is not done at all** — it belongs with `T6`, since the same PostgreSQL transaction-abort behaviour surfaced while writing `R1` |
-| **T1** | **A connection pool exhausted by a default.** The session stays open past the transaction, so a request that also calls something slow holds a database connection while doing so. ~~The database is idle; the application times out~~ — **that last clause is false on this system and the measurement says so**: 5–9 of 10 pooled connections are executing a query at any instant | **done** — `R4`, red `cceec6a` / green the commit carrying `R4`. p99 9064 ms → 5919 ms at 200 VU with the pool unchanged at ten. `R2` is the first attempt, kept: it established the mechanism, correctly refused to choose a remedy on an unindexed schema, and sent `T4` first. **The finding: the fix is two edits and each alone does nothing** — fetching inside the transaction changes nothing while `open-in-view` is on, and turning `open-in-view` off without it raises `LazyInitializationException`. **No regression gate exists**, and `R4` §7 says so rather than implying one |
+| **T1** | **A connection pool exhausted by a default.** The session stays open past the transaction, so a request that also calls something slow holds a database connection while doing so. ~~The database is idle; the application times out~~ — **that last clause is false on this system and the measurement says so**: 5–9 of 10 pooled connections are executing a query at any instant | **done** — `R4`, red `cceec6a` / green the commit carrying `R4`. p99 9064 ms → 5919 ms at 200 VU with the pool unchanged at ten. `R2` is the first attempt, kept: it established the mechanism, correctly refused to choose a remedy on an unindexed schema, and sent `T4` first. **The finding: the fix is two edits and each alone does nothing** — fetching inside the transaction changes nothing while `open-in-view` is on, and turning `open-in-view` off without it raises `LazyInitializationException`. Gate: `ConnectionHoldingGateTest`, `d30e326`, asserting both halves as **effects** — the interceptor bean's absence, and a 200 carrying a populated concept name. **This cell said *"no regression gate exists, and `R4` §7 says so"* for two days after `d30e326` landed, while `R4` §7 named the file** |
 | **T2** | **A page that is paginated in memory.** ~~A collection join with paging, where the framework fetches the whole result and slices it in the heap. There is a warning in the log and no error anywhere~~ — **false on Hibernate 7.4.1, measured.** Also: two collection joins at once | **half done, and the half that is missing is missing because it no longer exists** — `R5`, **no red commit and no green commit**. Hibernate rewrites the page into a derived table over the roots, so it reaches the database; the generated SQL is quoted in `R5` §3.1 and there is no warning because there is nothing to warn about. The second strand does reproduce — `MultipleBagFetchException`, raised at query-build time, loudly. **This row is the clearest example in the repository of a performance claim with no version attached**, and it was this document making it |
 
 ## Tier 2 — the data layer
@@ -88,6 +106,8 @@ because measuring it without those two would produce numbers nobody could trust.
 
 | # | Item | State |
 | --- | --- | --- |
+| **R16** | **The constraint that was also an index.** What `V3`'s unique constraint — added for `T6`, on correctness grounds alone — is worth to the read path nobody measured it against | **done** — `R16`. **p99 743.5 ms with it, 11334.6 ms without: 15.2×**, and the single statement 6.1×. Neither arm is a red or green commit: **nothing in the application changed**, both arms are the same binary on the same afternoon and the only difference is whether `uk_mastery_learner_concept` exists. It began as an attempt to price `T9`'s token filter, which came out at **911 ns/op** and is ruled out of everything here. **It declines to compare itself with `R4`** (§7) — and its own arm B lands 2× from `R4`'s figure for reasons it cannot attribute, which is the evidence that the refusal was right |
+| **R15** | **A migration that passes every test and cannot run.** `V3`'s deduplication step, green in CI since `T6` | **done** — `R15`, red `f3c03f6` / green the commit carrying `R15`. A correlated subquery, per-row: **cost 9,139,221,232 against 34,214**, and on the 600,000-row seeded database it was still running at **32m07s** when it was killed — against **768 ms** for the aggregate form. Every test passed for four days because every test ran it **on an empty table**. The gate reads the statement **out of `V3` on the classpath** rather than copying it, and strips comments first, because `V3`'s own commentary now contains the old statement as a counter-example |
 | **R14** | **The batch that discarded what it was told to keep.** `AttemptRecorder`'s KDoc said the unit of work is one recording *because a learner's invalid submission is not a reason to discard the valid ones beside it* — and, three inches lower in the same file, that `recordAll` stops at the first failure | **done** — `R14`. **Of four valid recordings in a batch of five, two landed.** Recordings after the invalid one were not rejected, they were **never attempted**, and the caller could not tell that from any other outcome. Now: every recording attempted, every outcome returned, **4 of 4**. The blocker was the sentence *"it needs a requirement, not a refactor"* — true about **which shape to choose**, and used as a reason not to measure what was already happening |
 | **R13** | **The dataset was hiding a strand.** Whether this repository's own generator removed `T4`'s stale-statistics strand from view | **done** — `R13`. It did. One learner holding 30 % of a table flips the plan on a **60× underestimate**; uniform data cannot, because a wrong estimate never reaches a decision boundary. **A second reason nobody had suspected**: `R3` §3.5's query is served by the index at any selectivity, so no estimate however wrong could have changed its plan. The shipped dataset was not touched — the variable was isolated instead |
 | **R12** | **The arm the application kept.** `R6` §8 and `R7` §8 both measured a defect in `AttemptRecorder` and both deferred the fix. This is that deferral discharged | **done** — `R12`. **196 of 1,000 concurrent recordings applied, against 1,000 of 1,000 after.** The blocker was an argument of three true premises with a conclusion that does not follow: a business rule does not have to be a **constraint**, it can be a **`WHERE` predicate** — so a recording outside the `0..1` band matches no row instead of aborting the transaction (`R1` §9). **The defect was availability, not corruption**: `@Version` had already converted silent loss into loud rejection, and being loud is what kept it in place. A green test also went **red on a change that broke nothing** — the one whose KDoc opens *"This is the test that proves nothing"* |

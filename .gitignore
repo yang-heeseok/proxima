@@ -100,3 +100,7 @@ tmp/
 #   read by strangers. Reading all seven files before that commit found four sentences that
 #   would have become false the moment they were published -- three about the folder's own
 #   tracking status, in the file that described the rule.
+
+# k6 writes its steady-state verdict here on every run (R18). It is a run artefact, and the
+# reports carry the verdict in prose beside the numbers it validates.
+steady-state.txt

@@ -3,7 +3,7 @@
 > **Created**: 2026-08-10
 > **Updated**: 2026-08-17
 
-**Status:** Requirements settled and the checklist is live. **Eighteen reports (`R0`–`R17`),
+**Status:** Requirements settled and the checklist is live. **Nineteen reports (`R0`–`R18`),
 `T1`–`T9` measured, 74 tests, five workflows.** `PUB-4`'s prose row is `partly observed` as of
 2026-08-17 and every other row's state is in the table below, established the way it says.
 

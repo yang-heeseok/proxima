@@ -70,8 +70,28 @@ const measuredNonEmpty = new Rate('measured_nonempty')
 const measuredEarly = new Trend('measured_early', true)
 const measuredLate = new Trend('measured_late', true)
 
-// How much slower the first half may be before the run is called unusable. Not a
-// performance threshold -- a validity one.
+// How far apart the two halves may be before the run is called unusable. Not a performance
+// threshold -- a validity one.
+//
+// TWO DEFECTS WERE FOUND HERE ON 2026-08-17, BY READING THE LOG OF A RUN THAT USED IT. R18.
+//
+//   1. IT WAS ONE-SIDED. The test was `early / late > 1.3` -- fires only when the run gets
+//      FASTER as it goes. A run where the second half was 1.33x slower produced a ratio of
+//      0.75 and passed in silence, and two of the fifteen measured runs in R18 did exactly
+//      that. "Still warming" is the failure this was written for, but "degrading under load"
+//      is equally not steady state and equally not comparable to a run that was.
+//
+//   2. IT ONLY PRINTED. The banner says DO NOT PUBLISH THIS RUN and k6 exited 0. Arm B's
+//      third run tripped it at 1.41 and would have gone into a report on the strength of
+//      exiting cleanly. THIS FILE'S OWN HEADER SAYS a threshold that only warns is a
+//      comment -- and the paragraph in `thresholds` below says the error threshold had been
+//      exactly that placeholder for four days. The same defect was in this file twice, and
+//      fixing one of them did not prompt anyone to look at the other.
+//
+// Why the enforcement is not a k6 threshold: a threshold is evaluated over a metric, and
+// this is a ratio BETWEEN two metrics computed only once the run is over. `teardown` cannot
+// read metric values either. So `handleSummary` writes a verdict file and the runner is
+// required to read it -- stated here rather than left as a gap someone rediscovers.
 const STEADY_STATE_RATIO = 1.3
 
 export const options = {
@@ -184,25 +204,40 @@ export function handleSummary(data) {
   const late = data.metrics.measured_late && data.metrics.measured_late.values.med
   const ratio = early && late ? early / late : null
 
+  // SYMMETRIC. `ratio` above 1 means the run was still warming; below 1 means it was
+  // degrading. Both make the run incomparable, and only the first used to be looked at.
+  const skew = ratio === null ? null : Math.max(ratio, 1 / ratio)
+  const verdict = skew === null ? 'UNKNOWN' : skew > STEADY_STATE_RATIO ? 'FAIL' : 'OK'
+
   let steady =
     '  steady state: first half ' + (early ? early.toFixed(0) : '?') + ' ms, ' +
     'second half ' + (late ? late.toFixed(0) : '?') + ' ms'
   if (ratio !== null) {
-    steady += '  (ratio ' + ratio.toFixed(2) + ')\n'
-    if (ratio > STEADY_STATE_RATIO) {
+    steady += '  (ratio ' + ratio.toFixed(2) + ', skew ' + skew.toFixed(2) + 'x)\n'
+    if (verdict === 'FAIL') {
+      const which = ratio > 1 ? 'FIRST' : 'SECOND'
+      const why =
+        ratio > 1
+          ? 'the system was still warming while being measured. The 30s warm-up warms a\n' +
+            '  *** JVM; it does not warm a large table into a cold page cache.'
+          : 'the system DEGRADED while being measured -- a cache filling, a plan changing,\n' +
+            '  *** something else on the machine. This direction went unwatched until R18.'
       steady +=
         '\n' +
-        '  *** NOT STEADY STATE. The first half of the measurement window was ' +
-        ratio.toFixed(2) + 'x slower\n' +
-        '  *** than the second, so the system was still warming while being measured.\n' +
-        '  *** DO NOT PUBLISH THIS RUN. The 30s warm-up warms a JVM; it does not warm\n' +
-        '  *** a large table into a cold page cache. Re-run once the cache is hot.\n'
+        '  *** NOT STEADY STATE. The ' + which + ' half of the measurement window was ' +
+        skew.toFixed(2) + 'x slower,\n' +
+        '  *** so ' + why + '\n' +
+        '  *** DO NOT PUBLISH THIS RUN. steady-state.txt says FAIL and the runner must read it.\n'
     }
   } else {
     steady += '\n'
   }
 
   return {
+    // THE VERDICT AS A FILE, because k6 cannot express this as a threshold: a threshold is
+    // evaluated over one metric and this is a ratio between two, known only at the end.
+    // Until R18 the banner above was the whole enforcement and k6 exited 0 beside it.
+    'steady-state.txt': verdict + ' skew=' + (skew === null ? 'NA' : skew.toFixed(3)) + '\n',
     stdout:
       '\n' +
       'Measured window only (warm-up excluded).\n' +

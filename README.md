@@ -33,6 +33,7 @@ the reports carry the environment each number was taken in.*
 | A batch of 5 with one invalid recording | **2 of 4 valid ones landed** | **4 of 4, each outcome named** | [`R14`](docs/reports/R14-the-batch-that-discarded-what-it-was-told-to-keep.md) |
 | One learner's token, another learner's data | 200, with their data | **403** | [`R11`](docs/reports/R11-authenticated-and-not-authorised.md) |
 | Documents claiming a state the tree contradicts — *2026-08-17* | **18**, and a person was the only detector | **0**, on every push | [`R17`](docs/reports/R17-the-guard-that-was-a-person.md) |
+| The same endpoint with 5× the connection pool and no index — *2026-08-17* | 8739.8 ms @ pool 10 | **4506.7 ms** @ pool 50 — **and still 8.7× worse than with the index** | [`R18`](docs/reports/R18-the-pool-was-not-the-explanation.md) |
 
 **The two latency rows are dated and are not a progression.** They were taken two days apart
 on a machine whose state changed in between, and `measurement-discipline.md` rule 3 says a

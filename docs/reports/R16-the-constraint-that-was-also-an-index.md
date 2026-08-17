@@ -1,7 +1,7 @@
 # R16. The constraint that was also an index
 
 > **Created**: 2026-08-14
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-17
 > **Red commit / Green commit**: neither. Nothing changed in the application. **Both arms are
 > the same binary on the same afternoon**, and the only difference between them is whether
 > `uk_mastery_learner_concept` exists.
@@ -224,9 +224,20 @@ output is two self-contained baselines rather than one ratio.
   the steady-state check at ratio 1.42), a stale jar carrying a superseded migration, and a
   split WSL session that let `vmIdleTimeout` stop the database. **The diagnostics and the
   subject share a machine**, and nothing in the harness knows that.
-- **What would break the conclusion**: a pool large enough that scans stop queueing. `R4` §3
+- ~~**What would break the conclusion**: a pool large enough that scans stop queueing. `R4` §3
   measured pool 50 and found it worse than fixing the query; the same experiment against arm
-  B is **미측정** and would separate "the index matters" from "the pool is small".
+  B is **미측정** and would separate "the index matters" from "the pool is small".~~
+
+  **Measured 2026-08-17 — `R18`, and the conclusion held.** A 2×2 over {index, no index} ×
+  {pool 10, pool 50}, all four arms on one jar in one session: **five times the pool buys
+  1.94× on the no-index arm and the index is still worth 8.7× on top of it.** The prediction
+  in this bullet was directionally right — the index's advantage does shrink with pool size,
+  12.7× → 8.7× — and the pool cannot substitute for it.
+
+  **`R18` also found what this report could not have**: a drift control on identical
+  configuration seventy minutes apart measures **1.27×**, which is larger than the pool
+  effect *with* the index. So one of `R18`'s four ratios is inside its own noise and is not
+  claimed. This report's 15.2× is far outside that band and is unaffected.
 
 ## 9. 배운 것 / What I learned
 

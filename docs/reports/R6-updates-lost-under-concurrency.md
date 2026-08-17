@@ -1,7 +1,7 @@
 # R6. Updates lost under concurrency — and a retry that makes it worse
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-12
+> **Updated**: 2026-08-13
 > **Red commit**: `8d177b5` — the state before `MasteryCounter` existed
 > **Green commit**: this one — the comparison, and the strategy the application should use
 > **Status**: `T5` measured. **The application has not been changed to use the winner**; §8

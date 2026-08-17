@@ -1,7 +1,7 @@
 # ADR-004 — Numbers that cross machines
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-14
 > **Status**: Accepted
 > **Closes**: `OPEN-5`
 

@@ -35,7 +35,11 @@ here, because an amendment written to fit the exceptions it just met is not a de
 > *"Nothing below is done"* for four days after the first item landed. Corrected 2026-08-14 —
 > **and the same pass left `T1`'s cell claiming no regression gate existed**, two days after
 > `d30e326` added one and while `R4` §7 named the file. Both were caught by the PO asking.
-> `PUB-4`'s row for this is `reviewed`, not `observed`: **nothing here can go red.**
+>
+> **That is `R17`.** The `PUB-4` row for it was `reviewed`, not `observed`, so nothing here
+> could go red — and counting what a check finds on that tree gives **eighteen**, of which the
+> asking found two. `docs-consistency.yml` now runs on every push. **What it still cannot see
+> is this table's `done` column**, which is verified against nothing: `R17` §8.
 
 This document owns **what gets measured, in what order, and how far along it is.**
 
@@ -106,6 +110,7 @@ because measuring it without those two would produce numbers nobody could trust.
 
 | # | Item | State |
 | --- | --- | --- |
+| **R17** | **The guard that was a person.** `PUB-4` says no prose claims a state that does not exist. Its row has been `reviewed` — a person looking — since 2026-08-10, and it failed three times in seven days | **done** — `R17`, red `36de28f` / green the commit carrying `R17`. On the tree the PO's question landed on: **eighteen findings, of which the question found two.** Two rounds of human auditing moved 18 to **10**, and the ten were in files anyone could open the whole time. The correcting pass **introduced** three of them. Now `docs-consistency.yml`, four checks, self-tested against planted violations — **and a fifth check was built, measured, and discarded**: it read prose, fired correctly on the red tree, and fired again on the corrected one because the correction quotes the sentence it replaced. Coverage survived without it |
 | **R16** | **The constraint that was also an index.** What `V3`'s unique constraint — added for `T6`, on correctness grounds alone — is worth to the read path nobody measured it against | **done** — `R16`. **p99 743.5 ms with it, 11334.6 ms without: 15.2×**, and the single statement 6.1×. Neither arm is a red or green commit: **nothing in the application changed**, both arms are the same binary on the same afternoon and the only difference is whether `uk_mastery_learner_concept` exists. It began as an attempt to price `T9`'s token filter, which came out at **911 ns/op** and is ruled out of everything here. **It declines to compare itself with `R4`** (§7) — and its own arm B lands 2× from `R4`'s figure for reasons it cannot attribute, which is the evidence that the refusal was right |
 | **R15** | **A migration that passes every test and cannot run.** `V3`'s deduplication step, green in CI since `T6` | **done** — `R15`, red `f3c03f6` / green the commit carrying `R15`. A correlated subquery, per-row: **cost 9,139,221,232 against 34,214**, and on the 600,000-row seeded database it was still running at **32m07s** when it was killed — against **768 ms** for the aggregate form. Every test passed for four days because every test ran it **on an empty table**. The gate reads the statement **out of `V3` on the classpath** rather than copying it, and strips comments first, because `V3`'s own commentary now contains the old statement as a counter-example |
 | **R14** | **The batch that discarded what it was told to keep.** `AttemptRecorder`'s KDoc said the unit of work is one recording *because a learner's invalid submission is not a reason to discard the valid ones beside it* — and, three inches lower in the same file, that `recordAll` stops at the first failure | **done** — `R14`. **Of four valid recordings in a batch of five, two landed.** Recordings after the invalid one were not rejected, they were **never attempted**, and the caller could not tell that from any other outcome. Now: every recording attempted, every outcome returned, **4 of 4**. The blocker was the sentence *"it needs a requirement, not a refactor"* — true about **which shape to choose**, and used as a reason not to measure what was already happening |

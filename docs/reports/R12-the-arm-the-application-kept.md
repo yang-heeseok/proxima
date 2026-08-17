@@ -1,7 +1,7 @@
 # R12. The arm the application kept
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-14
 > **Red commit**: this one, behind `proxima.recording.mastery-update=read-modify-write` —
 > the arm the application actually shipped from `cceec6a` until now. It is a property rather
 > than a separate commit because **the red state is already in this repository's history**:

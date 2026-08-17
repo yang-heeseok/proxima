@@ -3,10 +3,13 @@
 **An API that chooses a learner's next problem — and a record of how it actually breaks
 under load and concurrency.**
 
-> **Created**: 2026-08-10 · **Updated**: 2026-08-14
+> **Created**: 2026-08-10 · **Updated**: 2026-08-17
 > **Status: the nine traps on the roadmap are measured, in twelve reports.** Spring Boot
 > 4.1.0 on JDK 21, a schema that applies to a real PostgreSQL under test, a generator that
-> produces 3,963,719 rows from a fixed seed value, and 70 tests. Three of the nine turned out
+> produces 3,963,719 rows from a fixed seed value, and **74 tests** — 35 classes, 0 failures,
+> from a forced full run (`--rerun-tasks --no-build-cache`, 11m52s) on 2026-08-17, because a
+> cached Gradle result is not a run. **This line said `70` for four days and eight
+> test-adding commits**, which is `R17`. Three of the nine turned out
 > to be **already fixed by the framework** — those reports say so and measure what is holding
 > them shut, rather than deleting the row. See `docs/explanation/measurement-discipline.md`
 > for what makes any number below citable.
@@ -29,6 +32,7 @@ the reports carry the environment each number was taken in.*
 | 1,000 concurrent recordings, one learner | **196 applied, 804 refused** | **1,000 applied, 0 refused** | [`R12`](docs/reports/R12-the-arm-the-application-kept.md) |
 | A batch of 5 with one invalid recording | **2 of 4 valid ones landed** | **4 of 4, each outcome named** | [`R14`](docs/reports/R14-the-batch-that-discarded-what-it-was-told-to-keep.md) |
 | One learner's token, another learner's data | 200, with their data | **403** | [`R11`](docs/reports/R11-authenticated-and-not-authorised.md) |
+| Documents claiming a state the tree contradicts — *2026-08-17* | **18**, and a person was the only detector | **0**, on every push | [`R17`](docs/reports/R17-the-guard-that-was-a-person.md) |
 
 **The two latency rows are dated and are not a progression.** They were taken two days apart
 on a machine whose state changed in between, and `measurement-discipline.md` rule 3 says a
@@ -102,6 +106,8 @@ docs/
   reports/              the numbers, one file per defect — plus R0, which scores the rest
   decisions/            ADRs, open questions, publication requirements
   explanation/          domain model, measurement discipline
+.study/                 Korean study notes — the only Korean in the tree, and the only
+                        directory here whose purpose is learning rather than evidence
 .github/workflows/      guards that are self-tested against planted violations
 ```
 

@@ -93,7 +93,7 @@ tmp/
 #
 #   The second was that this repository is public and `git add -A` is used routinely here, so
 #   an untracked-but-unignored directory is one careless stage away from being published.
-#   THAT RISK IS NOW SPENT: the PO took the second decision on 2026-08-15 and `.study/` is
+#   THAT RISK IS NOW SPENT: the PO took the second decision on 2026-08-17 and `.study/` is
 #   tracked. Nothing there is one stage away from publication because all of it is published.
 #
 #   What replaces the habit: anything written under `.study/` from here on is written to be

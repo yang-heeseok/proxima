@@ -1,7 +1,7 @@
 # R8. A test that counts queries
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-12
+> **Updated**: 2026-08-13
 > **Red commit**: `cceec6a` — the entity-returning read `R4` rejected, with nothing stopping
 > its return
 > **Green commit**: this one — the count asserted as a number

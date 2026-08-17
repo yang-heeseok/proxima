@@ -1,0 +1,299 @@
+# Discharges the PUB-4 row that says no prose claims an implementation state that does not
+# exist -- the row that had been `reviewed` since 2026-08-10 and failed three times in seven days.
+#
+# WHY THIS EXISTS.
+#
+#   This repository's product is not code. It is claims: numbers, and statements about what
+#   is done. Every other guard here protects the tree from something being ADDED -- a secret,
+#   a dataset, a personal identifier. This one protects it from something going STALE, which
+#   is the failure mode a repository cannot notice by looking at a diff, because the diff that
+#   makes a sentence false is in a different file.
+#
+#   The record before this workflow existed:
+#
+#     2026-08-10  three documents still said "no application code yet", in the hour the
+#                 build landed                                          -- caught by a person
+#     2026-08-14  roadmap.md said "Nothing below is done" with nine items done, and
+#                 domain-model.md said "No domain entities exist yet" with five in the tree
+#                                                                      -- caught by the PO asking
+#     2026-08-17  the pass that fixed those left roadmap.md's T1 cell saying "No regression
+#                 gate exists, and R4 section 7 says so" while R4 section 7 named the file
+#                                                                      -- caught by the PO asking again
+#
+#   Six false claims, three occasions, zero caught by this repository. That is what a
+#   `reviewed` row means in practice, and it is why publication-readiness.md names this row
+#   as the strongest candidate in its table for becoming `observed`.
+#
+# WHAT THIS CANNOT DO, STATED HERE RATHER THAN DISCOVERED LATER.
+#
+#   None of the checks below reads a sentence. A fifth check was written and DISCARDED: it
+#   looked for phrases like "nothing is done" in a Status block and compared them against the
+#   State column. It fired correctly on the 2026-08-14 tree -- and it also fired on the
+#   CORRECTED tree, because the correction quotes the sentence it replaced. A keyword check
+#   cannot tell a claim from a description of a past claim, and tuning it until it passed
+#   would have been lowering a threshold to get a green.
+#
+#   The coverage survives without it. On the 2026-08-14 tree the date check below flags
+#   `docs/roadmap.md Updated=2026-08-10 changed=2026-08-14` and `docs/explanation/domain-model.md`
+#   identically -- so both documents the PO caught are caught here, by structure rather than
+#   by reading. What is NOT caught is a document that is edited on the same day it becomes
+#   false. That is a real hole and it is section 8 of the report, not a footnote here.
+
+name: docs consistency
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: no document claims a state the tree contradicts
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth 0 is required and not incidental: two of the four checks below ask when a
+      # file last changed, and the default shallow clone has no answer to that question. It
+      # would not fail -- `git log` on a shallow clone returns the one commit it has, and the
+      # checks would pass on every document forever.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+
+      - name: the checkout is deep enough for the history checks to mean anything
+        run: |
+          set -eu
+          n=$(git rev-list --count HEAD)
+          if [ "$n" -lt 5 ]; then
+            echo "FAIL: only $n commits are present. The date checks below would pass vacuously."
+            exit 1
+          fi
+          echo "OK: $n commits available."
+
+      # CHECK 1 -- an artefact a document names has to exist.
+      #
+      # Reports name their regression gate by file, ADRs name the code they decided about, and
+      # the roadmap names migrations. A rename makes every one of those a lie without touching
+      # the document. Resolution accepts a repo-relative path, a basename that is unique in the
+      # tree, or a type declared in any tracked source -- because R14 section 7 names a class
+      # (`PartialBatchGateTest`) that lives inside a file with a different name, and that is
+      # correct rather than sloppy.
+      #
+      # A line that says the artefact does not exist YET is exempt. The marker has to be on the
+      # same line so it cannot be established in a paragraph above and then relied on for the
+      # rest of a table. This is the `미측정` rule applied to artefacts: naming something you
+      # have not built is allowed, and saying so is the price.
+      - name: every artefact a document names exists
+        run: |
+          set -eu
+          git -c core.quotepath=false ls-files > /tmp/tracked
+          git -c core.quotepath=false ls-files -z '*.kt' '*.java' \
+            | xargs -0 grep -ohE '^[[:space:]]*([a-z]+ )*(class|object|interface) [A-Za-z0-9_]+' 2>/dev/null \
+            | awk '{print $NF}' | sort -u > /tmp/types
+          : > /tmp/findings
+          git -c core.quotepath=false ls-files -z '*.md' | while IFS= read -r -d '' doc; do
+            grep -vE '\(to come\)|\(planted\)|\bTBD\b|미작성|미구현' "$doc" 2>/dev/null \
+              | grep -ohE '`[A-Za-z0-9_][A-Za-z0-9_./-]*(\.(kt|kts|sql|yml|yaml|toml|js|java|properties)|Test|Rules|Queries)`' \
+              | tr -d '`' | sort -u > /tmp/toks || true
+            while IFS= read -r t; do
+              [ -n "$t" ] || continue
+              base=${t##*/}; stem=${base%.kt}
+              grep -qxF "$t" /tmp/tracked && continue
+              grep -qF "/$base" /tmp/tracked && continue
+              grep -qF "/$stem.kt" /tmp/tracked && continue
+              grep -qxF "$stem" /tmp/types && continue
+              printf '%s -> %s\n' "$doc" "$t" >> /tmp/findings
+            done < /tmp/toks
+          done
+          if [ -s /tmp/findings ]; then
+            sort -u /tmp/findings
+            echo ""
+            echo "FAIL: a document names an artefact that is not in the tree."
+            echo "Either the artefact was renamed or removed and the document was not, or the"
+            echo "document is naming something that was never written. If it is deliberately"
+            echo "not written yet, say so on the same line -- '(to come)' or '미작성'."
+            exit 1
+          fi
+          echo "OK: every named artefact resolves."
+
+      # CHECK 2 -- `Updated` says when the document last changed, in both directions.
+      #
+      #   BEHIND  the file was edited and the date was not touched. The document now claims
+      #           to be older than it is, which is the harmless direction and still wrong.
+      #   AHEAD   the date was moved forward and nothing else changed. THIS IS THE DANGEROUS
+      #           DIRECTION and it has happened here: on 2026-08-14 a batch command bumped
+      #           `Updated` on four documents that were not edited. Two were corrected by hand
+      #           and two were not, and nothing would ever have said so.
+      #
+      # "Last changed" deliberately ignores commits whose only edit to the file was the
+      # `Updated` line itself. Without that, the commit that FIXES a stale date would itself
+      # count as the change it is dating, and the check could never be satisfied.
+      - name: every Updated date matches the document's last substantive change
+        run: |
+          set -eu
+          : > /tmp/dates
+          git -c core.quotepath=false ls-files -z '*.md' | while IFS= read -r -d '' doc; do
+            case "$doc" in .study/*) continue;; esac
+            u=$(grep -m1 -oE '\*\*Updated\*\*:? *[0-9]{4}-[0-9]{2}-[0-9]{2}' "$doc" 2>/dev/null \
+                | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}') || true
+            [ -n "${u:-}" ] || continue
+            s=""
+            for c in $(git log --format=%H -- "$doc"); do
+              if git show "$c" -- "$doc" | grep -E '^[+-][^+-]' | grep -qvE '\*\*Updated\*\*'; then
+                s=$(git log -1 --format=%ad --date=short "$c"); break
+              fi
+            done
+            # No history at all means the file is not in this clone's log -- on a full clone
+            # that cannot happen for a tracked file, and the depth assertion above covers the
+            # shallow case. Comparing against an empty string would call every such file
+            # AHEAD, which is a check inventing findings rather than finding them.
+            if [ -z "$s" ]; then
+              echo "NOTE: $doc has no commit history in this clone; skipped."
+              continue
+            fi
+            if [ "$s" \> "$u" ]; then
+              printf 'BEHIND %s  Updated=%s  last substantive change=%s\n' "$doc" "$u" "$s" >> /tmp/dates
+            elif [ "$u" \> "$s" ]; then
+              printf 'AHEAD  %s  Updated=%s  last substantive change=%s\n' "$doc" "$u" "$s" >> /tmp/dates
+            fi
+          done
+          if [ -s /tmp/dates ]; then
+            sort /tmp/dates
+            echo ""
+            echo "FAIL: an Updated date does not describe its document."
+            echo "BEHIND means the file was edited without dating it."
+            echo "AHEAD means a date was moved forward over content that did not change --"
+            echo "a document claiming a freshness it does not have. Set the date to the"
+            echo "reported change date rather than to today."
+            exit 1
+          fi
+          echo "OK: every Updated date matches its document."
+
+      # CHECK 3 -- the roadmap is the inventory, so it has to be complete.
+      #
+      # On 2026-08-17 the roadmap's Status line said "seventeen reports (R0-R16)" and its
+      # tables accounted for fifteen. R15 and R16 had no row at all. Nothing contradicted
+      # itself in a way any reader would see: the sentence was true, the tables were true,
+      # and the set they described was not the same set.
+      - name: every report has a roadmap row
+        run: |
+          set -eu
+          missing=""
+          for r in $(git ls-files 'docs/reports/R*.md'); do
+            id=$(basename "$r" | grep -oE '^R[0-9]+')
+            grep -qE "\*\*\`?$id\`?\*\*|\`$id\`" docs/roadmap.md || missing="$missing $id"
+          done
+          if [ -n "$missing" ]; then
+            echo "FAIL: these reports exist and docs/roadmap.md never names them:$missing"
+            echo "The roadmap is this repository's inventory. A report it does not list is"
+            echo "work that happened and that the map of the work does not know about."
+            exit 1
+          fi
+          echo "OK: every report is on the roadmap."
+
+      # CHECK 4 -- makes the PUB-4 row about *남는 위험* observable.
+      #
+      # A machine can see the heading is non-empty; it cannot see the section is honest. That
+      # is stated in publication-readiness.md and is not fixed here. The weaker check is still
+      # worth having: a report submitted with the template's empty section 8 now fails.
+      - name: every report has a non-empty remaining-risk section
+        run: |
+          set -eu
+          bad=""
+          for r in $(git ls-files 'docs/reports/R*.md'); do
+            n=$(awk '/^## *8\./{p=1;next} /^## *9\./{p=0} p' "$r" | grep -c '[^[:space:]]' || true)
+            [ "$n" -lt 3 ] && bad="$bad $r($n)"
+          done
+          if [ -n "$bad" ]; then
+            echo "FAIL: a report's section 8 is empty or nearly so:$bad"
+            echo "A report that found nothing left to worry about has usually stopped looking."
+            exit 1
+          fi
+          echo "OK: every report carries a remaining-risk section."
+
+  self-test:
+    name: the guard refuses planted violations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+
+      # Every check above is re-expressed here against a scratch repository holding deliberate
+      # violations, plus the clean counterparts. Both halves are required: a check that refuses
+      # everything is as useless as one that refuses nothing, and this repository has already
+      # shipped one instrument that reported into nothing five separate times.
+      - name: plant, and require each check to fire
+        run: |
+          set -eu
+          w=$(mktemp -d); git init -q "$w"
+          git -C "$w" config user.email t@t; git -C "$w" config user.name t
+          mkdir -p "$w/docs/reports"
+
+          # --- fixtures, committed in two dated commits so the date check has history
+          printf '# a\n\n> **Updated**: 2020-01-01\n\nnames `NoSuchThing.kt` and `AlsoMissing.yml`\n' > "$w/stale.md"
+          printf '# b\n\n> **Updated**: 2020-01-01\n\nnames `(to come)` `NotYet.kt` on this line\n' > "$w/exempt.md"
+          printf '# roadmap\n' > "$w/docs/roadmap.md"
+          printf '# R1\n\n## 8. risk\n\nsomething real\nand more\nand more\n\n## 9. x\n' > "$w/docs/reports/R1-x.md"
+          printf '# R2\n\n## 8. risk\n\n## 9. x\n' > "$w/docs/reports/R2-y.md"
+          git -C "$w" add -A
+          GIT_AUTHOR_DATE=2020-01-01T00:00:00 GIT_COMMITTER_DATE=2020-01-01T00:00:00 \
+            git -C "$w" commit -qm first
+          printf '\nreal edit\n' >> "$w/stale.md"
+          GIT_AUTHOR_DATE=2020-06-01T00:00:00 GIT_COMMITTER_DATE=2020-06-01T00:00:00 \
+            git -C "$w" commit -qam second
+
+          # --- check 1 must fire on the missing artefacts and must NOT fire on the exempt line
+          cd "$w"
+          git ls-files > /tmp/t; : > /tmp/ty; : > /tmp/f
+          for doc in stale.md exempt.md; do
+            grep -vE '\(to come\)|\bTBD\b' "$doc" \
+              | grep -ohE '`[A-Za-z0-9_][A-Za-z0-9_./-]*(\.(kt|yml)|Test)`' | tr -d '`' | sort -u > /tmp/k || true
+            while IFS= read -r t; do
+              [ -n "$t" ] || continue
+              grep -qF "/$t" /tmp/t || printf '%s -> %s\n' "$doc" "$t" >> /tmp/f
+            done < /tmp/k
+          done
+          grep -q 'stale.md -> NoSuchThing.kt' /tmp/f || { echo "FAIL: check 1 missed a planted missing .kt"; exit 1; }
+          grep -q 'stale.md -> AlsoMissing.yml' /tmp/f || { echo "FAIL: check 1 missed a planted missing .yml"; exit 1; }
+          grep -q 'exempt.md' /tmp/f && { echo "FAIL: check 1 fired on a line marked (to come). The exemption is the point."; exit 1; }
+
+          # --- check 2 must call stale.md BEHIND (edited 2020-06, dated 2020-01)
+          s=""
+          for c in $(git log --format=%H -- stale.md); do
+            if git show "$c" -- stale.md | grep -E '^[+-][^+-]' | grep -qvE '\*\*Updated\*\*'; then
+              s=$(git log -1 --format=%ad --date=short "$c"); break
+            fi
+          done
+          [ "$s" = "2020-06-01" ] || { echo "FAIL: check 2 read the wrong substantive-change date: '$s'"; exit 1; }
+
+          # --- and it must IGNORE a commit that only moves the date, or it can never be satisfied
+          sed -i 's/2020-01-01/2020-06-01/' stale.md
+          GIT_AUTHOR_DATE=2021-01-01T00:00:00 GIT_COMMITTER_DATE=2021-01-01T00:00:00 \
+            git commit -qam 'date only'
+          s2=""
+          for c in $(git log --format=%H -- stale.md); do
+            if git show "$c" -- stale.md | grep -E '^[+-][^+-]' | grep -qvE '\*\*Updated\*\*'; then
+              s2=$(git log -1 --format=%ad --date=short "$c"); break
+            fi
+          done
+          [ "$s2" = "2020-06-01" ] || { echo "FAIL: a date-only commit was counted as a substantive change ('$s2'). The check would be unsatisfiable."; exit 1; }
+
+          # --- check 3 must notice both planted reports are absent from the roadmap
+          miss=""
+          for r in $(git ls-files 'docs/reports/R*.md'); do
+            id=$(basename "$r" | grep -oE '^R[0-9]+')
+            grep -qE "\`$id\`" docs/roadmap.md || miss="$miss $id"
+          done
+          case "$miss" in *R1*) : ;; *) echo "FAIL: check 3 missed a report with no roadmap row"; exit 1;; esac
+
+          # --- check 4 must fire on R2 (empty section 8) and must NOT fire on R1
+          n1=$(awk '/^## *8\./{p=1;next} /^## *9\./{p=0} p' docs/reports/R1-x.md | grep -c '[^[:space:]]')
+          n2=$(awk '/^## *8\./{p=1;next} /^## *9\./{p=0} p' docs/reports/R2-y.md | grep -c '[^[:space:]]' || true)
+          [ "$n2" -lt 3 ] || { echo "FAIL: check 4 accepted an empty section 8"; exit 1; }
+          [ "$n1" -ge 3 ] || { echo "FAIL: check 4 would reject a report with a real section 8"; exit 1; }
+
+          cd /; rm -rf "$w"
+          echo "OK: every check fires on what it claims to catch, and none fires on the clean counterpart."

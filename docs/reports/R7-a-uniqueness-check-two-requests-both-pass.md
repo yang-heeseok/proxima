@@ -1,7 +1,7 @@
 # R7. A uniqueness check two requests both pass
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-12
+> **Updated**: 2026-08-13
 > **Red commit**: `ad474d8` — `V1`, no unique constraint. Eight requests, eight rows
 > **Green commit**: this one — `V3__mastery_unique_learner_concept.sql`
 

@@ -1,7 +1,7 @@
 # R11. Authenticated, and not authorised
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-14
 > **Covers**: `T9` strands two and three — *an endpoint that authenticates and does not
 > authorise*, and *token expiry and clock skew*. Strand one is `R10`.
 > **Red commit**: **none, for the same reason `R10` §5 gives.** The `red` arm here is an

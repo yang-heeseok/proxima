@@ -157,7 +157,24 @@ Twelve of the 145 have been falsified by later work. Where the correction went:
 | **answered elsewhere in the same file**, so the reader must find it | **2** | `R10` §8:233, `R4` §8:248 |
 | **corrected nowhere** | **3** | `R1` §8:199, `R7` §8:209, `R12` §8:244 |
 
-The three, verified against the working tree rather than against the reports:
+> **Amended 2026-08-17 — thirteen, not twelve, and the last row is four rather than three.**
+> `R17` §8:256 said *"the workflow has not run on a GitHub runner yet"*, and at `b1c1b95`, the
+> tree this table was counted on, that was already false: `docs-consistency.yml` had run three
+> times, all green. §8 of this report named it as a candidate it could not check, because the
+> Actions API needed a tool that was not on this machine. It was checked the same day and it
+> had gone stale. **The corpus was right, the bullet was read, and the count was short by one.**
+>
+> **It is also the sharpest instance of §3.5's pattern in the repository, and it is one degree
+> worse than any below.** `01e16af` edited `R17` §8 — it added the annotation to that section's
+> *second* bullet — and **the push carrying that commit produced the run that falsified the
+> seventh.** Not the same file open: the same section, in the same push. And the claim has no
+> state in which it survives, because the next push after it writes is what makes it false.
+>
+> Corrected in `R17` §8 on 2026-08-17, with the measurement it had been waiting for. The
+> original numbers are left standing above, for the reason this whole section is about.
+
+The three counted at the time, verified against the working tree rather than against the
+reports:
 
 | Bullet | What it says | What is true | False since |
 | --- | --- | --- | --- |
@@ -190,6 +207,10 @@ last bullet of §8 and leaving the second.
 quoted in — and opened **no report but its own.** `R1` and `R12` are not named anywhere in it,
 and neither report names `R14` anywhere in it. Nothing was overlooked in a file; the files were
 never opened.
+
+> **Amended 2026-08-17 — three of five, and the one added is worse than either above.**
+> `R17` §8:256, §3.4. `01e16af` had the file open **and the section open**: it edited that §8's
+> second bullet while the push carrying it produced the run that falsified the seventh.
 
 ### 3.6 The two that were answered, and one of them is the counter-example
 
@@ -283,6 +304,11 @@ Same corpus, same question, after this commit.
 | falsified bullets answered elsewhere in the file | 2 | 2 — left as they are, §3.6 |
 | `open.md` Open table | empty, and the claim unestablished | 3 rows, and the claim withdrawn beside them |
 
+> **Amended 2026-08-17.** The third row is wrong in both columns: `R17` §8:256 was falsified at
+> `b1c1b95` too, so *before* was **4**, and this report's own commit left it standing, so
+> *after* was **1** rather than 0. It reached **0** later the same day, in the commit carrying
+> this annotation. §3.4 says why it was missed and §8 says what it cost.
+
 The Open table is not the metric that improved. **`open.md`'s claim about it is** — it said an
 empty table is a claim rather than a default, and what established it was that nobody had
 recently thought of a row. The withdrawal is kept in the file in `OPEN-3`'s style, because how
@@ -357,10 +383,33 @@ adding a promise, and this section is the record of what it measured instead.
   that nothing in `R0` measures the quality of the fixes — survives, and a reader following the
   citation lands on an annotated bullet and is corrected on arrival. **That is a judgement, not
   a rule**, and a fourth annotation would have been defensible.
-- **`R17` §8's CI-cost bullet may have gone stale and I could not check it.** It says *"the
+- ~~**`R17` §8's CI-cost bullet may have gone stale and I could not check it.** It says *"the
   workflow has not run on a GitHub runner yet"*; three commits have been pushed since. Verifying
   it needs the Actions API, `gh` is not installed on this machine, and **미측정** is the honest
-  output rather than an inference from the fact that pushes happened.
+  output rather than an inference from the fact that pushes happened.~~
+
+  **Checked 2026-08-17. It had. `docs-consistency.yml` had run three times on `ubuntu-latest`,
+  all six jobs green, the first on the push carrying `01e16af`** — so it was already false at
+  `b1c1b95`, and **§3.4's twelve should have been thirteen.** Amended there rather than here,
+  and `R17` §8:256 is corrected in its own file with the timings it had been waiting for. The
+  refusal to infer was right and the inference would have been right too; those are different
+  things, and only one of them is a measurement.
+
+  **§7 stays at the figures it was scored with, and one of them moves anyway.** Its precision —
+  one correct finding in four — is over a fixed set at a named tree, and re-scoring it against
+  a corpus it was not taken on is the move it exists to refuse. Its **recall** is a ratio to the
+  ground truth, and the ground truth grew: **1 in 3 becomes 1 in 4**, against the check. It
+  could not have caught this one under either shape — `R17` §8:256 names a workflow and a walk,
+  and no `*.kt`, `*Test`, `*Rules`, `*Queries` token or declared type at all. **That is the
+  third distinct way the check was blind**, after the wrong-bullet hit and the day resolution,
+  and it is recorded here because §7 may not be re-scored.
+
+  **What replaced the 미측정 is a smaller one, and it is the lane's.** `ADR-004` requires a
+  quoted CI number to carry that run's environment block, and only `build.yml` prints one; the
+  logs that would supply it for `docs-consistency.yml` need authentication. So `R17` §8 now
+  carries seconds with a run id, a job id, a runner name and timestamps, and **without the block
+  the rule asks for** — stated there rather than smoothed over. Nothing in this repository can
+  fix that by writing more carefully.
 - **§7's numbers are one tree and four findings.** Precision 1 in 4 at `b1c1b95` is not a rate,
   and a corpus with more falsified bullets could make the same check look better or worse.
 - **Nothing here read code comments.** The corpus was §8 sections. `R17` §8's last bullet says

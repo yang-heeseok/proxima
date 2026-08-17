@@ -253,9 +253,60 @@ one.
 - **Check 3 verifies the roadmap names every report. It does not verify the row is correct** —
   `2b3e1b1` fixed a roadmap cell that was false while the row existed, and check 3 would have
   passed on it.
-- **미측정: CI cost.** The workflow has not run on a GitHub runner yet. `fetch-depth: 0` on a
+- ~~**미측정: CI cost.** The workflow has not run on a GitHub runner yet. `fetch-depth: 0` on a
   30-commit repository is cheap and the per-file `git log` walk is O(files × commits); neither
-  has been timed there, and `ADR-004` forbids quoting a local number as a CI one.
+  has been timed there, and `ADR-004` forbids quoting a local number as a CI one.~~
+
+  **Measured 2026-08-17. This bullet made three claims and each was wrong differently.**
+
+  **It had already run.** `docs-consistency.yml` has run on `ubuntu-latest` three times, all
+  six jobs `success`, read from the Actions REST API:
+
+  | run | commit | started (UTC) | guard | self-test |
+  | --- | --- | --- | --- | --- |
+  | `31997246739` | `01e16af` | 05:15:16Z | **7 s** | **3 s** |
+  | `32006472600` | `b1c1b95` | 07:35:16Z | **5 s** | **5 s** |
+  | `32022191057` | `1761fcb` | 10:52:12Z | **7 s** | **5 s** |
+
+  The first of those is the push carrying `01e16af` — **the commit that added the annotation
+  two bullets above this one.** The claim cannot be written in a state where it stays true: the
+  next push after it falsifies it, and here that was the push it travelled in. Three pushes
+  later nothing had said so.
+
+  **The walk is cheap, and the step timings say where the time is not.** Whole seconds, per
+  step, from those same three runs:
+
+  | step | `01e16af` | `b1c1b95` | `1761fcb` |
+  | --- | --- | --- | --- |
+  | `actions/checkout`, `fetch-depth: 0` | 2 | 1 | 1 |
+  | check 1 — every named artefact exists | 0 | 1 | 1 |
+  | **check 2 — the per-file `git log` walk** | **0** | **0** | **0** |
+  | check 3 — every report has a roadmap row | 0 | 0 | 0 |
+  | check 4 — §8 non-empty | 1 | 0 | 0 |
+
+  **The four checks together account for 1 s of a 5–7 s job.** The rest is job setup, the
+  checkout, and teardown. The O(files × commits) term the bullet worried about is below
+  whole-second resolution at **36 documents × 62 commits** — where 36 is check 2's actual
+  working set, `*.md` outside `.study/` carrying an `Updated` date.
+
+  **And this repository was never 30 commits.** It held **58** at `30ec1e9`, the commit where
+  that sentence was written, and 62 now; it last held 30 on 2026-08-12. The figure appears
+  nowhere else in the tree and nothing produced it. It was an estimate in a sentence whose
+  subject is that estimates are not numbers.
+
+  **What is still 미측정 is not the durations — it is whether they may be cited.** `ADR-004`
+  requires a report quoting a CI number to carry **that run's environment block**: *"Not
+  'GitHub Actions'. The block."* The step that prints one is in `build.yml` alone.
+  `docs-consistency.yml` has never printed one, and the job logs that would carry the runner
+  image answer `403` without authentication. So the seconds above carry a run id, a job id, a
+  runner name, the label `ubuntu-latest` and UTC timestamps, **and not the block the rule asks
+  for.** They are quoted as themselves and combined with nothing — what `ADR-004` was written
+  after was a local number divided by a remote one, and there is no division here. **The gap
+  belongs to the lane, not to this bullet**, and no report can close it by trying harder.
+
+  Also 미측정: how any of this scales. Three runs on a shared runner at one repository size say
+  nothing about where the walk stops being free, and a term that is currently a fraction of a
+  second is invisible to an instrument whose resolution is a second.
 - **What would break this conclusion:** the checks are only as good as the corpus they scan.
   A document moved outside `*.md`, or a claim moved out of prose into a diagram or a code
   comment, leaves the corpus entirely — and code comments are where several of this

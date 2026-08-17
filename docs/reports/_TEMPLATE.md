@@ -103,6 +103,14 @@ named by file.
 - **What was not measured**, stated as 미측정 rather than omitted.
 - What would break this conclusion — the condition under which the number above stops
   being true.
+- **Which earlier §8 bullet this report falsifies** — annotated in that report, beside the
+  sentence, not summarised here. A bullet is written about the tree at one instant and read
+  as a standing risk, and nothing marks the difference: R19 §3.4 found three that had gone
+  false with nothing anywhere saying so, and in two cases the correcting commit had the
+  stale file open. This line is procedure and is enforced by nothing; R19 §7 is why.
+- **Whether any bullet here needs a judgement rather than only work.** If it does it is a
+  row in docs/decisions/open.md, not a risk -- a risk is something someone chose to live
+  with. OPEN-6 is the precedent and R19 is what it costs when nobody asks.
 
 ## 9. 배운 것 / What I learned
 

@@ -1,7 +1,7 @@
 # R1. A transaction annotation that does nothing
 
 > **Created**: 2026-08-11
-> **Updated**: 2026-08-11
+> **Updated**: 2026-08-17
 > **Red commit**: `21e7162` — the state in which this was observed
 > **Green commit**: `9388743` — the state in which it was not
 > **Gate commit**: `4141a65` — the rules that turn red if it returns
@@ -200,6 +200,22 @@ would be vacuous.
   which recordings landed.** `recordAll` stops at the first failure. That follows from
   choosing per-recording atomicity in §5 and is **not fixed** — fixing it means reporting
   per-item outcomes or making the batch the unit, which is a requirement, not a refactor.
+
+  > **Fixed 2026-08-14 by `R14`, with the first of the two shapes this bullet named.**
+  > `AttemptRecordingService` takes `proxima.recording.batch` and its shipped default is
+  > **`per-item-outcomes`**: every recording is attempted and every outcome returned.
+  > `stop-at-first-failure` is the red arm kept in the binary. Measured: **of four valid
+  > recordings in a batch of five, two landed before and four after** — the ones after the
+  > invalid recording had not been rejected, they had never been attempted.
+  >
+  > **The closing clause is the part worth keeping.** *"A requirement, not a refactor"* was
+  > true about **which** shape to choose and was used as a reason not to measure what was
+  > already happening; `R14` §9 and this file's own KDoc now say so. The unit of work chosen
+  > in §5 is unchanged — `R14` changed what is *reported*, not what is *stored*.
+  >
+  > Nothing corrected this bullet for three days: `b47b370` rewrote the KDoc paragraph that
+  > quotes it and opened no report but its own. `R12` §8 carried the same claim and was left
+  > the same way. That is `R19`.
 - **The self-invocation rule only sees calls ArchUnit can resolve statically.** A call made
   through a lambda stored in a field, reflection, or a Kotlin `by` delegate is 미측정 — I do
   not know whether the rule sees those, and I have not planted one to find out. **Treat the

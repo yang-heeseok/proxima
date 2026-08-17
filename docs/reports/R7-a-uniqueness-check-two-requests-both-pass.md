@@ -1,7 +1,7 @@
 # R7. A uniqueness check two requests both pass
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-17
 > **Red commit**: `ad474d8` — `V1`, no unique constraint. Eight requests, eight rows
 > **Green commit**: this one — `V3__mastery_unique_learner_concept.sql`
 
@@ -208,6 +208,21 @@ a change to the recording path that belongs with the `R6` §8 decision about `sc
   fine; for anything that must know, `returning` or `do update` changes the shape.
 - **`AttemptRecorder` still uses the naive pattern**, now failing rather than duplicating.
   How often that fails in production is the same 미측정 as `R6` §8.
+
+  > **False since 2026-08-13, and left standing for four days. Discharged by `R12`.**
+  > `AttemptRecorder` takes `proxima.recording.mastery-update` and its **shipped default is
+  > `atomic-guarded`** — ensure the row, then one statement carrying the `0..1` rule as a
+  > predicate. `read-modify-write` is the red arm `R12` deliberately kept in the binary, not
+  > what the application runs. Measured on this path: **196 of 1,000 concurrent recordings
+  > applied before, 1,000 of 1,000 after.**
+  >
+  > **The correction was written and did not reach here.** `R6` §8 carried the twin of this
+  > bullet and `4222b39` annotated it; the same commit also annotated `R7` §5, and its message
+  > enumerates what it did — *"R6 §8 and R7 §5 are annotated in place rather than edited"*.
+  > This file was open. §8 was three sections further down and was not on the list.
+  >
+  > The second sentence survives: how often the red arm would fail in production is still
+  > **미측정**, and `R12` §8 says so in its own words.
 - **What would break the conclusion:** a second unique rule on the same table. `on conflict`
   names one constraint; with two, the statement must choose which it is prepared to lose to,
   and silently picks wrong if the author does not think about it.

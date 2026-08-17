@@ -208,6 +208,16 @@ output is two self-contained baselines rather than one ratio.
 - **The 15× is one dataset, one pool size, one concurrency.** 200 VU, pool 10, 600,000
   `mastery` rows. The mechanism (a scan holding a connection) says the ratio grows with
   concurrency and shrinks with pool size; **neither was varied.**
+
+  > **Half of that is no longer true. `R18` varied pool size on 2026-08-17** — 10 and 50, both
+  > index conditions, one jar and one session — and the mechanism's prediction held in the
+  > stated direction: the index is worth **12.7× at pool 10 and 8.7× at pool 50.** Concurrency
+  > is still 200 VU only and is still **미측정**.
+  >
+  > **`b1c1b95` struck through this section's last bullet and left this one**, four bullets
+  > above it in the same file, saying *neither was varied* about the variable it had just
+  > varied. Both bullets carried the same 미측정 in different words. `R19` §3 counts how often
+  > that happens.
 - **Arm B is not `V2`.** It is `V1..V3` with one constraint dropped, which leaves `V3`'s
   other effects — none that touch reads, as far as anyone has looked — in place. It is a
   clean single-variable test **of the index**, not a reconstruction of the past.

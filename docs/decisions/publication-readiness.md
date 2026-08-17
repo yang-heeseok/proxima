@@ -3,7 +3,7 @@
 > **Created**: 2026-08-10
 > **Updated**: 2026-08-17
 
-**Status:** Requirements settled and the checklist is live. **Nineteen reports (`R0`–`R18`),
+**Status:** Requirements settled and the checklist is live. **Twenty reports (`R0`–`R19`),
 `T1`–`T9` measured, 74 tests, five workflows.** `PUB-4`'s prose row is `partly observed` as of
 2026-08-17 and every other row's state is in the table below, established the way it says.
 
@@ -197,7 +197,7 @@ observable.
 | `PUB-4` | No prose claims an implementation state that does not exist | **partly observed since 2026-08-17** — `docs-consistency.yml`, four checks, self-tested. It failed three times in seven days first: three documents stale in the hour the build landed (2026-08-10); `roadmap.md` saying *"Nothing below is done"* and `domain-model.md` saying *"No domain entities exist yet"* (2026-08-14); and the pass correcting those leaving `roadmap.md`'s `T1` cell claiming no gate existed while `R4` §7 named the file. **All three were caught by a person, two of them by the PO asking.** Counting what the checks find on the tree that question landed on: **eighteen, of which the asking found two** — `R17`. **`partly` is the load-bearing word**: nothing here reads a sentence. A prose check was built and discarded (`R17` §5), so the class is caught through the proxy of a date, and **a document that is up to date and simply says something false still passes** |
 | `PUB-4` | **Every published number carries its measurement environment** | **reviewed** — the report template carries the block; **no workflow enforces it yet.** This row is a candidate for becoming observable |
 | `PUB-4` | **Every report has a non-empty *남는 위험* section** | **observed** — `docs-consistency.yml`, check 4, since 2026-08-17. **A machine can see the heading is non-empty, not that it is honest**, and that limit is unchanged: a report satisfies this with three lines of nothing. What it now stops is a report shipped with the template's empty section still in it |
-| `PUB-4` | Every undecided item is recorded as undecided | **observed by presence** — `docs/decisions/open.md` |
+| `PUB-4` | Every undecided item is recorded as undecided | **observed by presence, and presence is the weak half** — `docs/decisions/open.md`. A workflow can see the file; nothing can see whether its table is complete, and **on 2026-08-17 it was not**. The table had been empty since 2026-08-14 under a sentence saying an empty table there is a claim rather than a default, and a sweep of all 145 *남는 위험* bullets found **three decisions filed as risks** — `OPEN-7`, `OPEN-8`, `OPEN-9`, `R19`. What established the claim was that nobody had recently thought of a row: **the only detector was a person**, which is the `PUB-4` failure `R17` is about, met a second time in a different file |
 | `PUB-5` | `SECURITY.md` names a contact and a response expectation | **observed by presence, reviewed for accuracy** — in place 2026-08-10 |
 | `PUB-5` | The contact is an address the PO intends to publish | **reviewed** — `gseek@gseek.net`, carried from hanok's settled decision. A published address is permanently scrapeable |
 | `PUB-7` | No data-class file is tracked anywhere | **observed** — `no-learner-data.yml`, and the guard is self-tested against planted violations |

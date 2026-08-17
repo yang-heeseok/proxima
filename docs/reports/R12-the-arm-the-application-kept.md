@@ -1,7 +1,7 @@
 # R12. The arm the application kept
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-17
 > **Red commit**: this one, behind `proxima.recording.mastery-update=read-modify-write` —
 > the arm the application actually shipped from `cceec6a` until now. It is a property rather
 > than a separate commit because **the red state is already in this repository's history**:
@@ -245,6 +245,23 @@ the green arm would be being compared against nothing.
   first failure and does not tell the caller which recordings landed. `AttemptRecorder`'s KDoc
   has said so since `T3`; it is still true and still needs a requirement rather than a
   refactor.
+
+  > **Touched the next day, 2026-08-14, by `R14`.** `proxima.recording.batch` defaults to
+  > **`per-item-outcomes`** — every recording attempted, every outcome returned, **4 of 4
+  > against 2 of 4** in a batch of five with one invalid recording in the middle. The KDoc this
+  > bullet cites carries the correction beside the sentence it quotes.
+  >
+  > **The last clause is what `R14` is about.** *"Still needs a requirement rather than a
+  > refactor"* was inherited from `R1` §8 and repeated here without being retested; `R14` §5
+  > found a third option — attempt everything and return per-item outcomes — that is additive,
+  > needs no requirement, and leaves both of the shapes this bullet was waiting on still
+  > implementable. **The blocker was an argument, exactly as this report's own §5 said of the
+  > blocker it removed**, and it survived one report longer.
+  >
+  > This bullet was invisible to date arithmetic: `fd27670` edited this file on 2026-08-14 and
+  > `b47b370` falsified it later the same day, so a check comparing *last changed* against
+  > *last changed* has nothing to compare. `R17` §8 calls that the largest hole and it is why
+  > `R19` §7 could not build a check either.
 - **What would break the conclusion**: contention spread across rows rather than concentrated
   on one. The atomic statement's advantage narrows as contention falls, and at zero contention
   the two arms should be indistinguishable. **That was not measured**, and it is the

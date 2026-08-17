@@ -34,6 +34,7 @@ the reports carry the environment each number was taken in.*
 | One learner's token, another learner's data | 200, with their data | **403** | [`R11`](docs/reports/R11-authenticated-and-not-authorised.md) |
 | Documents claiming a state the tree contradicts — *2026-08-17* | **18**, and a person was the only detector | **0**, on every push | [`R17`](docs/reports/R17-the-guard-that-was-a-person.md) |
 | The same endpoint with 5× the connection pool and no index — *2026-08-17* | 8739.8 ms @ pool 10 | **4506.7 ms** @ pool 50 — **and still 8.7× worse than with the index** | [`R18`](docs/reports/R18-the-pool-was-not-the-explanation.md) |
+| Decisions filed as risks, over 145 *남는 위험* bullets — *2026-08-17* | **3**, in a table claiming there could be none | **0** — three rows opened, and the claim withdrawn | [`R19`](docs/reports/R19-decisions-filed-where-nobody-had-to-make-them.md) |
 
 **The two latency rows are dated and are not a progression.** They were taken two days apart
 on a machine whose state changed in between, and `measurement-discipline.md` rule 3 says a

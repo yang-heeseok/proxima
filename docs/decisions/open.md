@@ -1,7 +1,7 @@
 # Open decisions
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-17
 
 **Status:** Live. This file exists so that *undecided* is a recorded state rather than a
 silence, and it discharges the `PUB-4` row that says so.
@@ -20,13 +20,13 @@ silence, and it discharges the `PUB-4` row that says so.
 
 | # | Question | Why it is not decided yet | Deadline |
 | --- | --- | --- | --- |
-*(empty as of 2026-08-14)*
+| `OPEN-7` | **Should a check refuse a migration that contains a correlated subquery?** | `R15` §8 names it — *"No rule looks for correlated subqueries in migrations, and one could"* — and nobody has weighed the two sides. **For it:** `V3` passed four days of green CI and could not run on a database with rows in it, and nothing structural stops the next migration using the same shape. **Against it:** `V3` is fixed and gated by `MigrationDeduplicationTest`, so the rule would protect **no migration that exists** — `AGENTS.md` §Scope calls that *a guard that protects nothing yet*, which *"is not free, it is unbanked"*. And the cost of a rule that fires on correct text is measured here rather than feared: the `T3` self-invocation rule fired on Kotlin's `$default` bridges (`R7` §3.5 — *"a rule that is routinely wrong is a rule nobody reads"*), and a prose check was built, measured and discarded for the same reason (`R17` §5). **Both sides are real and no one has chosen** | **None that is honest, and this row says so rather than inventing one.** Its natural trigger — *the next migration that deduplicates* — is exactly the shape `ADR-003` condemned. **By the rule below, this should be decided now rather than parked** |
+| `OPEN-8` | **What enforces the load lane's steady-state verdict, other than a person remembering to look?** | `R18` §7 states the position: the verdict goes to `steady-state.txt`, `load/README.md` step 2 is a `grep`, and *"nothing fails a build if the runner ignores the file"*. `R18` §8 then puts it in the category `R17` is a whole report about. **`R18` §5 chose between four *instrument* designs; whether enforcement should be machine-held was never on that table.** Three routes cost differently: a CI load lane (needs the seeded 3,963,719-row database, and `publication-readiness.md` records that a switch to private meters the Actions minutes and that *"this project's CI will grow a Testcontainers lane that is not cheap"*); a local wrapper that exits non-zero on a `DO NOT PUBLISH` verdict (cheap, **never priced**, and still needs the operator to invoke the wrapper); or accepting procedure permanently and saying so in one place instead of two. **`ADR-004` constrains the design without choosing it** — it forbids CI asserting a duration and explicitly lists *verdicts* among the machine-independent assertions CI may make | **Decidable today.** No artefact is missing and no measurement is owed — only the local-wrapper option is unpriced, and pricing it is not a precondition for choosing. **By the rule below, this should be decided now rather than parked** |
+| `OPEN-9` | **Does a recording endpoint get built, or is `recordAll` permanently a library method with no caller?** | `R14` §8 says *"That is the next decision and it needs the endpoint that does not exist"* — a decision conditioned on something that may never arrive. **The condition is recorded nowhere:** `docs/roadmap.md` *Deferred, deliberately* does not name a recording endpoint, and `docs/explanation/domain-model.md` places **recommendation policy** out of scope while saying explicitly that the layer underneath it is *"**not** out of scope"*. So the thing `R14` defers to is undecided rather than closed, and **the decidable question is one level down: whether the endpoint exists at all, not what status code it returns.** Three of `R14` §8's six bullets — §8's *"still no endpoint"*, *"the outcomes are returned, not acted on"*, and *"order is not part of the contract"* — are parked behind it, and `R14` §5 rejected idempotency keys on the same ground (*"a contract with an absent party"*) | **Decidable today.** It needs a judgement about scope, not an artefact — **which is why it is here and `R14` §8's version is not.** By the rule below, this should be decided now rather than parked |
 
 **An empty table here is a claim, not a default.** It says: everything undecided has been
-decided, and nothing currently known is waiting on a judgement. Four rows closed inside
-thirty-six hours — `OPEN-3`, `OPEN-4`, `OPEN-5` on 2026-08-13 and `OPEN-6` the next morning —
-so the claim is new and worth stating rather than leaving as blank space that reads like
-neglect.
+decided, and nothing currently known is waiting on a judgement. **That claim stood from
+2026-08-14 to 2026-08-17 and was false the whole time** — see below.
 
 **What would make it false**, and what to do about it:
 
@@ -37,6 +37,32 @@ neglect.
   `ADR-003` closed `OPEN-3` on that finding and `OPEN-6` was opened with the same shape the
   next day. If a row here cannot name a date or a change that will certainly arrive, it should
   be decided now instead.
+
+### The empty table was a claim nobody had established — withdrawn 2026-08-17
+
+**Kept here rather than deleted, because how the claim failed is more useful than the claim.**
+
+It read *"(empty as of 2026-08-14)"*, and the paragraph under it said everything undecided had
+been decided. Four rows had just closed inside thirty-six hours, so the sentence was written in
+the middle of a run of closures and read as the end of one.
+
+**Nothing had checked.** The test this document states — *does discharging this require a
+judgement, or only work?* — had never been run across the place the last row came from.
+`OPEN-6` was found in `R12` §8 because `R12`'s author was looking at `R12` §8. Nobody had asked
+the same question of the other eighteen reports' §8 sections, and there were **145 bullets** in
+them. An audit on 2026-08-17 asked it of all 145 and found **three**: `OPEN-7`, `OPEN-8`, and —
+one level below the bullet that names it — `OPEN-9`. `R19` is that audit.
+
+**Both sentences above the table were right; the evidence under them was the weaker kind.**
+*"An empty table here is a claim, not a default"* asks for a claim to be established, and what
+established this one was that no one had recently thought of a row. That is the same substitution
+`PUB-4` exists to refuse, and `R17` is this repository's report on what it costs — its subject is
+a guard whose only detector was a person, and **this table's only detector was a person too.**
+
+`OPEN-6`'s own lesson is the one that was not carried forward. It said a decision left on the
+wrong shelf means *nobody ever has to make it*. What it did not say, and what this withdrawal
+adds, is that **the shelf has to be swept and not merely watched** — a row arrives on it whenever
+a report is written, and no report has ever been asked to check.
 
 ### `OPEN-3` — closed 2026-08-13, and the reason it stayed open was wrong
 

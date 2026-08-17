@@ -1,7 +1,7 @@
 # Publication readiness
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-17
 
 **Status:** Requirements settled. The checklist is in progress — this repository holds
 documents, guards, a baseline schema, a Gradle build, and a dataset generator. No defect

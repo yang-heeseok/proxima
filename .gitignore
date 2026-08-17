@@ -91,11 +91,12 @@ tmp/
 #   It had two reasons. The first, that AGENTS.md requires repository documents to be in
 #   English and those notes are Korean, is the PO's call and has been made.
 #
-#   THE SECOND HAS NOT GONE AWAY, and it was the load-bearing one: this repository is public,
-#   and `git add -A` is used routinely in sessions here. A directory that is untracked but not
-#   ignored is one careless stage away from being published, and `.study/` currently shows up
-#   as `?? .study/` in every `git status`.
+#   The second was that this repository is public and `git add -A` is used routinely here, so
+#   an untracked-but-unignored directory is one careless stage away from being published.
+#   THAT RISK IS NOW SPENT: the PO took the second decision on 2026-08-15 and `.study/` is
+#   tracked. Nothing there is one stage away from publication because all of it is published.
 #
-#   So the habit changes with the rule: while anything under `.study/` is meant to stay out of
-#   a commit, staging is by explicit path. Publishing those notes is a separate decision from
-#   un-ignoring them, and this line is not that decision.
+#   What replaces the habit: anything written under `.study/` from here on is written to be
+#   read by strangers. Reading all seven files before that commit found four sentences that
+#   would have become false the moment they were published -- three about the folder's own
+#   tracking status, in the file that described the rule.

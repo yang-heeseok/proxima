@@ -3,9 +3,16 @@
 > **Created**: 2026-08-10
 > **Updated**: 2026-08-17
 
-**Status:** Requirements settled. The checklist is in progress — this repository holds
-documents, guards, a baseline schema, a Gradle build, and a dataset generator. No defect
-has been reproduced and no report exists yet.
+**Status:** Requirements settled and the checklist is live. **Eighteen reports (`R0`–`R17`),
+`T1`–`T9` measured, 74 tests, five workflows.** `PUB-4`'s prose row is `partly observed` as of
+2026-08-17 and every other row's state is in the table below, established the way it says.
+
+> **This line said *"No defect has been reproduced and no report exists yet"* until
+> 2026-08-17** — true when written on 2026-08-10, false from the first report onward, and
+> **still there in the commit that added the guard against exactly this.** `R17` §8 names the
+> hole in the second bullet: nothing here reads a claim, so a document whose date is correct
+> and whose sentence is false passes every check. It took under an hour for that bullet to
+> acquire an example, and the example is this paragraph, in the document that owns `PUB-4`.
 
 This document owns **the standing requirements for publication, and what discharges each.**
 

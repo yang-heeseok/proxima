@@ -3,7 +3,7 @@
 > **Created**: 2026-08-10
 > **Updated**: 2026-08-17
 
-**Status:** **`T1`–`T9` are all done, in seventeen reports (`R0`–`R16`).** The state column
+**Status:** **`T1`–`T9` are all done, in eighteen reports (`R0`–`R17`).** The state column
 remains the truth of this document — it is updated as each item lands, not in advance.
 
 ### Where *done* is a word covering a deviation

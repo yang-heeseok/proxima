@@ -232,6 +232,14 @@ one.
   through the proxy of a date. A document that is genuinely up to date and simply says
   something false about the tree passes all four checks. **The word `done` in the roadmap's
   State column is not verified against anything.**
+
+  > **This bullet acquired an example within the hour.** With all four checks green,
+  > `publication-readiness.md`'s own Status line still read *"No defect has been reproduced
+  > and no report exists yet"* — in the document that owns `PUB-4`, in the commit that added
+  > the guard, with eighteen reports in the tree. Its `Updated` date was correct, so check 2
+  > had nothing to say; it names no missing artefact, so check 1 had nothing to say. **The
+  > gate is green and the sentence is false, and both of those are true at once.** That is
+  > the shape of what remains, stated with a case rather than as a caveat.
 - **Check 1 has never fired on this repository.** 0 findings at every commit measured. It has
   been watched refusing planted violations and nothing else — the same status the four
   ArchUnit rules in `R1`'s appendix ② carry, and the same caveat applies: blocking and

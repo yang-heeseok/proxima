@@ -58,9 +58,16 @@ than measurement until it was measured.
 defect it was documenting, and what caught it?* **Six of nine.** What caught them was a
 deliberate measurement seven times, CI three times, a control planted inside an instrument
 twice, the compiler once — and **a regression gate exactly once**, when rules written at the
-end of one report refused the author's own remedy three reports later. Nine test classes here
-exist to refuse a future edit; **one has ever been paid**, and `R0` §4 says so instead of
-counting gates as evidence.
+end of one report refused the author's own remedy three reports later. **`R0` counted nine test
+classes written to refuse a future edit and one that had ever been paid**, and said so instead
+of counting gates as evidence.
+
+**That count was a snapshot and this line used to state it in the present tense.** Six more gate
+classes have landed since `R0` — fifteen now — and the ledger has moved in the other direction
+too: `docs-consistency.yml` has caught **two** commits since 2026-08-17, both of them the very
+commit that was editing documents, and `load-harness.yml` caught its own wrapper twice on its
+first run. `R0`'s figures belong to `R0`'s tree and are not re-scored here; **what is stated in
+the present tense is only what was re-derived today.**
 
 ---
 

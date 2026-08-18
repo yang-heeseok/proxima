@@ -273,6 +273,13 @@ step 2 is the check. That is enforcement by procedure, and procedure is what `PU
   direction that was previously invisible.
 - **What is not:** nothing fails a build if the runner ignores the file. The load lane does not
   run in CI at all — it needs a seeded 3.9-million-row database — so there is no build to fail.
+
+  > **Still true on 2026-08-18, and worth disambiguating now that a workflow called `load
+  > harness` exists.** `load-harness.yml` runs three one-iteration scenarios through the wrapper
+  > and no database; it tests the wrapper's control flow, which is machine-independent. **The
+  > load scenario itself still never runs in CI**, and nothing there fails a build because an
+  > operator ignored a verdict on a real measurement. `ADR-008` records why that lane is not the
+  > rejected one and is not a step toward it.
 - **Why not a k6 threshold:** §5, last row. It is a limit of the tool.
 
 > **Closed by `ADR-008`, 2026-08-18.** `R19` moved this to `OPEN-9`'s neighbour `OPEN-8`,

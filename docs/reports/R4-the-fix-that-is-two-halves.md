@@ -1,7 +1,7 @@
 # R4. A connection pool exhausted by a default — the fix is two halves, and one alone does nothing
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-18
 > **Red commit**: `cceec6a` — the default configuration
 > **Green commit**: this one — `open-in-view: false` **and** `strategy=projection`
 > **Supersedes**: `R2`, which established the mechanism and could not choose a remedy. `R2`
@@ -47,6 +47,13 @@ Spring's.
   --proxima.recommendation.strategy=entities --spring.jpa.open-in-view=true'
 BASE_URL=http://localhost:8080 VUS=200 k6 run load/recommendations.js
 ```
+
+> **The command above is what this report ran, and it is not what to run today.** The harness
+> has changed twice since: `R15` made `PROXIMA_TOKEN_SECRET` mandatory, and `ADR-008` made
+> `./load/run.sh` the entry point because `k6 run` exits `0` on a run the scenario has itself
+> declared unpublishable. **Following this line verbatim now bypasses that check.** The
+> reproduction is left as it was, because rewriting it would claim conditions this report did
+> not have.
 
 Those two flags are the red state. They are the defaults at `cceec6a`; they are flags now
 because the green state is what ships.

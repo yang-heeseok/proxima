@@ -1,7 +1,7 @@
 # R2. A connection pool exhausted by a default — and why this is not concluded
 
 > **Created**: 2026-08-11
-> **Updated**: 2026-08-12
+> **Updated**: 2026-08-18
 > **Red commit**: `cceec6a` — the state in which the mechanism was observed
 > **Green commit**: **none. This report does not have one.**
 > **Status**: **Superseded by `R4`**, which concluded `T1` after `T4` shipped the index.
@@ -53,6 +53,13 @@ export PROXIMA_DB_USER=postgres PROXIMA_DB_PASSWORD=...
 ./gradlew :api:bootRun --args='--proxima.content-gateway.delay-ms=150'
 BASE_URL=http://localhost:8080 VUS=200 k6 run load/recommendations.js
 ```
+
+> **The command above is what this report ran, and it is not what to run today.** The harness
+> has changed twice since: `R15` made `PROXIMA_TOKEN_SECRET` mandatory, and `ADR-008` made
+> `./load/run.sh` the entry point because `k6 run` exits `0` on a run the scenario has itself
+> declared unpublishable. **Following this line verbatim now bypasses that check.** The
+> reproduction is left as it was, because rewriting it would claim conditions this report did
+> not have.
 
 Docker runs natively inside WSL2 here, so all of this runs there; Windows cannot reach the
 daemon.

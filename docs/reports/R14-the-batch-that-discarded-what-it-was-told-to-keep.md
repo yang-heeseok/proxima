@@ -1,7 +1,7 @@
 # R14. The batch that discarded what it was told to keep
 
 > **Created**: 2026-08-14
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-18
 > **Red commit**: this one, behind `proxima.recording.batch=stop-at-first-failure` — the loop
 > that shipped from `21e7162` until now. A property rather than a separate commit, for the
 > reason `R12`'s header gives: **the red state is already the whole history of this
@@ -161,6 +161,15 @@ would be pinning the fixture rather than the behaviour.
 - **Order is not part of the contract.** Recordings are applied in list order today because
   `mapIndexed` is sequential. Nothing says so and nothing tests it, and a future concurrent
   implementation would change the `score` arithmetic in §3 without failing the gate.
+
+  > **The three bullets above waited on something that is now decided not to exist.**
+  > *"That is the next decision and it needs the endpoint that does not exist"* is the shape
+  > `ADR-003` condemned — a decision conditioned on an arrival nobody can schedule — and `R19`
+  > moved it to `OPEN-9` one level down, where the question was *whether the endpoint exists at
+  > all.* **`ADR-009` says no**, 2026-08-18. No HTTP status has to be chosen for *"four of five
+  > landed"* if there is no HTTP; `RecordingOutcome` goes to a caller in the same process,
+  > which can branch on it. **What the decision costs is written into it**: every load number
+  > in this repository is on the read path, and the write path under HTTP load is 미측정.
 - **One shape of batch was measured.** Five recordings, one invalid, in the middle. An invalid
   *first* recording, several invalid ones, or a batch that is entirely invalid are 미측정.
 - **What would break the conclusion**: a requirement that a batch is atomic — a marking run,

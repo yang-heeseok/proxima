@@ -1,7 +1,7 @@
 # R15. A migration that passes every test and cannot run
 
 > **Created**: 2026-08-14
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-18
 > **Red commit**: `f3c03f6` — `V3` as it shipped, with the correlated subquery. It has been in
 > the tree since `T6` and green in every CI run since.
 > **Green commit**: this one — one aggregate pass, and a gate that runs the shipped statement
@@ -229,6 +229,20 @@ the correctness of the very statement it was written to replace.
 - **Only `mastery` was checked.** `V1` creates seven tables and no other migration deduplicates
   anything today, but nothing structural prevents the next one from using the same shape.
   **No rule looks for correlated subqueries in migrations**, and one could.
+
+  > **Moved to `OPEN-7` on 2026-08-17 and closed by `ADR-007` the next day, and the answer was
+  > no.** `R19` found this bullet sitting where nobody had to act on it: *"and one could"* is a
+  > judgement, not a risk somebody chose to live with. **The rule lost on its own merits** — it
+  > would have protected no migration that exists, `MigrationDeduplicationTest` already gates
+  > the one that does, and `AGENTS.md` §Scope calls a guard in that position *unbanked*.
+  >
+  > **What replaced it addresses the sentence above it rather than this one.** The defect is
+  > not the syntax; it is that migrations are only ever tested on empty tables, which is why
+  > four days of CI said nothing. `PopulatedMigrationTest` puts 20,000 rows in `mastery` with
+  > 5,000 planted duplicates, runs `V1`→`V3` over them, and `EXPLAIN`s every DML statement the
+  > migrations contain — failing on a `SubPlan`, because **PostgreSQL is a better judge of
+  > per-row evaluation than a regex**, and because rule 9 forbids CI asserting a duration. The
+  > statement removed here is planted in the same class and required to be caught.
 - **The seeded database is the only large one that exists.** Everything here is measured
   against 600,000 `mastery` rows, and the shape of the defect — quadratic — means the numbers
   do not scale linearly to a different size. A table ten times larger is a hundred times worse.

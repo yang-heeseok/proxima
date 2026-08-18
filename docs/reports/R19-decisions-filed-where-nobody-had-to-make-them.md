@@ -1,7 +1,7 @@
 # R19. Decisions filed where nobody had to make them
 
 > **Created**: 2026-08-17
-> **Updated**: 2026-08-17
+> **Updated**: 2026-08-18
 > **Red commit**: `b1c1b95` — three decisions filed as risks, three falsified §8 bullets
 > saying so nowhere, and an Open table claiming there could be none of the first
 > **Green commit**: this one — three rows, four annotations, and the claim withdrawn
@@ -423,6 +423,18 @@ adding a promise, and this section is the record of what it measured instead.
 - **Three rows were opened and none was decided**, which is correct and is also a cost: two of
   the three say their own deadline is *now*, so the repository is carrying three questions whose
   honest deadline has already passed.
+
+  > **All three were decided on 2026-08-18** — `ADR-007`, `ADR-008`, `ADR-009` — the day after
+  > they were opened, for the reason their own `Deadline` columns gave. **The cost this bullet
+  > names was real and it was short.**
+  >
+  > **And the bullet below was half right.** It predicted `OPEN-8` was the likeliest to be work
+  > rather than judgement. It was judgement — three routes with different costs, and `ADR-004`
+  > eliminated the expensive one on a ground nobody had noticed: a CI load lane cannot publish a
+  > duration, so it could only enforce the verdict of a measurement it may not take. **`OPEN-7`
+  > is the one that moved**, and not to work either: the rule it asked about was declined, and
+  > what replaced it answers a different sentence in `R15` §8 — the one about migrations only
+  > ever meeting empty tables.
 - **What would break this conclusion:** a second reader finding that one of `OPEN-7`, `OPEN-8`
   or `OPEN-9` is work rather than judgement — most likely `OPEN-8`, whose cheapest route is a
   wrapper script nobody has priced, and where a low enough price would turn the row into a task.

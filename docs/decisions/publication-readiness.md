@@ -4,7 +4,14 @@
 > **Updated**: 2026-08-17
 
 **Status:** Requirements settled and the checklist is live. **Twenty reports (`R0`–`R19`),
-`T1`–`T9` measured, 74 tests, five workflows.** `PUB-4`'s prose row is `partly observed` as of
+`T1`–`T9` measured, 77 tests, five workflows.**
+
+> **The workflow count was wrong when it was written and is right now, which is worse.** This
+> line said *five* on 2026-08-17 and `.github/workflows/` held **four**. `load-harness.yml`
+> landed on 2026-08-18 and made the sentence true without anybody correcting it. **A claim that
+> repairs itself is never caught**, and `R19` §3 counts the bullets later work falsified — this
+> is the same class running the other way, and the only reason it is recorded is that the
+> counts were re-derived rather than carried forward. `PUB-4`'s prose row is `partly observed` as of
 2026-08-17 and every other row's state is in the table below, established the way it says.
 
 > **This line said *"No defect has been reproduced and no report exists yet"* until

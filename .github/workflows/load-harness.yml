@@ -1,0 +1,92 @@
+# Makes ADR-008's decision observable instead of asserted.
+#
+# WHY A WHOLE LANE FOR ONE SHELL SCRIPT.
+#
+#   `load/run.sh` exists because `recommendations.js` can declare its own run unpublishable
+#   and k6 still exits 0 -- a k6 threshold is evaluated over one metric and the steady-state
+#   test is a ratio between two, known only after the run. On 2026-08-17 that let a run k6
+#   had labelled DO NOT PUBLISH into a published median (`R18` §3.5).
+#
+#   The wrapper is the fix. But a wrapper nobody has watched refuse is a claim, and this
+#   repository keeps a count of those: `R0` §4 found nine test classes written to refuse a
+#   future edit and exactly one that had ever been paid. So the three refusals are planted
+#   and this job requires each of them.
+#
+#   THE LOAD SCENARIO ITSELF IS NOT RUN HERE. It needs the seeded 3,963,719-row database, and
+#   `ADR-004` forbids CI asserting a duration in any case -- a shared runner of unstated size
+#   produces no citable latency. What runs here is the wrapper's control flow, which is
+#   machine-independent: three scenarios, three exit codes.
+#
+#   That split is the point. `OPEN-8` weighed a CI load lane and rejected it for exactly the
+#   reason above; this lane is not that, and it is not a step toward it.
+
+name: load harness
+
+on:
+  push:
+    paths:
+      - 'load/**'
+      - '.github/workflows/load-harness.yml'
+  pull_request:
+    paths:
+      - 'load/**'
+      - '.github/workflows/load-harness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wrapper:
+    name: run.sh refuses what it claims to refuse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: the environment any number from this run belongs to
+        run: |
+          set -eu
+          echo "run           : ${GITHUB_RUN_ID}, attempt ${GITHUB_RUN_ATTEMPT}"
+          echo "runner image  : ${ImageOS:-unknown} ${ImageVersion:-unknown} (${RUNNER_OS} ${RUNNER_ARCH})"
+          echo "kernel        : $(uname -sr)"
+          echo "cpu           : $(nproc) x $(sed -n 's/^model name[ \t]*: //p' /proc/cpuinfo | head -1)"
+
+      # Pinned to the version the local runs use, so the wrapper is exercised against the same
+      # handleSummary semantics the reports were taken with. A moving `latest` here would mean
+      # this lane and the machine in measurement-discipline.md could disagree about what k6
+      # does with a returned file map, and the disagreement would surface as a mystery.
+      - name: k6 v2.2.0
+        run: |
+          set -eu
+          curl -sSL "https://github.com/grafana/k6/releases/download/v2.2.0/k6-v2.2.0-linux-amd64.tar.gz" \
+            | tar xz --strip-components=1 -C /usr/local/bin k6-v2.2.0-linux-amd64/k6
+          k6 version
+
+      - name: a steady run passes, an unsteady one fails, a verdict-less one fails differently
+        run: |
+          set -eu
+          run_case() {
+            set +e
+            ./load/run.sh "selftest-$1.js" > "/tmp/$1.log" 2>&1
+            actual=$?
+            set -e
+            if [ "$actual" != "$2" ]; then
+              echo "FAIL: selftest-$1.js exited $actual, expected $2"
+              cat "/tmp/$1.log"
+              exit 1
+            fi
+            echo "OK: selftest-$1.js exited $2"
+          }
+
+          run_case ok   0
+          run_case fail 1
+          run_case none 2
+
+          # The negative half. `ok` passing is what stops this lane from being satisfied by a
+          # wrapper that rejects everything -- which is as useless as one that rejects nothing,
+          # and is the shape `R9` §7 and `R16`'s rate>=0.0 threshold are both about.
+          grep -q 'NOT STEADY STATE' /tmp/fail.log || { echo "FAIL: the refusal printed no reason"; exit 1; }
+          grep -q 'no steady-state verdict' /tmp/none.log || { echo "FAIL: a missing verdict was not named as such"; exit 1; }
+          grep -q 'NOT STEADY' /tmp/ok.log && { echo "FAIL: a steady run was told it was not"; exit 1; }
+
+          echo "OK: all three, and the clean one stayed clean."

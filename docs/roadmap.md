@@ -1,9 +1,9 @@
 # Roadmap
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-17
+> **Updated**: 2026-08-18
 
-**Status:** **`T1`–`T9` are all done, in twenty reports (`R0`–`R19`).** The state column
+**Status:** **`T1`–`T9` are all done, in twenty reports (`R0`–`R19`).** **Every question this repository has ever recorded as undecided is now closed by an ADR** — `OPEN-1` to `OPEN-9`, `ADR-000` to `ADR-009`. The state column
 remains the truth of this document — it is updated as each item lands, not in advance.
 
 ### Where *done* is a word covering a deviation
@@ -129,6 +129,7 @@ because measuring it without those two would produce numbers nobody could trust.
 | Full frontend | One back-office screen, for looking at what the API returns |
 | Container orchestration | Out of proportion to the system |
 | Coverage percentage | A number that is easy to raise without making anything safer. The regression gates in §Tier 3 are the claim being made instead |
+| A recording endpoint | **Decided by `ADR-009`**, 2026-08-18, closing `OPEN-9`. `recordAll` stays a service method with no HTTP surface: an endpoint adds surface and no defect class, and `R14` reproduced, measured and fixed its batch failure without one. **The cost is named rather than implied — every load number here is on the read path, the write path's concurrency was measured with JVM threads, and the write path under HTTP load is 미측정** |
 
 ---
 

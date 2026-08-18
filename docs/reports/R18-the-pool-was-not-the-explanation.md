@@ -1,7 +1,7 @@
 # R18. The pool was not the explanation
 
 > **Created**: 2026-08-17
-> **Updated**: 2026-08-17
+> **Updated**: 2026-08-18
 > **Red commit / Green commit**: neither, for the 2×2 — nothing in the application changed
 > and all four arms are the same jar (`sha256 1ed8188a…`) on the same afternoon. **For the
 > harness defect §3.5 found, red is `01e16af` and green is the commit carrying this report.**
@@ -275,6 +275,15 @@ step 2 is the check. That is enforcement by procedure, and procedure is what `PU
   run in CI at all — it needs a seeded 3.9-million-row database — so there is no build to fail.
 - **Why not a k6 threshold:** §5, last row. It is a limit of the tool.
 
+> **Closed by `ADR-008`, 2026-08-18.** `R19` moved this to `OPEN-9`'s neighbour `OPEN-8`,
+> because *"what enforces it"* is a judgement and not a risk. **`load/run.sh` now wraps
+> `k6 run`** and exits 1 on `FAIL`, 2 when no verdict was written at all. Three planted
+> scenarios and `load-harness.yml` require exactly those three exits, with the clean one
+> returning 0 as the negative control. **The CI load lane was rejected for a reason beyond
+> cost** — `ADR-004` forbids CI asserting a duration, so it could never produce a citable
+> latency and would exist only to enforce the verdict of a measurement it may not take.
+> It still does not remove the person; it removes the second step.
+
 The 2×2 itself has no gate and cannot usefully have one, for `R13`'s reason: the shipped schema
 has the index, so an assertion about the no-index arm would have nothing to run against.
 
@@ -305,6 +314,12 @@ has the index, so an assertion about the no-index arm would have nothing to run 
 - **The verdict file is enforcement by procedure.** §7. `R17` is this repository's report on
   what happens to a rule whose only enforcement is a person remembering it, and this one is now
   in that category by construction.
+
+  > **No longer, as of `ADR-008`.** `load/run.sh` returns non-zero and is the only documented
+  > way to run a scenario, and `load-harness.yml` watches it refuse. **What remains true is the
+  > smaller claim**: somebody still has to invoke the wrapper, and nothing stops a direct
+  > `k6 run`. The failure is now loud where it happens rather than in a log two hours later,
+  > which is where this report actually found it.
 - **What would break this conclusion:** a machine where `shared_buffers` is large enough to hold
   `mastery` entirely, or a pool small enough that even the indexed path queues. Both change
   which term dominates `W`, and neither was varied.

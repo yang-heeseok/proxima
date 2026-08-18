@@ -1,7 +1,7 @@
 # R17. The guard that was a person
 
 > **Created**: 2026-08-17
-> **Updated**: 2026-08-17
+> **Updated**: 2026-08-18
 > **Red commit**: `36de28f` — the tree the PO's question landed on. **Eighteen findings**, of
 > which the question found two.
 > **Green commit**: this one — the four checks, and the eighteen discharged.
@@ -303,6 +303,13 @@ one.
   for.** They are quoted as themselves and combined with nothing — what `ADR-004` was written
   after was a local number divided by a remote one, and there is no division here. **The gap
   belongs to the lane, not to this bullet**, and no report can close it by trying harder.
+
+  > **Closed at the lane, 2026-08-18 — and not retroactively.** `docs-consistency.yml` now
+  > prints the block, copied from `build.yml`'s step. **The three runs above still have none**,
+  > because they ran before the step existed, and their seconds stay labelled as they are
+  > rather than acquiring a block from a later run they were not taken in. Rule 3 forbids that
+  > substitution as surely as it forbids the division. **What changed is the next citation, not
+  > this one.**
 
   Also 미측정: how any of this scales. Three runs on a shared runner at one repository size say
   nothing about where the walk stops being free, and a term that is currently a fraction of a

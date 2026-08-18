@@ -27,37 +27,46 @@ says why at length; the thresholds below encode it so a run cannot quietly skip 
 ## Running
 
 ```bash
-# 1. The application must already be warm-started and the database ANALYZEd.
-#    A run against stale planner statistics measures the statistics.
-k6 run --env BASE_URL=http://localhost:8080 --env VUS=200 recommendations.js
+# The application must already be warm-started and the database ANALYZEd.
+# A run against stale planner statistics measures the statistics.
+PROXIMA_TOKEN_SECRET=... ./run.sh recommendations.js -- --env VUS=200
 
-# 2. READ THE VERDICT. k6 exits 0 on a run it has itself declared unpublishable.
-grep -q '^OK' steady-state.txt || echo "NOT STEADY STATE — do not cite this run"
-
-# 3. Three times, and three OK verdicts. The report cites the median.
+# Three times, and three passes. The report cites the median.
 ```
 
-### Step 2 is not optional, and `R18` is why
+**`run.sh` is the way. `k6 run` on its own is not.** The wrapper exits non-zero when the
+scenario has declared its own run unpublishable, and non-zero when no verdict was written at
+all — k6 does neither.
 
-The steady-state check compares the two halves of the measurement window. Until 2026-08-17
-it **printed** `DO NOT PUBLISH THIS RUN` and let k6 exit `0` beside it — and it only looked
-at one direction, so a run that *degraded* during the window passed in silence. Three of
-`R18`'s fifteen measured runs were outside a symmetric band and one of them printed the
-banner. **The very first run after the fix failed in the newly-watched direction.**
+### Why the wrapper exists — `OPEN-8`, closed by `ADR-008`
 
-The enforcement is a file rather than a k6 threshold because a threshold is evaluated over
-one metric, and this is a ratio between two that is known only once the run is over. That
-is a limit of the tool, written down here rather than left as a gap. **The runner is the
-enforcement, so the runner has to read the file.**
+The steady-state check compares the two halves of the measurement window. Until 2026-08-17 it
+**printed** `DO NOT PUBLISH THIS RUN` and let k6 exit `0` beside it, and it only looked at one
+direction, so a run that *degraded* during the window passed in silence. Three of `R18`'s
+fifteen measured runs were outside a symmetric band, and one of them printed the banner and
+went into a published median anyway. **The very first run after the fix failed in the
+newly-watched direction.**
+
+`R18` fixed the check and left the enforcement as a `grep` in this file for the operator to
+remember. `R17` is this repository's report on what becomes of a rule enforced that way —
+three failures in seven days, every one caught by a person. So the enforcement moved into a
+wrapper.
+
+**It does not remove the person.** Someone still has to type `./run.sh`. What it removes is the
+second step: the failure is loud where it happens rather than at report-writing time, which is
+where `R18` actually found it — by re-reading a log two hours later. The alternatives and
+their costs are in `ADR-008`.
 
 Output goes to `load/out/`, which is gitignored — the numbers live in the reports, where a
 reader looks for them. A raw k6 summary in the tree would be a number without its
-environment block, which `PUB-4` does not allow.
+environment block, which `PUB-4` does not allow. `steady-state.txt` is gitignored for the
+same reason and is a run artefact, not a record.
 
 ## Files
 
 | File | Measures |
 | --- | --- |
 | `recommendations.js` | `GET /api/v1/learners/{id}/recommendations` under concurrency |
+| `run.sh` | not a scenario — the wrapper every scenario is run through. `ADR-008` |
 | *(to come)* `attempts-concurrent.js` | concurrent writes to one learner's mastery row |
 | *(to come)* `attempts-paging.js` | deep paging, offset against keyset |

@@ -3,12 +3,12 @@
 **An API that chooses a learner's next problem — and a record of how it actually breaks
 under load and concurrency.**
 
-> **Created**: 2026-08-10 · **Updated**: 2026-08-17
+> **Created**: 2026-08-10 · **Updated**: 2026-08-18
 > **Status: the nine traps on the roadmap are measured, in twelve reports.** Spring Boot
 > 4.1.0 on JDK 21, a schema that applies to a real PostgreSQL under test, a generator that
-> produces 3,963,719 rows from a fixed seed value, and **74 tests** — 35 classes, 0 failures,
-> from a forced full run (`--rerun-tasks --no-build-cache`, 11m52s) on 2026-08-17, because a
-> cached Gradle result is not a run. **This line said `70` for four days and eight
+> produces 3,963,719 rows from a fixed seed value, and **77 tests** — 36 classes, 0 failures,
+> 9m43s on 2026-08-18 with `:api:test` actually executed rather than restored from cache, because a
+> cached Gradle result is not a run. **It said `70` for four days and eight
 > test-adding commits**, which is `R17`. Three of the nine turned out
 > to be **already fixed by the framework** — those reports say so and measure what is holding
 > them shut, rather than deleting the row. See `docs/explanation/measurement-discipline.md`
@@ -35,6 +35,7 @@ the reports carry the environment each number was taken in.*
 | Documents claiming a state the tree contradicts — *2026-08-17* | **18**, and a person was the only detector | **0**, on every push | [`R17`](docs/reports/R17-the-guard-that-was-a-person.md) |
 | The same endpoint with 5× the connection pool and no index — *2026-08-17* | 8739.8 ms @ pool 10 | **4506.7 ms** @ pool 50 — **and still 8.7× worse than with the index** | [`R18`](docs/reports/R18-the-pool-was-not-the-explanation.md) |
 | Decisions filed as risks, over 145 *남는 위험* bullets — *2026-08-17* | **3**, in a table claiming there could be none | **0** — three rows opened, and the claim withdrawn | [`R19`](docs/reports/R19-decisions-filed-where-nobody-had-to-make-them.md) |
+| A migration that had never met a row — *2026-08-18* | `V3` **> 32 min, unfinished** on 600k rows, green in CI for four days | **`PopulatedMigrationTest`** — migrations run over 20,000 rows, and every DML statement's plan is checked for per-row evaluation | [`ADR-007`](docs/decisions/adr/ADR-007-migrations-meet-rows.md) |
 
 **The two latency rows are dated and are not a progression.** They were taken two days apart
 on a machine whose state changed in between, and `measurement-discipline.md` rule 3 says a

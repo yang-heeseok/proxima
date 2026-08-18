@@ -62,6 +62,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ADR-004 REQUIRES THIS AND THIS LANE DID NOT HAVE IT.
+      #
+      #   The rule is that a CI number quoted in a report carries THAT RUN'S environment
+      #   block and its run id -- "not 'GitHub Actions'. The block." `build.yml` has printed
+      #   one since ADR-004 was written; this workflow never did, and on 2026-08-17 `R17` §8
+      #   published this lane's job durations with a run id, a job id and a runner name, and
+      #   recorded that the block the rule asks for did not exist.
+      #
+      #   That was a gap in the lane, not in the report. A report cannot close it by writing
+      #   more carefully, and the logs that would supply the missing fields need an
+      #   authenticated token to read. One step fixes it for every future citation.
+      - name: the environment any number from this run belongs to
+        run: |
+          set -eu
+          echo "run           : ${GITHUB_RUN_ID}, attempt ${GITHUB_RUN_ATTEMPT}"
+          echo "runner image  : ${ImageOS:-unknown} ${ImageVersion:-unknown} (${RUNNER_OS} ${RUNNER_ARCH})"
+          echo "kernel        : $(uname -sr)"
+          echo "cpu           : $(nproc) x $(sed -n 's/^model name[ \t]*: //p' /proc/cpuinfo | head -1)"
+          echo "memory        : $(free -m | awk '/^Mem:/ {printf "%.1f GiB", $2/1024}')"
+          echo "disk (workdir): $(df -h . | awk 'NR==2 {print $2" total, "$4" free"}')"
+          echo "git           : $(git --version)"
+
       - name: the checkout is deep enough for the history checks to mean anything
         run: |
           set -eu

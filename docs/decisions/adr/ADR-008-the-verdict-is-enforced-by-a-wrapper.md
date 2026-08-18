@@ -75,6 +75,33 @@ The CI job that tests the wrapper is *not* the rejected CI load lane and is not 
 it. It runs three one-iteration scenarios and no database; what it exercises is control flow,
 which is machine-independent — exactly the kind of assertion `ADR-004` permits CI to make.
 
+## The lane failed on its first run, twice, and both are worth keeping
+
+**1. `run.sh` was committed `100644`.** Not executable, so `./load/run.sh` could not run at all.
+Invisible locally: the working tree is on a WSL2 drvfs mount where every file reads `0777`
+whatever git recorded. **`R1` §9 is the same failure** — `gradlew` committed without its
+executable bit, CI unable to start Gradle, and the same mount hiding it. Nothing had been built
+to catch it in between, so it recurred at the first opportunity. The lane now asserts the
+committed mode and says how to fix it, and it invokes `./load/run.sh` as a path rather than
+`bash load/run.sh`, which would paper over the bit and let it rot.
+
+**2. The negative control killed the step when it passed.**
+
+```bash
+grep -q 'NOT STEADY' /tmp/ok.log && { echo "FAIL: ..."; exit 1; }
+```
+
+Under `set -eu`, a `grep` that finds nothing — **the correct outcome** — makes the whole
+compound return non-zero and the shell exits. So the check failed precisely when the thing it
+guards behaved. That is a gate that is always red, and it ends the same way as one that is
+always green: uninstalled within a week, for opposite-looking reasons.
+
+**The common cause is one sentence.** The wrapper was tested locally three times; the
+*workflow step's shell* was not run once. Testing the subject and not the instrument is the
+recurring shape in this repository — `R5`'s appender, `R10`'s canary, `R16`'s `rate>=0.0`
+threshold — and this time the instrument was seven lines of `bash` that nobody executed. The
+step's logic is now run verbatim under `set -eu` before it is pushed.
+
 ## What would flip this
 
 A k6 release that lets `handleSummary` set an exit status, or thresholds that can be expressed

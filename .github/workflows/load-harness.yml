@@ -62,6 +62,27 @@ jobs:
             | tar xz --strip-components=1 -C /usr/local/bin k6-v2.2.0-linux-amd64/k6
           k6 version
 
+      # THIS REPOSITORY HAS ALREADY LOST A DAY TO THIS EXACT THING.
+      #
+      #   `R1` §9: gradlew was committed without its executable bit, CI could not start Gradle,
+      #   and it was invisible locally because the working tree sits on a WSL2 drvfs mount where
+      #   every file reads 0777 whatever git recorded. The first push of `run.sh` repeated it --
+      #   mode 100644, and the step below failed with a permission error that named nothing.
+      #
+      #   So the mode is asserted rather than assumed, and `./load/run.sh` is invoked as a path
+      #   rather than as `bash load/run.sh`, which would paper over the bit and let it rot.
+      - name: the wrapper is executable as committed
+        run: |
+          set -eu
+          mode=$(git ls-files -s load/run.sh | cut -d' ' -f1)
+          if [ "$mode" != "100755" ]; then
+            echo "FAIL: load/run.sh is committed as $mode, not 100755."
+            echo "A drvfs working tree shows every file as executable, so this is invisible"
+            echo "locally. Fix with: git update-index --chmod=+x load/run.sh"
+            exit 1
+          fi
+          echo "OK: load/run.sh is $mode"
+
       - name: a steady run passes, an unsteady one fails, a verdict-less one fails differently
         run: |
           set -eu
@@ -87,6 +108,6 @@ jobs:
           # and is the shape `R9` §7 and `R16`'s rate>=0.0 threshold are both about.
           grep -q 'NOT STEADY STATE' /tmp/fail.log || { echo "FAIL: the refusal printed no reason"; exit 1; }
           grep -q 'no steady-state verdict' /tmp/none.log || { echo "FAIL: a missing verdict was not named as such"; exit 1; }
-          grep -q 'NOT STEADY' /tmp/ok.log && { echo "FAIL: a steady run was told it was not"; exit 1; }
+          if grep -q 'NOT STEADY' /tmp/ok.log; then echo "FAIL: a steady run was told it was not"; exit 1; fi
 
           echo "OK: all three, and the clean one stayed clean."

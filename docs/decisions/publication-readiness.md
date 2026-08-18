@@ -4,15 +4,17 @@
 > **Updated**: 2026-08-18
 
 **Status:** Requirements settled and the checklist is live. **Twenty reports (`R0`–`R19`),
-`T1`–`T9` measured, 77 tests, five workflows.**
+`T1`–`T9` measured, 77 tests, five workflows.** `PUB-4`'s prose row is `partly observed` as of
+2026-08-17; **every question this repository has ever recorded as undecided is closed by an
+ADR** as of 2026-08-18 — `OPEN-1` to `OPEN-9`, `ADR-000` to `ADR-009`. Every other row's state
+is in the table below, established the way it says.
 
 > **The workflow count was wrong when it was written and is right now, which is worse.** This
 > line said *five* on 2026-08-17 and `.github/workflows/` held **four**. `load-harness.yml`
 > landed on 2026-08-18 and made the sentence true without anybody correcting it. **A claim that
-> repairs itself is never caught**, and `R19` §3 counts the bullets later work falsified — this
-> is the same class running the other way, and the only reason it is recorded is that the
-> counts were re-derived rather than carried forward. `PUB-4`'s prose row is `partly observed` as of
-2026-08-17 and every other row's state is in the table below, established the way it says.
+> repairs itself is never caught**, and `R19` §3 counts bullets that later work falsified —
+> this is the same class running the other way. The only reason it was noticed is that the
+> counts were re-derived instead of carried forward.
 
 > **This line said *"No defect has been reproduced and no report exists yet"* until
 > 2026-08-17** — true when written on 2026-08-10, false from the first report onward, and

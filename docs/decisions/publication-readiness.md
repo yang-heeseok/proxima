@@ -1,7 +1,7 @@
 # Publication readiness
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-17
+> **Updated**: 2026-08-18
 
 **Status:** Requirements settled and the checklist is live. **Twenty reports (`R0`–`R19`),
 `T1`–`T9` measured, 77 tests, five workflows.**

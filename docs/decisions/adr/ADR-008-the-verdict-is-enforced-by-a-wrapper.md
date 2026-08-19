@@ -75,7 +75,13 @@ The CI job that tests the wrapper is *not* the rejected CI load lane and is not 
 it. It runs three one-iteration scenarios and no database; what it exercises is control flow,
 which is machine-independent — exactly the kind of assertion `ADR-004` permits CI to make.
 
-## The lane failed on its first run, twice, and both are worth keeping
+## The lane failed on its first run — once — and found a second defect by being read
+
+> **This heading said *twice* until it was checked.** The lane failed **one** time, on defect 1
+> below. Defect 2 sits after the line that failed and **was never executed**; it was found while
+> diagnosing the first, by reading. Calling both *catches* credits a guard with work a person
+> did, which is the exact accounting `R0` §4 refuses — and it was written into the section
+> describing that refusal.
 
 **1. `run.sh` was committed `100644`.** Not executable, so `./load/run.sh` could not run at all.
 Invisible locally: the working tree is on a WSL2 drvfs mount where every file reads `0777`
@@ -85,16 +91,18 @@ to catch it in between, so it recurred at the first opportunity. The lane now as
 committed mode and says how to fix it, and it invokes `./load/run.sh` as a path rather than
 `bash load/run.sh`, which would paper over the bit and let it rot.
 
-**2. The negative control killed the step when it passed.**
+**2. The negative control would have killed the step when it passed — latent, never reached.**
 
 ```bash
 grep -q 'NOT STEADY' /tmp/ok.log && { echo "FAIL: ..."; exit 1; }
 ```
 
 Under `set -eu`, a `grep` that finds nothing — **the correct outcome** — makes the whole
-compound return non-zero and the shell exits. So the check failed precisely when the thing it
-guards behaved. That is a gate that is always red, and it ends the same way as one that is
-always green: uninstalled within a week, for opposite-looking reasons.
+compound return non-zero and the shell exits. **It would have failed precisely when the thing
+it guards behaved**, and it never got the chance: defect 1 killed the step nine lines earlier.
+A gate that is always red ends the same way as one that is always green — uninstalled within a
+week, for opposite-looking reasons — and this one would have been red on the first day the
+wrapper worked.
 
 **The common cause is one sentence.** The wrapper was tested locally three times; the
 *workflow step's shell* was not run once. Testing the subject and not the instrument is the

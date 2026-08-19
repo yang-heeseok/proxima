@@ -63,11 +63,16 @@ classes written to refuse a future edit and one that had ever been paid**, and s
 of counting gates as evidence.
 
 **That count was a snapshot and this line used to state it in the present tense.** Six more gate
-classes have landed since `R0` — fifteen now — and the ledger has moved in the other direction
-too: `docs-consistency.yml` has caught **two** commits since 2026-08-17, both of them the very
-commit that was editing documents, and `load-harness.yml` caught its own wrapper twice on its
-first run. `R0`'s figures belong to `R0`'s tree and are not re-scored here; **what is stated in
-the present tense is only what was re-derived today.**
+classes have landed since `R0` — **fifteen by the same classification, which is a judgement and
+not a derived fact.** The ledger has moved in the other direction too: `docs-consistency.yml`
+has caught **two** commits since 2026-08-17, both of them the very commit that was editing
+documents, and `load-harness.yml` caught a non-executable wrapper on its first run.
+
+**That last figure said *twice* for an hour, and it was wrong** — the lane's second defect sat
+after the line that failed and was never reached, so it was found by reading the code, not by
+running it. **The correction is worth more than the number**: it is an overstated gate ledger,
+in the paragraph about overstated gate ledgers, written by the person correcting one. `R0`'s
+own figures belong to `R0`'s tree and are not re-scored here.
 
 ---
 

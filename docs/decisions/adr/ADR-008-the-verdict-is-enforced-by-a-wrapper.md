@@ -1,7 +1,7 @@
 # ADR-008 — The steady-state verdict is enforced by a wrapper, not by a reader
 
 > **Created**: 2026-08-18
-> **Updated**: 2026-08-18
+> **Updated**: 2026-08-20
 > **Status**: Accepted
 > **Closes**: `OPEN-8`
 

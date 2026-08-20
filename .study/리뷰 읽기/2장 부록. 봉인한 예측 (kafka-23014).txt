@@ -1,0 +1,23 @@
+SEALED 2026-08-20, before opening any review comment on apache/kafka#23014.
+NOTE: title+body already state the defect (busy loop). So predictions target the REVIEW of the fix,
+not the identification of the bug. This is a departure from 1장 and must be recorded in 0장.
+
+P1. SubscriptionState.hasFetchablePartitions duplicates fetchablePartitions(Predicate).
+    Why: same guard expression, one returns List, one returns boolean. Reviewer asks to unify,
+    or at minimum flags `subscriptionType.equals(ENUM)` which should be `==`.
+
+P2. FetchRequestPreparationResult carries a boolean that is meaningless when requests is non-empty
+    ("Ignored when requests() is non-empty" is in its own javadoc).
+    Why: a field whose validity depends on another field is a modelling smell. Reviewer proposes
+    a record, an enum, or moving the wakeup decision to the caller.
+
+P3. The new unconditional fetchBuffer.wakeup() inside removePendingFetchRequest().
+    Why: a method named "remove..." now has a scheduling side effect, and it fires on paths that
+    previously did not wake (this replaces the needsWakeup flag deleted from handleFetchSuccess).
+    Reviewer asks which paths/threads call it and whether close-session now wakes too.
+
+HALF-BET P4. Fetcher.java (classic consumer) does prepareFetchRequests().requests() and throws the
+    flag away -> an async-only concept pushed into the shared base class AbstractFetch.
+HALF-BET P5. Removing isCommittedOffsetsManagementEnabled() changes pollTimeout for the no-group
+    case; reviewer asks whether that behavioural change is intended.
+HALF-BET P6. A busy-loop test is timing-based -> reviewer asks for a deterministic counter assertion.

@@ -1,0 +1,32 @@
+SEALED 2026-08-21, before opening any review comment body on apache/lucene#16515.
+
+STATE READ: base 9cda46563a...6839843da9 -- the exact tree the first reviewer saw
+(first inline comment 2026-08-18T10:56 on commit 6839843da9). Commits 3-8 NOT read.
+This is 0장 §0.5(3-a)① applied for the first time.
+
+CONTAMINATION DECLARED UP FRONT: to find the pre-review SHA I had to list the commits,
+and commit titles after the first review are responses to the review. I saw:
+  "Revert \"Support two-phase filters in MaxScoreBulkScorer bitset path\"" (08-18T16:54)
+So P3 below is KNOWN-CONTAMINATED and cannot be scored as a hit.
+I did NOT read any comment body, and did not read commits 3-8 diffs.
+
+P1. The new overload Scorer.nextDocsAndScores(int, FixedBitSet, int, buffer).
+    Why: Scorer is extended everywhere (ES, Solr, custom queries). Now every scorer that
+    wants to be fast must override TWO near-identically-named methods with different
+    semantics. Reviewer proposes collapsing to one signature, or passing a Bits view /
+    an offset on the existing method, rather than a second overload.
+
+P2. No benchmark numbers. Body is 2 lines; CHANGES.txt files it under "Optimizations".
+    Why: Lucene convention is luceneutil results for optimization PRs. Reviewer asks
+    "do you have benchmark numbers?" -- THIS IS THIS CHAPTER'S AXIS.
+
+P3. [CONTAMINATED - see above] Enabling the bitset path for two-phase filters by dropping
+    `filter.twoPhaseView == null` from the guard. Eagerly confirming a two-phase filter
+    over a whole window changes the cost profile; expensive confirmations (phrase queries)
+    could regress vs lazy evaluation.
+
+HALF-BET P4. Typo "Apple filter" (should be "Apply") in both the PR title and CHANGES.txt.
+HALF-BET P5. Code duplication between the two default impls in Scorer, and the
+    `int batchSize = 64; // arbitrary` literal.
+HALF-BET P6. DocAndFloatFeatureBuffer.apply(FixedBitSet, offset) is public on a class whose
+    other apply() takes Bits -- same overload-proliferation objection one layer down.

@@ -388,10 +388,13 @@ namely the enumeration in §3.6 — so it is a task and it is recorded in `ADR-0
   leaves the corpus entirely* — and `R19` §8 records that nothing has ever swept KDoc. This
   report adds a second instance of it, knowingly, and hands it over rather than reaching into
   a file it does not own.
-- **This report's own three test classes cost CI time.** Measured on this machine in the run
-  that produced these numbers: `CollationDivergenceTest` 4.170 s, `CollationCostTest` 3.233 s,
-  `ImageTagDriftTest` 52.910 s — the last absorbing Docker and Ryuk initialisation because it
-  ran first. **Five containers are started across the three.** Their share of a CI run is
+- **This report's own three test classes cost CI time, and the two figures for it differ by
+  an order of magnitude.** Run alone: `CollationDivergenceTest` 4.170 s, `CollationCostTest`
+  3.233 s, `ImageTagDriftTest` **52.910 s** — the last absorbing Docker and Ryuk
+  initialisation because it ran first. Inside the whole suite, where that initialisation is
+  paid once by whatever runs first: **3.664 s, 2.411 s and 3.359 s.** The second set is the
+  one that describes the marginal cost and the first is the one that would be quoted by
+  accident. **Five containers are started across the three.** Their share of a CI run is
   **미측정** for the reason `R9` §8 gives: a green run uploads no test-results artefact.
 - **What would break this conclusion**: an `order by`, a `<`/`>`, a `between`, a `like`, or a
   `min`/`max` on any `varchar` column reaching the application. §3.6 is a snapshot of one

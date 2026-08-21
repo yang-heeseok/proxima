@@ -469,6 +469,31 @@ inherited from it**.
   and a session that closed eight cheap entries instead of the two with the widest attachment
   would have a better-looking table and a worse repository.
 
+## What the round actually did with it — annotated 2026-08-21, after the measurements
+
+**Kept separate from everything above, because everything above was committed at `3afe305`
+before a single measurement was taken.** The order was fixed first so that it could not be
+written to fit the result, and this section is the only part of this file that was written
+afterwards.
+
+| | |
+| --- | --- |
+| **(a) entries closed** | **2 — `9.1` and `D.8`**, both by `R25`, exactly the two this file named |
+| **(a) entries partly closed** | **1 — `D.1`.** `R25` §3.7 read `-Xmx512m` off the Gradle test worker's command line. That is the test lane and Gradle's own default; the `bootRun` lane every load number came from is a different JVM and is still `미측정` |
+| **(a) entries remaining** | **66** |
+| entries whose class this round would change | **none** |
+| **findings that were in no ledger entry** | **1**, and it became `R27` and `OPEN-10` |
+
+**The one that was not on the list is the one worth the paragraph.** §*What the sweep found
+that no `미측정` marks* recorded that `postgres:16-alpine` is pinned by tag while the digest
+beside it reaches no artefact. `R27` measured it: **the tag moved on 2026-08-13**, a GitHub
+runner has pulled `16.15` ever since, twenty documents say `16.14`, and nothing in the tree
+changed — so no date, no diff, and no `미측정` marked it.
+
+That is this ledger's own §*What this does not do* arriving on the same day it was written:
+**a sweep of recorded gaps finds recorded gaps.** The count is 169 and the denominator is
+still unknown, and the first evidence for that was produced by the sweep itself.
+
 ## Consequences
 
 - **`docs/roadmap.md` gains no row from this ADR.** It is not a measurement and it is not an

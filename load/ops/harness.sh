@@ -194,9 +194,25 @@ harness_up() {
   [ -n "$stale" ] && docker rm -f $stale >/dev/null 2>&1
 
   db_up
+
+  # ONE instance, then the fixture, then the rest. The order is a correction and each step of
+  # it is load-bearing.
+  #
+  #   The fixture cannot go before any instance: there is no schema until Flyway has run, and
+  #   Flyway runs when the application starts. It cannot go after ALL of them either -- an arm
+  #   that asks for more connections than the database has leaves no slot for psql, so the
+  #   insert silently inserts nothing. `on conflict do nothing` and a refused connection look
+  #   identical to a caller that discarded stderr.
+  #
+  #   Measured in f120a13: eighty POSTs answered `200` and landed zero rows, every one of them
+  #   rejected against a learner that was never created.
   local n
-  for n in $(seq 1 "$instances"); do app_up "$n" "$pool" "$@"; done
-  for n in $(seq 1 "$instances"); do app_wait "$n" || true; done
+  app_up 1 "$pool" "$@"
+  app_wait 1 || true
+  harness_fixture > /dev/null || die "the fixture could not be inserted"
+
+  for n in $(seq 2 "$instances"); do app_up "$n" "$pool" "$@"; done
+  for n in $(seq 2 "$instances"); do app_wait "$n" || true; done
 }
 
 harness_down() {

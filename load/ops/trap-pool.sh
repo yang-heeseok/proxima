@@ -64,10 +64,23 @@ write_burst() {
   local body='[{"itemId":1,"conceptId":1,"correct":true,"elapsedMs":10,"at":"2026-08-10T00:00:00Z","scoreDelta":0.000}]'
   local i
   for i in $(seq 1 "$concurrency"); do
-    curl -s -o /dev/null -w "%{http_code} %{time_total}\n" --max-time 90 \
-      -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
-      -X POST -d "$body" \
-      "http://localhost:$port/api/v1/learners/1/attempts" &
+    # THE OUTCOME, NOT THE STATUS. A per-item outcome list answers 200 whether every entry
+    # says `recorded` or every entry says `rejected` -- which is the contract R14 chose and is
+    # right. It means a probe that reads only the status code is measuring the envelope.
+    # f120a13 did exactly that and reported 80 successes against zero rows.
+    (
+      out=$(curl -s -w '\n%{http_code} %{time_total}' --max-time 90 \
+              -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+              -X POST -d "$body" \
+              "http://localhost:$port/api/v1/learners/1/attempts")
+      body_line=$(echo "$out" | head -n -1)
+      tail_line=$(echo "$out" | tail -1)
+      case "$body_line" in
+        *'"outcome":"recorded"'*) echo "recorded $tail_line" ;;
+        *'"outcome":"rejected"'*) echo "rejected $tail_line" ;;
+        *)                        echo "no-outcome $tail_line" ;;
+      esac
+    ) &
   done
   wait
 }
@@ -82,9 +95,10 @@ write_burst() {
 summarise_burst() {
   local raw; raw=$(mktemp)
   cat > "$raw"
-  printf '     status: %s\n' "$(awk '{print $1}' "$raw" | sort | uniq -c | awk '{printf "%s x%s  ", $2, $1}')"
+  printf '     outcome: %s\n' "$(awk '{print $1}' "$raw" | sort | uniq -c | awk '{printf "%s x%s  ", $2, $1}')"
+  printf '     status : %s\n' "$(awk '{print $2}' "$raw" | sort | uniq -c | awk '{printf "%s x%s  ", $2, $1}')"
   local sorted; sorted=$(mktemp)
-  awk '{print $2}' "$raw" | sort -n > "$sorted"
+  awk '{print $3}' "$raw" | sort -n > "$sorted"
   local n; n=$(wc -l < "$sorted")
   printf '     time_total  p50 %ss  p95 %ss  max %ss  (n=%s)\n' \
     "$(sed -n "$(((n + 1) / 2))p" "$sorted")" \

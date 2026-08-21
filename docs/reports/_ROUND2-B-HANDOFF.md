@@ -19,8 +19,8 @@ and measured four things at that boundary: what heap a container-aware JVM actua
 says while the database is gone, and what a deployment does to a request in flight on the write
 path. Three of the four do not reproduce in the form the plan described, and in each case what
 holds them shut is a **framework or library default** rather than anything this repository
-wrote — so the fourth artefact of the slice is a gate that goes red when one of those defaults
-moves.
+wrote — so the slice's fourth deliverable, beside the two reports and the two ADRs, is a gate
+that goes red when one of those defaults moves.
 
 ---
 

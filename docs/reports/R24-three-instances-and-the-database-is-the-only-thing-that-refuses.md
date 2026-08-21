@@ -234,8 +234,8 @@ include=readinessState,db`, one instance:
 | endpoint | database up | database gone |
 | --- | --- | --- |
 | `/actuator/health/liveness` | `200` in 0.003 s | **`200` in 0.003 s** — no restart storm |
-| `/actuator/health/readiness` | `200` in 0.003 s | **`503` in 30.006 s** — traffic drains |
-| `/actuator/health` | `200` in 0.014 s | `503` in 30.020 s |
+| `/actuator/health/readiness` | `200` in 0.004 s | **`503` in 30.005 s** — traffic drains |
+| `/actuator/health` | `200` in 0.015 s | `503` in 30.021 s |
 
 **And the second half, because the first is not enough.** Moving `db` into the readiness group
 fixes *what* the probe says and not *how long it takes to say it* — so a readiness probe polled
@@ -371,7 +371,8 @@ Two more of the same kind, because this report's instrument was written for it:
 
 **And a control killed a claim, for the second time in this slice.** Probed with no settle, the
 boundary arm's `/actuator/health` answered `503` in **0.011 s** beside a configuration change
-that cannot affect latency. With `SETTLE=5` it is **30.020 s**, identical to the arms before it:
+that cannot affect latency. With `SETTLE=5` it is **30.021 s**, indistinguishable from the arms
+before it (30.013 s and 30.010 s, all three inside the pool's 30 s `connection-timeout`):
 the fast answer was a dead-but-not-yet-evicted connection being handed out, not the readiness
 group. `R18` §9 is the report on attributing a timing difference to the wrong variable, and this
 is what following it looks like.

@@ -1,7 +1,7 @@
 # R0. The scorecard — what the AI draft did with each trap it was writing about
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-21
+> **Updated**: 2026-08-22
 > **Position**: last, and numbered first. It could not be written until `T1`–`T9` were done,
 > and it is the first thing worth reading afterwards.
 > **Red commit / Green commit**: none. This report measures the other eleven; it changes no
@@ -218,6 +218,32 @@ different job from the `T3` rules that refused `T6`'s remedy. Recording the dist
 more than the tick: this report's headline complaint is that gates here are promises, and a
 gate that only ever fires on deliberate edits stays a promise about defects.
 
+**And then, after the push, an instrument turned out never to have refused anything.** The
+last commit of round one added `study-consistency.yml`, whose `S3` check re-runs
+`docs-consistency.yml`'s artefact rule over `.study/리뷰 읽기/` so that a foreign repository's
+filename cited in backticks is caught before the shared gate reddens on it. Run at
+integration, it printed `read: Illegal option -d` and then `OK`. `read -d ''` is a bash
+extension; the script declared `#!/bin/sh` and the workflow invoked it with `sh`, which on
+`ubuntu-latest` is dash — so the loop body never ran, nothing was ever found, and the check
+reported clean. Measured rather than argued: with a foreign artefact planted in the same tree,
+**dash prints `OK` and bash prints `FAIL`**.
+
+**This is the sixth instrument in this repository to report into nothing**, and the header of
+that very workflow was already keeping the count at five.
+
+**But the ending belongs to the repository.** That workflow carries a self-test job which
+plants a violation and requires each check to fire, `S3` included — and it invokes the same
+script the same way, so **the first CI run of this workflow would have failed on exactly
+this.** The workflow reached `origin` for the first time in round two's push, so `S3` had
+never been true on CI and the control had never had the chance to say so.
+
+**What found it first was reading the whole output instead of the verdict line.** Had the `OK`
+been taken at face value, CI would have said it minutes later. Both worked, and that is the
+entry: **a planted control and the habit of reading past the verdict are backups for each
+other, and this is the first time in this repository that the two were measured against the
+same defect.** The interpreter is now `bash`, and both halves were re-checked — the clean tree
+passes, the planted violation is refused.
+
 ## 4. 무엇이 잡았는가 / What actually caught things
 
 Counting every recorded failure in this repository, not only the nine rows above:
@@ -329,6 +355,12 @@ exactly the failure mode `R2` §9 is about.
   > migration sequence — which is a tripwire on an intended edit rather than a catch, and is
   > not counted above. The one gate that has ever caught a defect is still `T3`'s ArchUnit
   > rules on `T6`'s remedy, three reports after they were written and twenty-one reports ago.
+  > **A control came closest.** `study-consistency.yml`'s self-test was built to fail if `S3`
+  > misses a planted violation, and `S3` was vacuous from the day it was written — so that job
+  > would have been paid on its first CI run. It did not get to be the finder: reading the
+  > check's own output past the `OK` line got there first. **The control was correct and was
+  > not the one that caught it**, which is a better outcome than either alone and is still not
+  > a gate catching a defect.
 - **The traps were chosen by the same author who then failed them.** A trap chosen because it
   is interesting is not a random sample of the defects this system could have.
 - **`T2` and `T4` are unscoreable in the table's own terms** and were given rows anyway, with

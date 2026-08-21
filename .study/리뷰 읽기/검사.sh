@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # .study/리뷰 읽기 — 상태 대장 검사
 #
 # 상태.md 의 머리말이 왜 이것이 있는지를 적는다. 여기 적는 것은 무엇을 검사하고,
@@ -131,6 +131,19 @@ git -c core.quotepath=false ls-files > "$tracked"
 git -c core.quotepath=false ls-files -z '*.kt' '*.java' 2>/dev/null \
   | xargs -0 grep -ohE '^[[:space:]]*([a-z]+ )*(class|object|interface) [A-Za-z0-9_]+' 2>/dev/null \
   | awk '{print $NF}' | sort -u > "$types" || true
+# `read -d ''` 는 bash 확장이다. 이 파일은 2026-08-21 부터 `#!/bin/sh` 를 선언했고
+# 워크플로가 `sh` 로 불렀는데, ubuntu-latest 의 `sh` 는 dash 다. dash 에서 이 줄은
+# `read: Illegal option -d` 로 즉시 실패하고 루프 본문이 한 번도 돌지 않는다 —
+# 즉 S3 는 심어놓은 위반 위에서도 OK 를 찍었다. 2026-08-22 에 재현했다:
+# 같은 트리에 남의 저장소 파일을 심고 dash 는 OK, bash 는 FAIL.
+#
+# 이 워크플로는 오늘 처음 origin 에 닿았으므로 S3 는 CI 에서 한 번도 참이었던 적이 없다.
+# 그리고 **잡은 것은 이 워크플로 자신의 self-test 다** — 심은 위반을 S3 가 놓치면
+# 빨간불이 되도록 짜여 있었고, 그것이 지불됐다. 헤더가 세는 "아무것도 거절한 적 없는
+# 계측기" 목록의 여섯 번째이고, 이번에는 대조군이 먼저 말했다.
+#
+# 인터프리터를 bash 로 바꿔 고친다. 이 스크립트는 이미 bash 를 필요로 하고 있었고,
+# 선언만 그렇지 않았다.
 git -c core.quotepath=false ls-files -z "$DIR" | while IFS= read -r -d '' doc; do
   case "$doc" in *.md) ;; *) continue;; esac
   grep -vE '\(to come\)|\(planted\)|\bTBD\b|미작성|미구현' "$doc" 2>/dev/null \

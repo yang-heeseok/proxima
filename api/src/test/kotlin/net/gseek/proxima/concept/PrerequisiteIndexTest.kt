@@ -122,11 +122,11 @@ class PrerequisiteIndexTest {
                     "index. That is the arm this comparison is about; if it has stopped " +
                     "happening, the finding has expired and the report has to say so",
             )
-            assertTrue(
-                with.scans.contains("Index Only Scan"),
-                "at depth $depth the planner did not use $INDEX. 8,994 edges is small " +
-                    "enough that a sequential scan can win, and if it now does, this index " +
-                    "is not justified and V4 should not exist",
+            assertEquals(
+                listOf("Index Scan", "Index Scan"), with.scans,
+                "at depth $depth the planner did not use $INDEX for both terms of the " +
+                    "recursion. 8,994 edges is small enough that a sequential scan can " +
+                    "win, and if it now does, V4 is not justified and should not exist",
             )
         }
 
@@ -197,6 +197,124 @@ class PrerequisiteIndexTest {
     }
 
     /**
+     * **The candidates, priced.** `V2`'s comment sets the standard: an index that ships here
+     * names the alternatives it beat and what they cost, because `BaselineMigrationTest`
+     * asserts the exact set and *an index nobody measured is exactly what that is there to
+     * catch.*
+     *
+     * `(concept_id)` alone is the minimal thing that answers `where concept_id = ?`. The
+     * second column is what lets PostgreSQL answer the traversal **without touching the
+     * heap** — the recursive term selects `prerequisite_id` and nothing else, so with both
+     * columns present the index is covering for this query.
+     *
+     * Whether that is worth the bytes is a measurement and not an opinion. `R3` rejected the
+     * covering variant on `attempt` for exactly this reason: 87% more space for a difference
+     * at the edge of noise.
+     */
+    @Test
+    fun `the two index candidates, priced against each other and against neither`() {
+        val arms = linkedMapOf<String, String?>(
+            "none" to null,
+            "(concept_id)" to "create index $INDEX on concept_edge (concept_id)",
+            "(concept_id, prerequisite_id)" to
+                "create index $INDEX on concept_edge (concept_id, prerequisite_id)",
+        )
+
+        println("candidate                        bytes   depth  rows fed   exec ms (median of 3)")
+        val chosen = HashMap<String, Long>()
+        arms.forEach { (name, ddl) ->
+            jdbc.execute("drop index if exists $INDEX")
+            ddl?.let { jdbc.execute(it) }
+            jdbc.execute("analyze concept_edge")
+            val bytes = if (ddl == null) 0L else jdbc.queryForObject(
+                "select pg_relation_size(?::regclass)", Long::class.java, INDEX,
+            )!!
+            listOf(6, 12).forEach { depth ->
+                val arm = median(depth)
+                println(
+                    "%-30s %8d   %5d  %8d   %.3f".format(
+                        name, bytes, depth, arm.rowsThroughConceptEdge, arm.executionMs,
+                    ),
+                )
+                println("      scans: ${arm.scans}")
+                if (depth == 12) chosen[name] = arm.rowsThroughConceptEdge
+            }
+        }
+        jdbc.execute("drop index if exists $INDEX")
+        jdbc.execute("analyze concept_edge")
+
+        assertEquals(
+            chosen["(concept_id)"], chosen["(concept_id, prerequisite_id)"],
+            "the two candidates fed different numbers of rows through concept_edge. They " +
+                "should not -- they answer the same predicate, and the second column buys " +
+                "heap avoidance rather than selectivity. A difference means one of them is " +
+                "not being used for the lookup at all",
+        )
+        assertTrue(
+            chosen["none"]!! > chosen["(concept_id)"]!!,
+            "neither candidate beat having no index, which would mean 8,994 edges is too " +
+                "small to index and V4 is not justified",
+        )
+    }
+
+    /**
+     * **Why the covering candidate lost, and the condition under which it would not have.**
+     *
+     * `(concept_id, prerequisite_id)` produces an `Index Only Scan` and is **slower** than
+     * `(concept_id)`, which produces a plain `Index Scan`. That looks wrong until the plan is
+     * read to the end: `Heap Fetches: 543`.
+     *
+     * An index-only scan is only index-only when PostgreSQL can trust the **visibility map**
+     * to say a page holds nothing but rows visible to everyone. The visibility map is set by
+     * `VACUUM` and by nothing else — `ANALYZE` does not set it, and neither does `COPY`. A
+     * freshly loaded table therefore has an empty visibility map, so every "index only" row
+     * still goes to the heap, and the wider index has bought a second column's worth of
+     * bytes to pay for a trip it still makes.
+     *
+     * **This is not an obscure corner. It is the state the seed loader leaves the database
+     * in**: `Main.kt` runs `generate`, `load` (a `COPY`), and `analyze`. There is no
+     * `vacuum` step, deliberately — `T4` needed stale statistics — and one consequence is
+     * that every index-only scan in this repository's first measurement after a load is not
+     * index-only.
+     */
+    @Test
+    fun `an index only scan is not index only until a vacuum has run`() {
+        jdbc.execute("drop index if exists $INDEX")
+        jdbc.execute("create index $INDEX on concept_edge (concept_id, prerequisite_id)")
+        jdbc.execute("analyze concept_edge")
+        val beforeVacuum = median(12)
+
+        jdbc.execute("vacuum (analyze) concept_edge")
+        val afterVacuum = median(12)
+
+        val fetchesBefore = heapFetches(beforeVacuum.plan)
+        val fetchesAfter = heapFetches(afterVacuum.plan)
+        println("covering index, depth 12")
+        println("  before vacuum: heap fetches=$fetchesBefore buffers=${beforeVacuum.bufferHits} exec=${beforeVacuum.executionMs} ms")
+        println("  after  vacuum: heap fetches=$fetchesAfter buffers=${afterVacuum.bufferHits} exec=${afterVacuum.executionMs} ms")
+
+        jdbc.execute("drop index if exists $INDEX")
+        jdbc.execute("analyze concept_edge")
+
+        assertTrue(
+            fetchesBefore > 0,
+            "the index-only scan reported no heap fetches before any vacuum ran. Either " +
+                "something vacuumed this table -- autovacuum is a real possibility on a " +
+                "container that has been up a while -- or PostgreSQL has changed when it " +
+                "sets the visibility map, and either way this finding needs re-taking",
+        )
+        assertEquals(
+            0, fetchesAfter,
+            "after `vacuum (analyze)` the index-only scan still made $fetchesAfter heap " +
+                "fetches. The visibility map is what makes an index-only scan index-only, " +
+                "and if VACUUM no longer sets it the covering column buys nothing ever",
+        )
+    }
+
+    private fun heapFetches(plan: String): Int =
+        Regex("""Heap Fetches: (\d+)""").findAll(plan).sumOf { it.groupValues[1].toInt() }
+
+    /**
      * **The control on the parser**, in the shape `R0` §9 asked for: not *is the instrument
      * alive*, but *is it reading the thing it claims to read*.
      *
@@ -241,9 +359,13 @@ class PrerequisiteIndexTest {
 
     // -----------------------------------------------------------------------------------
 
+    /**
+     * The index **`V4` ships**, and not the covering variant it beat. The "with" arm has to
+     * be the state a reader gets, or the comparison prices something nobody runs.
+     */
     private fun withIndex() {
         jdbc.execute("drop index if exists $INDEX")
-        jdbc.execute("create index $INDEX on concept_edge (concept_id, prerequisite_id)")
+        jdbc.execute("create index $INDEX on concept_edge (concept_id)")
         jdbc.execute("analyze concept_edge")
     }
 

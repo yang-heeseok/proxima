@@ -70,8 +70,18 @@ class BaselineMigrationTest {
             "select version, success from flyway_schema_history order by installed_rank",
         )
 
+        // Each entry names the report that added it. V4 arrived on 2026-08-21 with R20 and
+        // it went red here first, exactly as this message says it should -- the failure is
+        // the process working, not a test to loosen. It stays an exact list: turning it
+        // into `containsAll` would let the next migration in without a report, which is the
+        // one thing ADR-002 cannot allow.
+        //
+        //   1  the naive baseline          ADR-002
+        //   2  attempt (learner_id, attempted_at)   R3
+        //   3  mastery uniqueness          R7, and its dedup statement R15
+        //   4  concept_edge (concept_id)   R20
         assertEquals(
-            listOf("1", "2", "3"), applied.map { it["version"] },
+            listOf("1", "2", "3", "4"), applied.map { it["version"] },
             "the migration sequence changed -- it is the argument this repository makes, " +
                 "so a change to it needs a report (ADR-002)",
         )
@@ -88,6 +98,12 @@ class BaselineMigrationTest {
         // same commit as the report that measured it -- which is the process ADR-002
         // describes, working. It is still an exact set: an index nobody measured is exactly
         // what this is here to catch.
+        //
+        // V4 added the second, on 2026-08-21, with R20. Note what it is NOT: the covering
+        // pair (concept_id, prerequisite_id), which was measured, produced an Index Only
+        // Scan, cost 85% more, and was not faster. R3 rejected an INCLUDE variant on
+        // `attempt` for the same reason, and this list is where a future "improvement" that
+        // quietly widens the index has to come and say so.
         val performanceIndexes = jdbc.queryForList(
             """
             select i.indexname
@@ -102,9 +118,10 @@ class BaselineMigrationTest {
             String::class.java,
         )
         assertEquals(
-            listOf("ix_attempt_learner_attempted_at"), performanceIndexes,
+            listOf("ix_attempt_learner_attempted_at", "ix_concept_edge_concept"),
+            performanceIndexes,
             "an index exists that no report justified, or one a report justified is gone. " +
-                "See ADR-002 and docs/reports/R3",
+                "See ADR-002, docs/reports/R3 and docs/reports/R20",
         )
     }
 

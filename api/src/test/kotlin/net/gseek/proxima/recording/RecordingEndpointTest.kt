@@ -51,8 +51,31 @@ class RecordingEndpointTest {
     @Autowired private lateinit var jdbc: JdbcTemplate
     @Autowired private lateinit var tokens: RequestToken
 
+    /**
+     * **`attempt` first, and this is a correction rather than a precaution.**
+     *
+     * `LearnerFixtures.deleteLearners` says it removes everything the fixture created, and it
+     * is right about that — `T9`'s tests read recommendations and write nothing. This is the
+     * first test in the tree that records an attempt *through the application*, so it is the
+     * first caller for which the fixture's own rows are no longer all the rows:
+     *
+     * ```
+     * delete from item where code like ? -- ERROR: update or delete on table "item" violates
+     * foreign key constraint "fk_attempt_item" on table "attempt"
+     * ```
+     *
+     * Deleting here rather than widening `LearnerFixtures` keeps the rule that a test cleans
+     * up what it wrote. **The teardown caught it on the first run, after all four assertions
+     * had already passed** — `3544f6a` is the state in which it did.
+     */
     @AfterEach
-    fun clean() = LearnerFixtures.deleteLearners(jdbc)
+    fun clean() {
+        jdbc.update(
+            "delete from attempt where learner_id in (select id from learner where external_ref like ?)",
+            "${LearnerFixtures.PREFIX}%",
+        )
+        LearnerFixtures.deleteLearners(jdbc)
+    }
 
     private fun post(learnerId: Long, asLearner: Long, body: String): HttpResponse<String> =
         HttpClient.newHttpClient().send(

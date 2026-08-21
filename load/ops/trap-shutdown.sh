@@ -18,50 +18,83 @@
 #   transaction, so `count(attempt)` and `mastery.attempts_count` are two independent records
 #   of the same set of commits. IF THEY EVER DISAGREE, a transaction was torn in half.
 #
-#   That is what makes this measurable at all, and it is why the batch is large: a request
-#   that finishes before the signal arrives measures nothing.
+# THE BATCH HAS TO OUTLIVE THE SIGNAL, AND THE FIRST VERSION OF THIS SCRIPT DID NOT MANAGE IT.
 #
-# THE THREE ARMS, AND WHY THE FIRST ONE IS NOT THE DEFAULT ANY MORE
+#   `cd3f34f` sent 400 recordings, which take 1.8-2.3s, and signalled at 3.0s. Every arm
+#   therefore killed an idle container, all three agreed, and the agreement looked like a
+#   result. THREE ARMS AGREEING IS WHAT A BROKEN EXPERIMENT LOOKS LIKE. BATCH is now sized
+#   against a measured per-recording cost and the arm prints how long the batch runs
+#   uninterrupted, so the premise is visible rather than assumed.
 #
-#   A  SIGTERM, server.shutdown=graceful    the Boot 4.1.0 DEFAULT, read out of
-#                                           spring-boot-web-server-4.1.0.jar's own
-#                                           spring-configuration-metadata.json
-#   B  SIGTERM, server.shutdown=immediate   what the default was before, and what most
-#                                           deployment documentation still assumes
-#   C  SIGKILL                              `docker kill`. No grace of any kind
+# THE FOUR ARMS
+#
+#   A  SIGTERM, grace 60s, server.shutdown=graceful   the Boot 4.1.0 DEFAULT, read out of
+#                                                      spring-boot-web-server-4.1.0.jar's own
+#                                                      spring-configuration-metadata.json
+#   B  SIGTERM, grace 60s, server.shutdown=immediate  what the default was before, and what
+#                                                      most deployment documentation assumes
+#   C  SIGKILL                                         `docker kill`. No grace of any kind
+#   D  SIGTERM, grace 10s (docker's DEFAULT), graceful the two timeouts nobody lined up
 #
 # Usage:  ./load/ops/trap-shutdown.sh
 set -uo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.sh"
 
-# Big enough that the request is still running when the signal arrives, and every entry is
-# scoreDelta 0.000 so the 0..1 band is never the reason one fails -- the only thing under
-# measurement is whether the process survived long enough to commit it.
-BATCH=${BATCH:-400}
+# Every entry is scoreDelta 0.000, so the 0..1 band is never the reason one fails -- the only
+# thing under measurement is whether the process survived long enough to commit it.
+BATCH=${BATCH:-4000}
 # When to signal, measured from the moment the request was sent.
 CUT_AFTER=${CUT_AFTER:-3}
 
+BODY_FILE=/tmp/proxima-client.body
+STAT_FILE=/tmp/proxima-client.stat
+# THE REQUEST BODY IS A FILE AND NOT AN ARGUMENT. A batch long enough to still be running when
+# the signal arrives is around 450 kB, and Linux caps a SINGLE argument at MAX_ARG_STRLEN --
+# 32 pages, 131072 bytes -- so `curl -d "$BODY"` dies with `Argument list too long` well before
+# the batch is big enough to measure anything. `-d @file` has no such limit.
+REQUEST_FILE=/tmp/proxima-request.json
+
 batch_body() {
-  local n=$1 i out=''
+  local n=$1 i
+  : > "$REQUEST_FILE"
+  printf '[' >> "$REQUEST_FILE"
   for i in $(seq 1 "$n"); do
-    out="$out,{\"itemId\":1,\"conceptId\":1,\"correct\":true,\"elapsedMs\":10,\"at\":\"2026-08-10T00:00:00Z\",\"scoreDelta\":0.000}"
+    [ "$i" -gt 1 ] && printf ',' >> "$REQUEST_FILE"
+    printf '{"itemId":1,"conceptId":1,"correct":true,"elapsedMs":10,"at":"2026-08-10T00:00:00Z","scoreDelta":0.000}' >> "$REQUEST_FILE"
   done
-  echo "[${out#,}]"
+  printf ']' >> "$REQUEST_FILE"
+  echo "   request body    $(wc -c < "$REQUEST_FILE") bytes, $n recordings"
 }
 
 rows() {
   docker exec proxima-db psql -U "$DB_USER" -d "$DB_NAME" -tAF' ' -c \
     "select (select count(*) from attempt where learner_id = 1),
-            (select attempts_count from mastery where learner_id = 1)" 2>/dev/null
+            (select coalesce(max(attempts_count), 0) from mastery where learner_id = 1)" 2>/dev/null
 }
 
-# One arm: start clean, send a batch, cut the instance down mid-flight, and read both tables.
+# How long the batch takes when NOTHING interrupts it. Without this the arms below cannot say
+# whether a request was in flight when the signal arrived, which is the premise cd3f34f got
+# wrong and reported around.
+baseline() {  # reads REQUEST_FILE
+  harness_up 1 10 > /tmp/proxima-up.log 2>&1
+  local token; token=$(harness_token 1)
+  local t0; t0=$(date +%s%3N)
+  curl -s -o /dev/null --max-time 300 \
+    -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+    -X POST -d "@$REQUEST_FILE" "http://localhost:$(app_port 1)/api/v1/learners/1/attempts"
+  local t1; t1=$(date +%s%3N)
+  echo "$((t1 - t0))"
+}
+
 arm() {
-  local label=$1 signal=$2; shift 2
+  local label=$1 signal=$2 grace=$3; shift 3
   echo ""
   echo "=================================================================="
-  echo "ARM $label -- $signal"
+  echo "ARM $label -- $signal${grace:+, docker grace ${grace}s} ${*:-(shipped defaults)}"
   echo "=================================================================="
+
+  # Stale output from a previous arm is how cd3f34f printed arm C's body under arm D.
+  rm -f "$BODY_FILE" "$STAT_FILE"
 
   harness_up 1 10 "$@" > /tmp/proxima-up.log 2>&1
   grep -E 'live after|never became live' /tmp/proxima-up.log || true
@@ -69,60 +102,76 @@ arm() {
   local before; before=$(rows)
   echo "   before          attempt=$(echo "$before" | cut -d' ' -f1)  mastery.attempts_count=$(echo "$before" | cut -d' ' -f2)"
 
-  local body; body=$(batch_body "$BATCH")
   local token; token=$(harness_token 1)
-  local out=/tmp/proxima-client.out
   local t0; t0=$(date +%s%3N)
 
   (
-    curl -s -o /tmp/proxima-client.body -w '%{http_code} %{time_total}' --max-time 180 \
-      -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
-      -X POST -d "$body" \
-      "http://localhost:$(app_port 1)/api/v1/learners/1/attempts" > "$out" 2>&1 \
-      || echo "TRANSPORT FAILURE ($?)" > "$out"
+    code=$(curl -s -o "$BODY_FILE" -w '%{http_code} %{time_total}' --max-time 300 \
+             -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+             -X POST -d "@$REQUEST_FILE" "http://localhost:$(app_port 1)/api/v1/learners/1/attempts")
+    status=$?
+    if [ "$status" -ne 0 ]; then
+      echo "TRANSPORT FAILURE, curl exit $status" > "$STAT_FILE"
+    else
+      echo "HTTP $code" > "$STAT_FILE"
+    fi
   ) &
   local client=$!
 
   sleep "$CUT_AFTER"
   local t1; t1=$(date +%s%3N)
   case "$signal" in
-    SIGTERM) docker stop "$(app_name 1)" > /dev/null ;;
+    SIGTERM) docker stop ${grace:+-t "$grace"} "$(app_name 1)" > /dev/null ;;
     SIGKILL) docker kill "$(app_name 1)" > /dev/null ;;
   esac
   local t2; t2=$(date +%s%3N)
-  echo "   signal sent     ${signal} at +$((t1 - t0))ms, container gone at +$((t2 - t0))ms  (docker took $((t2 - t1))ms)"
+  echo "   signal          $signal at +$((t1 - t0))ms; container gone at +$((t2 - t0))ms (docker waited $((t2 - t1))ms)"
 
   wait "$client"
-  echo "   client saw      $(cat "$out")   body: $(head -c 60 /tmp/proxima-client.body 2>/dev/null)"
+  echo "   client saw      $(cat "$STAT_FILE" 2>/dev/null || echo '(no result)')   body: $(head -c 55 "$BODY_FILE" 2>/dev/null)"
 
   local after; after=$(rows)
   local a m; a=$(echo "$after" | cut -d' ' -f1); m=$(echo "$after" | cut -d' ' -f2)
-  echo "   after           attempt=$a  mastery.attempts_count=$m  (of $BATCH sent)"
+  echo "   after           attempt=$a  mastery.attempts_count=$m  of $BATCH sent"
   if [ "$a" = "$m" ]; then
-    echo "   TORN?           no -- the two tables agree, so every transaction that started either committed or rolled back"
+    echo "   torn?           NO -- the two tables agree, so every transaction either committed or rolled back whole"
   else
-    echo "   TORN?           YES -- attempt=$a and mastery.attempts_count=$m disagree by $((a - m))"
+    echo "   torn?           YES -- attempt=$a and mastery.attempts_count=$m disagree by $((a - m))"
   fi
-  echo "   exit / oom      $(docker inspect "$(app_name 1)" --format '{{.State.ExitCode}} / OOMKilled={{.State.OOMKilled}}' 2>/dev/null)"
-  echo "   shutdown log    $(docker logs "$(app_name 1)" 2>&1 | grep -cE 'Commencing graceful shutdown') graceful-shutdown line(s), $(docker logs "$(app_name 1)" 2>&1 | grep -cE 'Graceful shutdown complete') completion line(s)"
-  docker logs "$(app_name 1)" 2>&1 | grep -E 'GracefulShutdown' | tail -2 | sed 's/^/   /'
+  echo "   exit code       $(docker inspect "$(app_name 1)" --format '{{.State.ExitCode}}' 2>/dev/null)"
+  docker logs "$(app_name 1)" 2>&1 | grep -E 'GracefulShutdown' | sed 's/.*: /   shutdown log    /' | tail -2
 }
 
 harness_env
-
-# `server.shutdown` defaults to `graceful` on this version, so arm A passes nothing.
-arm A SIGTERM
-arm B SIGTERM "--server.shutdown=immediate"
-arm C SIGKILL
-
+batch_body "$BATCH"
 echo ""
-echo "=================================================================="
-echo "THE TWO TIMEOUTS NOBODY LINED UP"
-echo "=================================================================="
-# spring.lifecycle.timeout-per-shutdown-phase defaults to 30s -- from the framework's own
-# configuration metadata -- and `docker stop` sends SIGKILL after 10s by default. A request
-# that needs more than ten seconds to drain is killed by the platform while the framework is
-# still politely waiting for it. Both numbers are defaults; neither knows about the other.
-BATCH=$((BATCH * 6)) arm D SIGTERM
+uninterrupted=$(baseline)
+echo "PREMISE: $BATCH recordings take ${uninterrupted}ms uninterrupted; the signal is sent at $((CUT_AFTER * 1000))ms."
+if [ "$uninterrupted" -lt $((CUT_AFTER * 1000 + 5000)) ]; then
+  echo "PREMISE FAILS: the batch finishes too close to the signal for anything to be in flight."
+  echo "Raise BATCH. This is the defect cd3f34f shipped and reported around."
+  harness_down; exit 1
+fi
+
+arm A SIGTERM 60
+arm B SIGTERM 60 "--server.shutdown=immediate"
+arm C SIGKILL ""
+# `docker stop` sends SIGKILL after 10 seconds by default, and
+# spring.lifecycle.timeout-per-shutdown-phase defaults to 30 -- from the framework's own
+# configuration metadata. Both are defaults, neither knows about the other, and a request that
+# needs more than ten seconds to drain is killed by the platform while the framework is still
+# waiting for it. Arm D passes no -t, so docker's default is the variable.
+arm D SIGTERM ""
+
+# ARM E -- the same configuration as D with a batch that CANNOT drain inside ten seconds.
+#
+#   D is the interesting arm and it passes, by 456ms: with 3s already spent, 4000 recordings
+#   have about 9.1s of work left and docker's patience is 10. That margin is not a design; it
+#   is the batch size. E doubles it so the arm reports what the boundary does rather than what
+#   it nearly did -- because "it fits" and "it fits today" are the same observation until
+#   somebody makes the request longer.
+BATCH=$((BATCH * 2))
+batch_body "$BATCH"
+arm E SIGTERM ""
 
 harness_down

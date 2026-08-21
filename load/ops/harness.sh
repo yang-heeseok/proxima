@@ -130,15 +130,35 @@ db_up() {
   die "database never became ready"
 }
 
-# One application instance. `pool` is maximum-pool-size; every remaining argument is a
-# KEY=VALUE environment entry, which is how the arms of R24 differ from each other inside ONE
-# jar -- R4 section 2's argument, applied to a container instead of to a flag.
+# One application instance. `pool` is maximum-pool-size; every remaining argument is either a
+# `KEY=VALUE` environment entry or a `--property=value` program argument, which is how the arms
+# of R24 differ from each other inside ONE jar -- R4 section 2's argument, applied to a
+# container instead of to a flag.
+#
+# BOTH FORMS EXIST BECAUSE ONE OF THEM IS NOT SAFE FOR EVERY PROPERTY, AND THAT IS A FINDING.
+#
+#   `SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT` is ambiguous under relaxed binding: it can
+#   mean `connection-timeout`, or the `timeout` property of `connection` -- and HikariDataSource
+#   HAS a `connection` property, because `getConnection()` is one. The binder calls it. That
+#   starts the pool, sealing the configuration, and the next `spring.datasource.hikari.*`
+#   property to bind fails with "The configuration of the pool is sealed once started".
+#
+#   Measured in e18f82a: either variable alone starts, the two together fail in either order,
+#   and the log carries `Failed to bind properties under 'spring.datasource.hikari.connection'
+#   to java.sql.Connection`. A program argument spells the dash out and cannot be read the
+#   other way, so anything with a hyphen in its name goes in as `--property=value`.
 app_up() {
   local n=$1 pool=$2; shift 2
   local name; name=$(app_name "$n")
   local port; port=$(app_port "$n")
-  local env_args=()
-  local kv; for kv in "$@"; do env_args+=(-e "$kv"); done
+  local env_args=() prog_args=()
+  local kv
+  for kv in "$@"; do
+    case "$kv" in
+      --*) prog_args+=("$kv") ;;
+      *)   env_args+=(-e "$kv") ;;
+    esac
+  done
 
   docker rm -f "$name" >/dev/null 2>&1
   docker run -d --name "$name" --network "$NETWORK" \
@@ -152,7 +172,8 @@ app_up() {
     -e SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE="$pool" \
     -e SPRING_DATASOURCE_HIKARI_POOL_NAME="pool-$n" \
     "${env_args[@]}" \
-    "$BASE_IMAGE" /jdk/bin/java -jar /app/api.jar >/dev/null || die "instance $n did not start"
+    "$BASE_IMAGE" /jdk/bin/java -jar /app/api.jar "${prog_args[@]}" >/dev/null \
+    || die "instance $n did not start"
 }
 
 # Waits for the instance to answer its LIVENESS probe, not /actuator/health.

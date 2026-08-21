@@ -175,9 +175,12 @@ echo "=================================================================="
 # caller of getConnection, so lowering it also fails REAL requests that would have waited and
 # succeeded. This arm measures what it buys; R24 section 5 is where the trade is argued.
 harness_down > /dev/null
+# A PROGRAM ARGUMENT AND NOT AN ENVIRONMENT VARIABLE, and the reason is in app_up's comment:
+# SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT makes the binder call getConnection() and seal
+# the pool, and this arm is the one that found it (e18f82a).
 harness_up 1 10 \
   "MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE=readinessState,db" \
-  "SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT=2000" \
+  "--spring.datasource.hikari.connection-timeout=2000" \
   > /tmp/proxima-up.log 2>&1
 grep -E 'live after|never became live' /tmp/proxima-up.log || true
 token=$(harness_token 1)

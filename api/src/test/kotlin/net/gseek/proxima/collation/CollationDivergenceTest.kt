@@ -58,10 +58,15 @@ import org.testcontainers.utility.DockerImageName
  * - **ALIVE** — arm B must order `apple,Apple,Banana,cherry` and arm A must not. If both
  *   agree, this class is not reading a locale-aware collation at all and every *"no
  *   divergence"* result below is a statement about the harness rather than about the data.
- * - **AIMED** — the comparison routine must report a divergence on a value set built from
- *   **this repository's own generated shapes**, deliberately misaligned. Without it, a null
- *   result on the real shapes cannot be told apart from a routine that never reports
- *   anything. It is planted, not hoped for: `learner-1` beside `learner-000001`.
+ * - **AIMED** — the displacement counter must report a non-zero count on a value set in this
+ *   repository's own identifier format whose divergence is **already established**. Without
+ *   it, a null result on the real shapes cannot be told apart from a routine that never
+ *   reports anything.
+ *
+ * **The AIMED control failed on its first run and the failure was the author's.** It planted
+ * a misaligned hyphen — `learner-1` beside `learner-000001` — on a guess about which shapes
+ * are collation-sensitive, and that guess was wrong. See the comment at the control itself,
+ * and `R25` §9. A hypothesis written where a control belongs reads as a control until it runs.
  */
 class CollationDivergenceTest {
 
@@ -300,21 +305,36 @@ class CollationDivergenceTest {
         }
         println("columns whose order differs         : $columnsDiverging of 5")
 
-        // CONTROL — AIMED. The routine above must be able to see a divergence in a value set
-        // of exactly this shape. Without this, "0 of 5" and "the comparison is blind" are the
-        // same output. The planted set is the generator's own format with the pad removed, so
-        // the hyphen falls in a different column -- the one thing that makes a fixed-width
-        // identifier collation-sensitive.
-        val planted = listOf("learner-1", "learner-000001", "learner-2", "learner-000002")
+        // CONTROL — AIMED. What this has to establish is that **the counter above reports a
+        // non-zero displacement when the underlying orders differ.** That is a property of
+        // the counter, and the planted set therefore has to be one whose divergence is
+        // already established rather than one whose divergence is being guessed at.
+        //
+        // THE FIRST VERSION OF THIS CONTROL WAS A GUESS AND IT FAILED. It planted
+        // `learner-1` beside `learner-000001`, on the claim that a misaligned hyphen is what
+        // makes a fixed-width identifier collation-sensitive. Both images ordered that set
+        // identically: the hyphen is ignored at the primary level on the glibc side and the
+        // digits decide either way. Commit `0819a47` is that state. **A hypothesis written
+        // where a control belongs passes for a control until it is run**, and the thing it
+        // was protecting -- "0 of 5" on the real columns -- was unbacked in the meantime.
+        //
+        // The mechanism this plants instead is the one the ALIVE control has already measured
+        // on this very pair of images: case. `Apple` before `apple` byte-wise, `apple` before
+        // `Apple` under a locale-aware collation. It is carried into the generator's own
+        // identifier format so that the set is still of the shape being counted over.
+        val planted = listOf("Item-000001", "item-000001", "Item-000002", "item-000002")
         val plantedA = orderedBy(Arm.MUSL, planted)
         val plantedB = orderedBy(Arm.GLIBC, planted)
-        println("AIMED control, planted misalignment : A=${plantedA.joinToString(",")}")
+        val plantedDisplaced = plantedA.indices.count { plantedA[it] != plantedB[it] }
+        println("AIMED control, planted case flip    : A=${plantedA.joinToString(",")}")
         println("                                      B=${plantedB.joinToString(",")}")
+        println("                                      displaced=$plantedDisplaced")
         assertTrue(
-            plantedA != plantedB,
-            "AIMED control failed: a deliberately misaligned identifier set ordered the same " +
-                "on both images. The comparison above cannot distinguish 'these values do not " +
-                "diverge' from 'this routine does not look'.",
+            plantedDisplaced > 0,
+            "AIMED control failed: a value set that differs only by case, in this " +
+                "repository's own identifier format, was counted as displaced=0. The counter " +
+                "cannot distinguish 'these values do not diverge' from 'this routine does not " +
+                "look', so the result above is not a measurement.",
         )
     }
 

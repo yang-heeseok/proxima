@@ -126,6 +126,14 @@ be four times it — and 512 MB × 4 is 2 GiB, which is a plausible laptop. The 
 | `-Xmx1g` | 989 MiB | 600 MiB live | **no output at all** | **137** | **+1** |
 | `-XX:-UseContainerSupport` | 3938 MiB | 600 MiB live | **no output at all** | **137** | **+1** |
 
+**Two of those six rows are in `ContainerHeapErgonomicsTest` and four are not**, and the
+difference matters to anyone re-running this. The test asserts the first row (ergonomic, 400
+MiB) and the fourth (`-Xmx512m`, 480 MiB), because those two are the ones whose outcome is
+structural — 400 MiB cannot fit in a 128 MiB heap and 480 MiB cannot fit in a 512 MB cgroup, on
+any machine. **The other four were measured by hand in the same session, through the same
+containers**, and are here because the sweep is what located the boundary in §3.3. They are not
+gated and are not offered as constants.
+
 `137` is `128 + 9`: `SIGKILL`. The kernel's own counter in `/sys/fs/cgroup/memory.events` is
 what makes that attribution rather than inference — an exit code can be produced by anything,
 and `oom_kill 1` is the kernel saying it did this:

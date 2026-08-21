@@ -87,6 +87,41 @@ class PrerequisiteGraph(private val queries: PrerequisiteQueries) {
     }
 
     /**
+     * **The same walk with the `seen` set taken out** — which is how a recursive descent is
+     * written before anyone has met a graph that is not a tree.
+     *
+     * Not the shipped read, and not a read at all: it exists so that `docs/reports/R21` can
+     * measure what an application-side traversal does to a cyclic graph, which is the one
+     * death of the three that the database never reports. [statementCap] is the
+     * **instrument, not a fix** — without it this method does not return, and a test that
+     * does not return is a test nobody can run.
+     *
+     * The `require` on the cap is deliberate: there is no default, so nobody can call this
+     * by accident and discover the missing default the hard way.
+     */
+    @Transactional(readOnly = true)
+    fun closureByUnguardedWalk(conceptId: Long, maxDepth: Int, statementCap: Int): UnguardedWalk {
+        require(maxDepth >= 1) { "maxDepth must be at least 1, was $maxDepth" }
+        require(statementCap in 1..100_000) { "statementCap must be 1..100000, was $statementCap" }
+        var statements = 0
+        var visits = 0L
+        var frontier = listOf(conceptId)
+        repeat(maxDepth) {
+            val next = ArrayList<Long>()
+            for (node in frontier) {
+                if (statements >= statementCap) {
+                    return UnguardedWalk(statements, visits, hitCap = true)
+                }
+                statements++
+                next.addAll(queries.directPrerequisitesOf(listOf(node)))
+            }
+            visits += next.size
+            frontier = next
+        }
+        return UnguardedWalk(statements, visits, hitCap = false)
+    }
+
+    /**
      * **One statement per level.** The obvious improvement, and it is a real one: the
      * statement count stops depending on the size of the answer and starts depending only
      * on the depth asked for.
@@ -111,3 +146,14 @@ class PrerequisiteGraph(private val queries: PrerequisiteQueries) {
         return seen
     }
 }
+
+/**
+ * What [PrerequisiteGraph.closureByUnguardedWalk] managed before it was stopped.
+ *
+ * [hitCap] is the finding rather than an error condition: on a graph with a cycle it is
+ * always `true`, at any cap, and on the shipped acyclic graph it is also `true` well before
+ * the closure is complete — because the walks through a DAG that shares ancestors outnumber
+ * its concepts geometrically. **The two cases are indistinguishable from here**, which is
+ * `R21` §3.1's point about the symptom not naming the cause.
+ */
+class UnguardedWalk(val statements: Int, val visits: Long, val hitCap: Boolean)

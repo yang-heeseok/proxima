@@ -64,9 +64,10 @@ object SeedConceptGraph {
      * other test classes have already advanced, so the fixture maps ordinal to id after
      * inserting rather than assuming 1..3000.
      */
-    fun edges(): List<Triple<Int, Int, Double>> {
+    fun edges(backEdges: Int = 0): List<Triple<Int, Int, Double>> {
         val r = Random(EDGE_STREAM)
         val out = ArrayList<Triple<Int, Int, Double>>(EXPECTED_EDGES)
+        val firstPrerequisite = if (backEdges > 0) IntArray(CONCEPTS + 1) else null
         for (conceptId in 2..CONCEPTS) {
             val available = conceptId - 1
             val wanted = min(PREREQUISITES_PER_CONCEPT, available)
@@ -84,6 +85,29 @@ object SeedConceptGraph {
                 // plausible -- which is why the assertions below are numbers and not shapes.
                 val weight = 0.400 + r.nextInt(601) / 1000.0
                 out.add(Triple(prereq, conceptId, weight))
+                if (firstPrerequisite != null && firstPrerequisite[conceptId] == 0) {
+                    firstPrerequisite[conceptId] = prereq
+                }
+            }
+        }
+        if (firstPrerequisite != null) {
+            // Mirrors `Generator.writeBackEdges`. Same reproduction argument as the forward
+            // loop, and the same control: `assertMatchesTheShippedGraph` still checks the
+            // forward half against the seed module's measured numbers, and
+            // `assertCyclesWereInjected` checks that the back half actually broke the DAG.
+            for (i in 0 until backEdges) {
+                var node = CONCEPTS - i * (CONCEPTS / (backEdges + 1))
+                if (node < 2) continue
+                val from = node
+                var hops = 0
+                while (hops < 2 + i) {
+                    val next = firstPrerequisite[node]
+                    if (next == 0) break
+                    node = next
+                    hops++
+                }
+                if (hops == 0) continue
+                out.add(Triple(from, node, 1.000))
             }
         }
         return out
@@ -95,7 +119,7 @@ object SeedConceptGraph {
      * Concepts are read back by code rather than by assuming the identity sequence handed
      * out a contiguous block. It would have, today; it is not a property anything asserts.
      */
-    fun install(jdbc: JdbcTemplate): LongArray {
+    fun install(jdbc: JdbcTemplate, backEdges: Int = 0): LongArray {
         jdbc.update(
             """
             insert into concept (code, name, grade_band)
@@ -111,7 +135,7 @@ object SeedConceptGraph {
                 ids[ordinal] = (row["id"] as Number).toLong()
             }
 
-        val edges = edges()
+        val edges = edges(backEdges)
         jdbc.batchUpdate(
             "insert into concept_edge (prerequisite_id, concept_id, weight) values (?, ?, ?)",
             edges.map { (p, c, w) ->
@@ -172,5 +196,45 @@ object SeedConceptGraph {
                 "reproduction has drifted"
         }
         return "reproduction matches the shipped graph: ${edges.size} edges, reachable $reachable"
+    }
+
+    /**
+     * The control on the **other** half of the fixture: the injected edges really do break
+     * the DAG, checked by the algorithm `GeneratorTest` uses to assert they do not.
+     *
+     * Without this, a cycle report could be written against a graph that has no cycle, and
+     * every arm in it would terminate for the right reason and the wrong one.
+     */
+    fun assertCyclesWereInjected(backEdges: Int): String {
+        require(backEdges > 0)
+        val edges = edges(backEdges).map { it.first to it.second }
+
+        val backwards = edges.filter { (p, c) -> p >= c }
+        check(backwards.size == backEdges) {
+            "asked for $backEdges back-edges and the fixture produced ${backwards.size}"
+        }
+
+        // Kahn's algorithm, the same one GeneratorTest runs to assert the opposite.
+        val nodes = (edges.map { it.first } + edges.map { it.second }).toSet()
+        val outgoing = edges.groupBy({ it.first }, { it.second })
+        val indegree = HashMap<Int, Int>()
+        nodes.forEach { indegree[it] = 0 }
+        edges.forEach { (_, to) -> indegree[to] = indegree[to]!! + 1 }
+        val queue = ArrayDeque(indegree.filterValues { it == 0 }.keys)
+        var visited = 0
+        while (queue.isNotEmpty()) {
+            val n = queue.removeFirst()
+            visited++
+            outgoing[n].orEmpty().forEach { m ->
+                indegree[m] = indegree[m]!! - 1
+                if (indegree[m] == 0) queue.addLast(m)
+            }
+        }
+        check(visited < nodes.size) {
+            "every one of the ${nodes.size} concepts was topologically ordered, so this " +
+                "graph is still a DAG and a report about cycles has no subject"
+        }
+        return "cycles injected: ${nodes.size - visited} of ${nodes.size} concepts are " +
+            "unorderable, back-edges $backwards"
     }
 }

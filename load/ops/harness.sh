@@ -178,6 +178,21 @@ harness_up() {
   shift 2 2>/dev/null || true
   require_jdk
   [ -f "$PROXIMA_OPS_HOME/app/api.jar" ] || die "run '$0 build' first"
+
+  # EVERY instance, not only the ones about to be started.
+  #
+  #   `app_up` removes the container it is about to create, which is enough when a run only
+  #   ever grows the fleet. It is not enough when an arm of three is followed by an arm of
+  #   one: instances 2 and 3 survive, reconnect to the new database, and take slots the arm
+  #   being measured believes it has to itself.
+  #
+  #   That happened. `ae5401b`'s drift control -- one instance, pool 60 -- reported 25
+  #   connections and 15 `too many clients already` where arm A had reported 60 and none. The
+  #   control was run because R18 section 3.3 asks for one, and the first thing it caught was
+  #   this line missing.
+  local stale; stale=$(docker ps -aq --filter "name=proxima-app-")
+  [ -n "$stale" ] && docker rm -f $stale >/dev/null 2>&1
+
   db_up
   local n
   for n in $(seq 1 "$instances"); do app_up "$n" "$pool" "$@"; done

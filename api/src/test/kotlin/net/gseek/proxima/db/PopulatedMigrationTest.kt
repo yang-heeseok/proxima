@@ -58,6 +58,14 @@ class PopulatedMigrationTest {
         const val PAIRS = 20_000
         const val DUPLICATED = 5_000
 
+        /**
+         * Concepts carrying prerequisite edges, so `V4`'s `CREATE INDEX` meets rows.
+         *
+         * Matches the shipped graph's order of magnitude — `domain-model.md` says 3,000
+         * concepts and ~9,000 edges — rather than its exact draws, which live in `seed/`.
+         */
+        const val EDGE_CONCEPTS = 3_000
+
         private lateinit var pg: PostgreSQLContainer
 
         @BeforeAll
@@ -108,6 +116,26 @@ class PopulatedMigrationTest {
                 "insert into mastery (learner_id, concept_id, score, attempts_count, version, updated_at) " +
                     "select l.id, c.id, 0.100, 1, 0, now() " +
                     "from learner l join concept c on c.id = ((l.id - 1) % 50) + 1",
+            )
+            // concept_edge, so that V4 meets rows too. ADR-002 gives every migration a
+            // report and ADR-007 gives every migration a populated table; V4 is DDL, so the
+            // plan check below cannot see it and this insert is the only thing that does.
+            //
+            // Added AFTER the mastery insert and with its own code prefix, so the concepts
+            // it needs cannot shift the `(l.id - 1) % 50` mapping the assertions above
+            // depend on. A fixture that changes another fixture's arithmetic is the most
+            // expensive kind of red there is -- the comment on cleanDisabled says so about
+            // the other half of this class.
+            s.execute(
+                "insert into concept (code, name, grade_band) " +
+                    "select 'E' || lpad(g::text, 6, '0'), 'edge concept ' || g, 'G7-9' " +
+                    "from generate_series(1, $EDGE_CONCEPTS) g",
+            )
+            s.execute(
+                "insert into concept_edge (prerequisite_id, concept_id, weight) " +
+                    "select p.id, c.id, 1.000 " +
+                    "  from concept c join concept p on p.id between c.id - 3 and c.id - 1 " +
+                    " where c.code like 'E%' and p.code like 'E%'",
             )
         }
     }
@@ -174,6 +202,19 @@ class PopulatedMigrationTest {
         connect().use { c ->
             seedV1Schema(c)
             c.createStatement().use { it.execute("analyze") }
+
+            // THE LIST BELOW IS HAND-MAINTAINED, SO SOMETHING HAS TO NOTICE WHEN IT STOPS
+            // BEING COMPLETE. It did stop, once: V4 landed on 2026-08-21 and this list did
+            // not move with it, which would have left a migration outside the only check
+            // ADR-007 built. Flyway already enumerates the files; comparing against it costs
+            // nothing and closes the hole permanently.
+            assertEquals(
+                MIGRATIONS,
+                flyway(null).info().all().map { it.script },
+                "the migration files on the classpath are not the ones this test reads. A " +
+                    "migration missing from MIGRATIONS is a migration whose statements are " +
+                    "never planned against rows, which is exactly what R15 cost four days",
+            )
 
             val statements = dmlStatementsInMigrations()
             assertTrue(
@@ -261,6 +302,8 @@ class PopulatedMigrationTest {
         "V1__baseline.sql",
         "V2__attempt_learner_time_index.sql",
         "V3__mastery_unique_learner_concept.sql",
+        "V4__concept_edge_by_concept.sql",
+        "V5__concept_edge_forward_only.sql",
     )
 
     private val DML = listOf("insert", "update", "delete", "select", "with")

@@ -106,9 +106,17 @@ Read from `explain (analyze, timing off)`'s `Execution Time` line, verbatim.
 
 | collation | runs (ms) | median | against `C` | spread |
 | --- | --- | --- | --- | --- |
-| `C` — byte order, **what `postgres:16-alpine` gives** | 36.8, 37.0, 36.1 | **36.8** | ×1.00 | 2.5 % |
+| `C` — byte order, **what `postgres:16-alpine` gives** | 36.8, 37.0, 36.1 | **36.8** | ×1.00 | 2.4 % |
 | `en_US.utf8` — glibc, locale-aware | 98.1, 94.2, 100.0 | **98.1** | **×2.66** | 5.9 % |
-| `en-US-x-icu` — ICU | 62.6, 55.8, 52.5 | **55.8** | **×1.51** | **19.2 %** |
+| `en-US-x-icu` — ICU | 62.6, 55.8, 52.5 | **55.8** | **×1.51** | **18.1 %** |
+
+**Two things about that table before any of it is quoted.** *Spread* is `(max − min) / median`
+throughout — the first version of this row used that basis for one arm and `(max − min) / min`
+for another, which made the ICU arm read as 19.2 %. And the *against `C`* column is the ratio
+the instrument computed from unrounded execution times; **recomputing it from the medians as
+printed gives ×2.67 and ×1.52**, because the log rounds to one decimal for display. Neither
+figure is wrong and the difference is display precision, stated here rather than left for a
+reader to find by dividing.
 
 **A locale-aware sort of this repository's own identifier format costs 2.66× byte order.**
 
@@ -117,10 +125,10 @@ linguistic ordering. That is the number a deployment decision would turn on and 
 one anybody would guess: the choice is usually framed as *"correct ordering or fast
 ordering"*, and there are two correct orderings a factor of 1.76 apart.
 
-**The ICU arm's spread is 19.2 % and it is quoted rather than smoothed.**
+**The ICU arm's spread is 18.1 % and it is quoted rather than smoothed.**
 `measurement-discipline.md` rule 5 asks for the spread when it is wide. Three runs cannot
-separate 55.8 from 62.6, so the honest form of the ICU row is *"about one and a half times"*
-and not `1.51`. The `C` and `en_US.utf8` rows are 2.5 % and 5.9 % apart and are far enough
+separate 52.5 from 62.6, so the honest form of the ICU row is *"about one and a half times"*
+and not `1.51`. The `C` and `en_US.utf8` rows are 2.4 % and 5.9 % apart and are far enough
 outside each other that the 2.66× survives the worst pairing (94.2 against 37.0 is still
 2.55×).
 
@@ -279,8 +287,8 @@ as a gap about a plan that ships. This one does not ship.
 
 ## 8. 남는 위험 / Remaining risk
 
-- **The ICU arm's spread is 19.2 % and its ratio should not be quoted to two decimals.**
-  55.8 against 62.6 across three runs; `measurement-discipline.md` rule 5 says three runs that
+- **The ICU arm's spread is 18.1 % and its ratio should not be quoted to two decimals.**
+  52.5 against 62.6 across three runs; `measurement-discipline.md` rule 5 says three runs that
   looked good are three runs that looked good. **The honest ICU figure is "about one and a
   half times".** Why the ICU arm is noisier than the other two is **미측정**.
 - **One row count, one string shape, one connection.** 200,000 rows of a 14-character

@@ -278,6 +278,13 @@ evidence that anything was repaired.
   documents say `16.14`, a runner pulls `16.15`, and `TestcontainersConfiguration.kt` still
   pins a tag. **This report is a description of an open defect**, and if the recommendation in
   §5 is not taken it will be a description of it a month from now too.
+
+  > **This bullet is `OPEN-10`, opened the same day.** It is the one thing in this section that
+  > nobody can discharge with work alone: §5's first half is a one-line edit and its second half
+  > — correct twenty documents, or re-baseline their numbers on `16.15` — is a trade between
+  > measurement time and document accuracy that nobody has made. `R19` is why it is a row and
+  > not a bullet: **a decision left in a *남는 위험* section means nobody ever has to make it.**
+  > Its `Deadline` column says *now*, for the reason `ADR-003` gave when it closed `OPEN-3`.
 - **Only two images were compared, and only twelve facts.** §3.2 asked what a configuration
   dump exposes. Planner behaviour, `pg_stat` semantics, locale tables, and every one of the
   bug fixes in 16.15 are **미측정** — and 16.14 → 16.15 is the *smallest* move this tag can

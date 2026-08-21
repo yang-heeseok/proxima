@@ -1,7 +1,7 @@
 # R0. The scorecard — what the AI draft did with each trap it was writing about
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-21
 > **Position**: last, and numbered first. It could not be written until `T1`–`T9` were done,
 > and it is the first thing worth reading afterwards.
 > **Red commit / Green commit**: none. This report measures the other eleven; it changes no
@@ -160,6 +160,64 @@ inside the scan root (**34 of 52 tests**, caught by CI), a KDoc quoting a url pa
 slash-star opened a nested comment (caught by the compiler), and a `Clock` bean duplicating one
 that already existed with the same justification (**37 of 56 tests**, caught by the full suite).
 
+### Round two — eight reports, three sessions, and a scorer who was not the author
+
+**The method changed here, and it changed in the direction §2 said it could not.** §8's first
+bullet says this report is a self-assessment and cannot be otherwise: the author, the evidence
+and the scoring were one party. Round two ran as three parallel sessions against a frozen
+contract, and a fourth session merged and scored them. **The scoring party is no longer the
+authoring party**, which is what `AGENTS.md` §Claiming completion asks for and what this report
+had never been able to satisfy.
+
+**It is not independence, and calling it that would be the flattering reading.** Each slice
+still reported its own stumbles; a trap none of them recorded is invisible to me exactly as it
+was before. What moved is narrower and still worth having: **the aggregation, the counts, and
+the verdicts were produced by someone who did not take the measurements**, and every claim
+below was checked against `git diff` and the JUnit XML rather than against prose.
+
+| slice | reports | self-inflicted traps recorded | caught by |
+| --- | --- | --- | --- |
+| **A** — the prerequisite graph | `R20` `R21` `R22` | **6** | reading a printed plan beside a printed summary; an assertion refusing its own threshold; three predicted numbers refused by their own assertions; the database refusing a malformed statement loudly; an executor dying with no test named |
+| **B** — the deployment boundary | `R23` `R24` | **5** | **a drift control**, which found the harness leaking instances between arms; a probe that discarded the response body; a relaxed-binding environment variable that opened a connection and sealed the pool; four arms agreeing because the signal arrived after the work finished |
+| **C** — the measurement gaps | `R25` `R26` `R27` | **4** | **mechanical re-derivation, all four** — none by review, none by a gate |
+| **integration** — this session | — | **2** | a gradle exit code masked by a pipe to `tail`, found by reading the log rather than the status; an `awk` edit that dropped one line and duplicated another, found by re-reading the block |
+
+**Seventeen, and the shape of what caught them is the same shape §4 already found.** A
+measurement or an assertion did most of it. **No regression gate caught a defect in round two** —
+the count in §4 stays at one, while the number of gates went up again.
+
+**Three entries are worth more than their tick.**
+
+**`A`'s buffer summariser is `R5`'s mistake, made by an author who had read `R5`.** It summed
+nested cumulative counters and reported 2,392 buffers for a plan whose root node says 405 — a
+5.9× over-count, and the same class of error as reading `pg_stat_user_tables` as an increment.
+`R5` is in this repository, it is about exactly that, and it did not prevent the repeat. **A
+written record of a mistake is not immunity from it**, which is `.study` chapter 9's title and
+now has a second instance.
+
+**`C`'s worst one survived because two errors cancelled.** A table in `R25` §3.6 was
+transcribed from a `grep` listing rather than derived: two rows were merged, a prose row was
+counted as a clause, and **the total came out right**. It was found by re-deriving the count
+mechanically, and `ADR-014` now generates every count in itself from an embedded script with
+its expected output beside it. A number that agrees with a wrong method is the hardest kind to
+catch, and nothing here would have caught it if the arithmetic had not been redone.
+
+**`B`'s drift control caught the instrument rather than the drift.** It was planted to satisfy
+`R18`'s rule about calling a difference an effect. What it actually found was that the harness
+tore down the instances it was about to start and not the ones already running, so a previous
+arm's instances survived into the control. **The control was paid for a reason other than the
+one it was bought for** — which is the second time in this repository a planted control has
+earned its keep sideways (`R18` §3.3 was the first).
+
+**And one gate fired without catching a defect.** `BaselineMigrationTest` went red on `V4` and
+again on `V5`, because it asserts an exact table set and an exact migration list. That is the
+gate working as designed — it demands a report for a change to the migration sequence, which
+`ADR-002` says is the argument this repository makes. **It is not a defect catch and it is not
+counted as one in §4**, because a tripwire that fires on an intended change is doing a
+different job from the `T3` rules that refused `T6`'s remedy. Recording the distinction matters
+more than the tick: this report's headline complaint is that gates here are promises, and a
+gate that only ever fires on deliberate edits stays a promise about defects.
+
 ## 4. 무엇이 잡았는가 / What actually caught things
 
 Counting every recorded failure in this repository, not only the nine rows above:
@@ -250,9 +308,27 @@ exactly the failure mode `R2` §9 is about.
 - **The denominator is unknown.** Six of nine is six of nine *that something caught*. A
   seventh that nothing caught would not appear, and would change the conclusion in the
   direction that matters.
+
+  > **Round two, 2026-08-21: still unknown, and now surrounded by a different denominator that
+  > is known.** `ADR-014` classified every `미측정` and every *남는 위험* bullet in the tree —
+  > **168 entries: 68 measurable and not done, 27 not measurable here, 73 questions that do not
+  > hold.** That is the first counted denominator this repository has had, and **it is not this
+  > one.** `ADR-014` counts gaps the documents admit to; this bullet is about traps the drafts
+  > stepped on that *nothing recorded at all*. `R25`–`R27` closed two of the 168 and the slice
+  > that built the ledger says in three places that it does not reduce the number here — and it
+  > proved its own point by finding `R27`, which the sweep produced and **no entry of the ledger
+  > contained.** A count of what you know you do not know is worth having and is not the same
+  > count.
 - **One gate has ever fired.** Eight more are argued for. If the argument for a gate is that
   it will catch a future edit, then eight of the nine are still promises, and this report is
   the one place that says so plainly.
+
+  > **Round two: still one, and the denominator of promises grew.** Eight reports added test
+  > classes; **no regression gate caught a defect in any of them.** `BaselineMigrationTest`
+  > fired twice, on `V4` and `V5` — as designed, demanding a report for a change to the
+  > migration sequence — which is a tripwire on an intended edit rather than a catch, and is
+  > not counted above. The one gate that has ever caught a defect is still `T3`'s ArchUnit
+  > rules on `T6`'s remedy, three reports after they were written and twenty-one reports ago.
 - **The traps were chosen by the same author who then failed them.** A trap chosen because it
   is interesting is not a random sample of the defects this system could have.
 - **`T2` and `T4` are unscoreable in the table's own terms** and were given rows anyway, with

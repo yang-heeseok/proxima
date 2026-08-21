@@ -1,7 +1,7 @@
 # R18. The pool was not the explanation
 
 > **Created**: 2026-08-17
-> **Updated**: 2026-08-18
+> **Updated**: 2026-08-21
 > **Red commit / Green commit**: neither, for the 2×2 — nothing in the application changed
 > and all four arms are the same jar (`sha256 1ed8188a…`) on the same afternoon. **For the
 > harness defect §3.5 found, red is `01e16af` and green is the commit carrying this report.**
@@ -309,6 +309,16 @@ has the index, so an assertion about the no-index arm would have nothing to run 
 - **`max_connections=100` was never reached but was never far.** Pool 50 with up to 2 parallel
   workers per query could have. Error rate was 0.00 %, so it did not — but **how close it came
   is 미측정**, because measuring it means querying `pg_stat_activity` inside the window.
+
+  > **Measured 2026-08-21 — `R24` §3.1. Reached, 28 times, and this bullet is falsified.**
+  > Not by a larger pool on one instance but by a second and third instance holding pools of
+  > their own: 3 × 60 against `max_connections=100` produces **28 `FATAL: sorry, too many
+  > clients already`** — and the application logs nothing, all 120 requests answering `200`.
+  > **The 0.00 % error rate this bullet reasons from is exactly what the defect looks like**,
+  > because the connection is refused when a pool fills itself at startup rather than when a
+  > request asks for one. The measurement did not need `pg_stat_activity` inside the window;
+  > it needed a second instance, and one-instance was the assumption neither `R2` nor this
+  > report knew it was making.
 - **Arms B and D are `V1..V3` with one constraint dropped**, not a reconstruction of the schema
   before `T6`. `R16` §8 says the same and it is still true.
 - **21.0 % of responses carried a recommendation**, so four requests in five in every number

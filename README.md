@@ -3,16 +3,19 @@
 **An API that chooses a learner's next problem — and a record of how it actually breaks
 under load and concurrency.**
 
-> **Created**: 2026-08-10 · **Updated**: 2026-08-20
-> **Status: the nine traps on the roadmap are measured, in twelve reports.** Spring Boot
-> 4.1.0 on JDK 21, a schema that applies to a real PostgreSQL under test, a generator that
-> produces 3,963,719 rows from a fixed seed value, and **77 tests** — 36 classes, 0 failures,
-> 9m43s on 2026-08-18 with `:api:test` actually executed rather than restored from cache, because a
-> cached Gradle result is not a run. **It said `70` for four days and eight
-> test-adding commits**, which is `R17`. Three of the nine turned out
-> to be **already fixed by the framework** — those reports say so and measure what is holding
-> them shut, rather than deleting the row. See `docs/explanation/measurement-discipline.md`
-> for what makes any number below citable.
+> **Created**: 2026-08-10 · **Updated**: 2026-08-21
+> **Status: the nine traps on the roadmap are measured, in twelve reports — and round two
+> added eight more, `R20`–`R27`.** Spring Boot 4.1.0 on JDK 21, a schema that applies to a
+> real PostgreSQL under test, a generator that produces 3,963,719 rows from a fixed seed
+> value, and **133 tests** — 119 in `:api:test` over 47 classes, 14 in `:seed:test` over 4,
+> 0 failures, 11m11s on 2026-08-21 with both modules actually executed under `--rerun-tasks`
+> rather than restored from cache, because a cached Gradle result is not a run.
+> **The count now names both modules, and it did not before.** It read `77 tests — 36
+> classes`, which was `:api:test` alone and said so nowhere; that module is 119 over 47 now.
+> **It said `70` for four days and eight test-adding commits**, which is `R17`. Three of the
+> nine turned out to be **already fixed by the framework** — those reports say so and measure
+> what is holding them shut, rather than deleting the row. See
+> `docs/explanation/measurement-discipline.md` for what makes any number below citable.
 
 ---
 
@@ -23,6 +26,17 @@ the reports carry the environment each number was taken in.*
 
 | What | Before | After | Report |
 | --- | --- | --- | --- |
+| A depth-6 prerequisite closure — statements per read — *2026-08-21* | 138 | **1, at any depth** | [`R20`](docs/reports/R20-the-graph-was-read-one-level-deep.md) |
+| The same closure at depth 12 — rows fed through `concept_edge` — *2026-08-21* | 98,937 | **5,424**, and 10.526 ms → 3.506 ms | [`R20`](docs/reports/R20-the-graph-was-read-one-level-deep.md) |
+| A prerequisite cycle, against four forms of the same read — *2026-08-21* | **three deaths, two reporting `57014` whether or not a cycle exists** | **unrepresentable** — one `CHECK` `V1` said could not exist | [`R21`](docs/reports/R21-a-cycle-kills-three-ways-and-two-look-identical.md) |
+| The standard cycle guard, on a graph with no cycle — *2026-08-21* | 2,209 rows / 4.994 ms at depth 12 | **797,160 rows / 1,616.873 ms — 324× to defend against nothing** | [`R21`](docs/reports/R21-a-cycle-kills-three-ways-and-two-look-identical.md) |
+| "The next 20" over an expanded closure — *2026-08-21* | **1 of 20 items shared between two correct queries; 182 of 202 unreachable by any page** | **no paged API, and `ADR-011` says why** | [`R22`](docs/reports/R22-the-page-stopped-meaning-anything-when-the-graph-opened.md) |
+| A 512 MB container's JVM heap — *2026-08-21* | **536870912, asserted by nothing** | **134217728, measured** — and the flag that "fixes" it moves the refusal from the JVM to the kernel | [`R23`](docs/reports/R23-the-heap-is-a-quarter-of-a-number-nobody-wrote-down.md) |
+| 3 instances × pool 60 against `max_connections=100` — *2026-08-21* | **28 database refusals, 0 application errors, 120/120 `200`** | **3 × 25: 0 refusals**, and a gate that fails on the arithmetic | [`R24`](docs/reports/R24-three-instances-and-the-database-is-the-only-thing-that-refuses.md) |
+| A deployment against 4,000 recordings in flight — *2026-08-21* | **2,163 landed, empty reply** (`server.shutdown=immediate`) | **4,000 landed, every outcome returned** — and no arm ever tore a transaction | [`R24`](docs/reports/R24-three-instances-and-the-database-is-the-only-thing-that-refuses.md) |
+| `R9` §8's ordering risk, over every `order by` on text — *2026-08-21* | **a risk on "every ordering number"**, unverified for 8 days | **4,461 of 4,465 ASCII pairs re-order — and the set it applies to is 0** | [`R25`](docs/reports/R25-a-risk-written-against-every-ordering-number.md) |
+| A prefix predicate on a locale-collated column — *2026-08-21* | **Seq Scan, 12.041 ms, 1,471 buffers** | **Index Only Scan, 0.043 ms, 5 buffers** — same SQL, same index, only the collation differs | [`R26`](docs/reports/R26-what-a-locale-aware-collation-costs.md) |
+| The server every published number names — *2026-08-21* | **20 documents say `16.14`**; the tag moved 2026-08-13 | **CI has pulled `16.15` since**, and no check here can see it | [`R27`](docs/reports/R27-the-digest-nothing-pulls.md) |
 | Recommendation API p99 @ 200 VU — *2026-08-12* | 9064.1 ms | **5919.4 ms** | [`R4`](docs/reports/R4-the-fix-that-is-two-halves.md) |
 | The same endpoint without `V3`'s unique constraint — *2026-08-14* | 11334.6 ms | **743.5 ms** | [`R16`](docs/reports/R16-the-constraint-that-was-also-an-index.md) |
 | Attempt history within a learner, deep page | 36.6 ms | **0.056 ms** | [`R3`](docs/reports/R3-an-index-that-exists-and-is-not-used.md) |

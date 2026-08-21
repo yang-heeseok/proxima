@@ -1,4 +1,4 @@
-# ADR-014 — The unmeasured is a work list, and it is 170 entries long
+# ADR-014 — The unmeasured is a work list, and it is 168 entries long
 
 > **Created**: 2026-08-21
 > **Updated**: 2026-08-21
@@ -101,40 +101,72 @@ unnoticed; a count carried forward is a claim nobody re-establishes.
 
 ## The split
 
-**170 rows: 154 §8 bullets, plus 16 gap-naming `미측정` entries outside any §8 section.**
+**168 classified entries: 154 §8 bullets, plus 14 gap-naming `미측정` entries outside any §8
+section.** The tables below hold **171 rows**, because three of them are cross-references to an
+entry classified elsewhere and are listed so the enumeration can be checked rather than trusted.
 
-The 19 gap-naming occurrences outside §8 collapse to 16 entries, because three occurrences of
-*"the token filter's cost"* — `R15` §1, `R16` §1, `R16` §5 — are one question. **Two of the 16
-duplicate a §8 bullet already in the ledger** (`D.13` → `4.9`, `D.14` → `3.1`); they are listed
-so the enumeration is complete and are **not classified twice**.
+**Do not count this by reading it.** Every figure in this section comes out of the tables
+themselves:
 
-So **168 classified entries**:
+```bash
+python - <<'EOF'
+import io, re
+from collections import Counter
+rows, c, xref = 0, Counter(), 0
+for l in io.open('docs/decisions/adr/ADR-014-the-unmeasured-is-a-work-list.md', encoding='utf-8'):
+    if not re.match(r'^\| (\d+\.\d+|D\.\d+) \|', l):
+        continue
+    rows += 1
+    if 'duplicate of' in l.lower() or 'counted once, there' in l:
+        xref += 1
+        continue
+    for cell in l.split('|'):
+        t = cell.replace('*', '').strip()
+        if t in ('a', 'b', 'c'):
+            c[t] += 1
+print(rows, xref, dict(c), sum(c.values()))
+EOF
+# 171 3 {'a': 68, 'b': 27, 'c': 73} 168
+```
 
 | | count | share |
 | --- | --- | --- |
 | **(a) measurable here, just not done** | **68** | 40 % |
-| **(b) not measurable here** | **28** | 17 % |
-| **(c) the question does not hold** | **72** | 43 % |
-| classified | **168** | |
-| + duplicates listed once more for completeness | 2 | |
-| **rows in the ledger** | **170** | |
+| **(b) not measurable here** | **27** | 16 % |
+| **(c) the question does not hold** | **73** | 43 % |
+| **classified entries** | **168** | |
+| cross-references listed but not re-classified | 3 | `D.12` → `16.8`, `D.13` → `4.9`, `D.14` → `3.1` |
+| rows in the tables | **171** | |
 
-> **These counts were wrong when this file was first committed and are corrected here rather
-> than quietly overwritten.** `3afe305` said 169 rows, 64 gap-naming occurrences, 6 governing,
-> 18 outside a §8, and `73` for (c). **All five were produced by hand from a `grep` listing.**
-> They were re-derived on 2026-08-21 by a script that classifies each of the 100 occurrences
-> and prints the buckets, which is what found them.
+The 19 gap-naming occurrences outside a §8 section collapse to 16 lettered entries — three
+occurrences of *"the token filter's cost"* (`R15` §1, `R16` §1, `R16` §5) are one question, and
+`R2` §5 and `R4` §5 carry one question between them. Of those 16, `D.12` is tabled inside `R16`'s
+section as `16.8` because that is where a reader looks for it, and `D.13` and `D.14` duplicate
+§8 bullets. **14 are new.** 154 + 14 = 168.
+
+> **This section was hand-counted twice and wrong twice, and the derivation above is the
+> correction.** `3afe305` said *169 rows, 64 gap-naming occurrences, 6 governing, 18 outside a
+> §8, 73 for (c)*; the first repair said *170 rows, 168 classified, 28 (b), 72 (c)*. **Both were
+> produced by reading a listing and adding up.** The script above was written third, and it
+> disagreed with both.
 >
-> **The error was three occurrences of one question that the prose named and the table never
-> gave a row to** — the token filter's cost, `ADR-014`'s own `D.16`. The prose said *"three
-> occurrences … are one question"* and then the row was never written, so the total was short
-> by one entry and by one (c).
+> Two distinct errors, and they are different in kind:
 >
-> **This is the same failure as `R25` §3.6's, in the file that states the rule against it**,
-> and it happened on the same afternoon. §*The corpus* re-derives `R19`'s 145 rather than
-> carrying it forward and says why; the numbers directly under that paragraph were carried
-> forward from a reading. **The re-derivation habit was applied to somebody else's count and
-> not to my own.**
+> - **A row the prose promised and the table never got** — the token filter's cost, now `D.16`.
+>   The paragraph said *"three occurrences … are one question"* and then no row was written.
+> - **A row counted twice** — `16.8` is `D.12`, tabled in `R16`'s section and cross-referenced
+>   from the Outside table, and both hand tallies picked up one or the other inconsistently.
+>
+> **This is the same failure as `R25` §3.6's, in the file that states the rule against it, on
+> the same afternoon.** §*The corpus* re-derives `R19`'s 145 rather than carrying it forward and
+> explains why — *a count carried forward is a claim nobody re-establishes* — and the numbers
+> directly beneath that paragraph were then produced from a reading. **The habit was applied to
+> somebody else's count and not to my own, twice, before it was applied to a script.**
+>
+> `R0` §4 counts what actually catches things in this repository and puts *a deliberate
+> measurement* at the top with 7. This is three more for that column and none for any other:
+> nothing reviewed these numbers, no gate could see them, and each correction came from
+> re-deriving rather than re-reading.
 
 **(c) at 43 % is the number that changes how the corpus reads.** Nearly half of what looks
 like a backlog is not one — it is the *what would break the conclusion* line every report
@@ -151,16 +183,19 @@ re-derive the order.
 
 ### Where the (a) items are
 
+Derived by the same script, keyed on the section heading each row sits under:
+
 | | (a) entries | |
 | --- | --- | --- |
 | `R18` | 6 | the drift band, the knee, `max_connections` headroom |
+| the Outside table | 6 | four ADRs, `measurement-discipline.md`, `R9` ×3 — `D.12` is counted at `16.8` |
 | `R10` | 5 | management surface strands measured once each |
 | `R1` `R3` `R5` `R9` `R13` `R17` | 4 each | |
-| `R2` `R4` `R6` `R8` `R12` `R14` | 3 each | |
-| `R7` `R15` `R16` | 2 each | |
+| `R2` `R4` `R6` `R8` `R12` `R14` `R16` | 3 each | `R16`'s third is `16.8`, which is a §5 `미측정` rather than a §8 bullet |
+| `R7` `R15` | 2 each | |
 | `R0` `R19` | 1 each | |
 | `R11` | **0** | every gap it names needs a deployment |
-| outside §8 | 7 | four ADRs, `measurement-discipline.md`, `R9` ×3, `R16` ×1 |
+| **total** | **68** | |
 
 ### The three (a) items with the widest attachment
 
@@ -515,7 +550,7 @@ runner has pulled `16.15` ever since, twenty documents say `16.14`, and nothing 
 changed — so no date, no diff, and no `미측정` marked it.
 
 That is this ledger's own §*What this does not do* arriving on the same day it was written:
-**a sweep of recorded gaps finds recorded gaps.** The count is 170 and the denominator is
+**a sweep of recorded gaps finds recorded gaps.** The count is 168 and the denominator is
 still unknown, and the first evidence for that was produced by the sweep itself.
 
 ## Consequences

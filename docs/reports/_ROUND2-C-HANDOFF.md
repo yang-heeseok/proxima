@@ -9,8 +9,7 @@
 This slice started from the observation that `미측정` is a discipline this repository has kept
 for eleven days, which means its measurement gaps are **scattered across the tree in a
 countable form** — and nobody had ever counted them. `ADR-014` is that count: every `미측정`
-and every *남는 위험* bullet in `docs/` and `README.md`, **170 rows and 168 classified
-entries**, each classified by
+and every *남는 위험* bullet in `docs/` and `README.md`, **168 classified entries over 171 table rows**, each classified by
 whether the measurement is available on this machine. It was committed before a single
 measurement was taken, so the priority order could not be written to fit the result. Against
 that list the slice then took the mandated first target — `R9` §8's collation risk, the one
@@ -25,7 +24,7 @@ repository has been running two different database servers without noticing.
 
 | # | Title | The finding, in one line |
 | --- | --- | --- |
-| `ADR-014` | The unmeasured is a work list, and it is 170 entries long | **170 recorded gaps, 168 classified: 68 measurable here, 28 not, 72 where the question does not hold.** 43 % of what looks like a backlog is a template line, a stated trade, or a bullet already discharged — and the work list is 68 items with an order attached |
+| `ADR-014` | The unmeasured is a work list, and it is 168 entries long | **168 classified gaps: 68 measurable here, 27 not, 73 where the question does not hold.** 43 % of what looks like a backlog is a template line, a stated trade, or a bullet already discharged — and the work list is 68 items with an order attached |
 | `R25` | A risk written against every ordering number, and there are none | **The mechanism is confirmed and larger; the quantifier is withdrawn.** glibc orders `R9`'s four strings `apple,Apple,Banana,cherry`, and **4,461 of 4,465 two-character ASCII pairs re-order** — but the only `varchar` orderings in the tree are `R9`'s own two probe statements, and `BaselineMigrationTest`'s two catalog orderings are on the `name` type, whose collation PostgreSQL fixes at `C` |
 | `R26` | What a locale-aware collation costs, and the index it silently takes away | **Sort 2.66× (`C` 36.8 ms → `en_US.utf8` 98.1 ms; ICU 55.8 ms, so ICU is 1.76× faster than glibc for the same ordering).** The larger finding is not a duration: `like 'prefix%'` gets an Index Only Scan on a `C` column and a Seq Scan on a locale-collated one — **280× on time, 294× on buffers, same SQL, same index.** Uniqueness is collation-independent |
 | `R27` | The digest nothing pulls, and the tag that moved eight days ago | **`postgres:16-alpine` moved on 2026-08-13.** Twenty documents say `16.14`; `build.yml` has no image cache, so every runner since has pulled `16.15`, while this machine's Docker cache still holds July's image. The digest `measurement-discipline.md` calls *"what makes the row citable"* reaches no artefact. **No file changed and every `Updated` date is right**, so no check here can see it |
@@ -37,15 +36,19 @@ repository has been running two different database servers without noticing.
 
 | | |
 | --- | --- |
-| rows total | **170** — 154 §8 bullets + 16 gap-naming `미측정` outside any §8 |
-| classified entries | **168** — two of the 16 duplicate a §8 bullet and are listed, not re-counted |
+| **classified entries** | **168** — 154 §8 bullets + 14 gap-naming `미측정` outside any §8 |
+| rows in the ledger tables | **171** — three are cross-references to an entry classified elsewhere |
 | **(a) measurable here, just not done** | **68** |
-| **(b) not measurable here** | **28** |
-| **(c) the question does not hold** | **72** |
+| **(b) not measurable here** | **27** |
+| **(c) the question does not hold** | **73** |
 | **(a) closed this round** | **2** — `9.1` and `D.8`, both by `R25` |
 | **(a) partly closed** | **1** — `D.1`, the heap flag, for the test lane only |
 | **(a) remaining** | **66** |
 | findings that were in **no** entry | **1** — became `R27` and `OPEN-10` |
+
+**Every count above is produced by a script embedded in `ADR-014` §*The split*, not by reading
+the tables.** It was hand-counted twice before that and wrong both times, in two different
+ways; the annotation there records both. Re-run it after any edit to the ledger.
 
 **Read the closure rate carefully before quoting it.** 2 of 68 is small on purpose: the two
 closed are the two with the widest attachment, and a session that closed eight cheap entries

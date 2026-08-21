@@ -1,0 +1,176 @@
+package net.gseek.proxima.concept
+
+import java.util.Random
+import kotlin.math.min
+import kotlin.math.roundToInt
+import org.springframework.jdbc.core.JdbcTemplate
+
+/**
+ * **The shipped `concept_edge`, rebuilt inside a test container.**
+ *
+ * ## Why this is a reproduction and not the seed itself
+ *
+ * `seed/` is a separate Gradle module and `api` does not depend on it — deliberately, and
+ * `seed/build.gradle.kts` says why: the generator must not be reachable from a place where
+ * it is tempting to point at a real database. Adding the dependency means editing
+ * `api/build.gradle.kts`, which is not a change a traversal measurement gets to make.
+ *
+ * So the edge-drawing loop of `Generator.writeConceptEdges` is reproduced here, from the
+ * same seed value, drawing from the same stream in the same order — **including the weight
+ * draw, which consumes from that stream and would shift every subsequent edge if it were
+ * skipped.**
+ *
+ * ## Why a copy is acceptable here and is not acceptable in `V3`
+ *
+ * `MigrationDeduplicationTest` refuses to copy the statement it tests, because *a copy
+ * drifts, and a drifted copy passes while the migration is wrong*. That argument applies
+ * exactly when nothing else can tell that the copy drifted.
+ *
+ * Something can, here. `PrerequisiteDepthTest` measures the real generator's output —
+ * 8,994 edges, a longest chain of 294, and 3 / 11 / 29 / 70 / 137 / 202 concepts reachable
+ * from the last concept at depths 1..6 — and [assertMatchesTheShippedGraph] requires this
+ * reproduction to produce those same numbers. A drift breaks the reproduction and the seed
+ * digests at once, and the failure names which.
+ *
+ * **If the two ever disagree, this class is wrong and the seed module is right.**
+ */
+object SeedConceptGraph {
+
+    /** `Scale.FULL.concepts`. */
+    const val CONCEPTS = 3_000
+
+    /** `Scale.FULL.prerequisitesPerConcept`. */
+    private const val PREREQUISITES_PER_CONCEPT = 3
+
+    /** The locality window in `Generator.writeConceptEdges`. */
+    private const val WINDOW = 60
+
+    /** `net.gseek.proxima.seed.SEED_VALUE`. */
+    private const val SEED_VALUE = 20260810L
+
+    /** `Generator.rng(3)` — the stream `concept_edge` is drawn from, and only that one. */
+    private const val EDGE_STREAM = SEED_VALUE + 3 * 1_000_003L
+
+    /** Rows the shipped generator emits, and therefore rows this must emit. */
+    const val EXPECTED_EDGES = 8_994
+
+    /** Prefix for the concepts this fixture owns, so teardown cannot touch anyone else's. */
+    const val CODE_PREFIX = "gcpt-"
+
+    /**
+     * `(prerequisite ordinal, concept ordinal, weight)`, one-based, in emission order.
+     *
+     * Ordinals rather than ids: the database assigns ids from an identity sequence that
+     * other test classes have already advanced, so the fixture maps ordinal to id after
+     * inserting rather than assuming 1..3000.
+     */
+    fun edges(): List<Triple<Int, Int, Double>> {
+        val r = Random(EDGE_STREAM)
+        val out = ArrayList<Triple<Int, Int, Double>>(EXPECTED_EDGES)
+        for (conceptId in 2..CONCEPTS) {
+            val available = conceptId - 1
+            val wanted = min(PREREQUISITES_PER_CONCEPT, available)
+            val chosen = HashSet<Int>(wanted * 2)
+            var guard = 0
+            while (chosen.size < wanted && guard < wanted * 20) {
+                guard++
+                val window = min(available, WINDOW)
+                val candidate = available - r.nextInt(window)
+                if (candidate in 1 until conceptId) chosen.add(candidate)
+            }
+            for (prereq in chosen.sorted()) {
+                // Drawn even though the traversal never reads it. Removing this line moves
+                // the stream and silently produces a DIFFERENT graph that still looks
+                // plausible -- which is why the assertions below are numbers and not shapes.
+                val weight = 0.400 + r.nextInt(601) / 1000.0
+                out.add(Triple(prereq, conceptId, weight))
+            }
+        }
+        return out
+    }
+
+    /**
+     * Inserts the graph and returns `ordinal -> concept.id`, one-based (index 0 unused).
+     *
+     * Concepts are read back by code rather than by assuming the identity sequence handed
+     * out a contiguous block. It would have, today; it is not a property anything asserts.
+     */
+    fun install(jdbc: JdbcTemplate): LongArray {
+        jdbc.update(
+            """
+            insert into concept (code, name, grade_band)
+            select '$CODE_PREFIX' || lpad(g::text, 6, '0'), 'Concept ' || g, 'G5-6'
+              from generate_series(1, $CONCEPTS) g
+            """.trimIndent(),
+        )
+
+        val ids = LongArray(CONCEPTS + 1)
+        jdbc.queryForList("select id, code from concept where code like '$CODE_PREFIX%'")
+            .forEach { row ->
+                val ordinal = (row["code"] as String).removePrefix(CODE_PREFIX).toInt()
+                ids[ordinal] = (row["id"] as Number).toLong()
+            }
+
+        val edges = edges()
+        jdbc.batchUpdate(
+            "insert into concept_edge (prerequisite_id, concept_id, weight) values (?, ?, ?)",
+            edges.map { (p, c, w) ->
+                arrayOf<Any>(ids[p], ids[c], (w * 1000).roundToInt() / 1000.0)
+            },
+        )
+        return ids
+    }
+
+    /** Removes everything [install] added, and nothing else. */
+    fun remove(jdbc: JdbcTemplate) {
+        jdbc.update(
+            """
+            delete from concept_edge
+             where concept_id in (select id from concept where code like '$CODE_PREFIX%')
+                or prerequisite_id in (select id from concept where code like '$CODE_PREFIX%')
+            """.trimIndent(),
+        )
+        jdbc.update("delete from concept where code like '$CODE_PREFIX%'")
+    }
+
+    /**
+     * The control on the reproduction: these are `PrerequisiteDepthTest`'s numbers, taken
+     * from the real generator at `Scale.FULL`.
+     *
+     * Concepts reachable from concept 3000 at depths 1..6, and the total edge count.
+     */
+    val REACHABLE_FROM_LAST_CONCEPT = listOf(3, 11, 29, 70, 137, 202)
+
+    /**
+     * Recomputes the depth facts from [edges] in memory and compares them against the
+     * numbers the seed module measured. Called by every test class that installs the graph,
+     * because a fixture nobody checks is a fixture that can be quietly wrong.
+     */
+    fun assertMatchesTheShippedGraph(): String {
+        val edges = edges()
+        val prerequisitesOf = Array(CONCEPTS + 1) { mutableListOf<Int>() }
+        edges.forEach { (p, c, _) -> prerequisitesOf[c].add(p) }
+
+        val reachable = ArrayList<Int>()
+        val seen = HashSet<Int>()
+        var frontier = setOf(CONCEPTS)
+        repeat(REACHABLE_FROM_LAST_CONCEPT.size) {
+            val next = HashSet<Int>()
+            for (n in frontier) for (p in prerequisitesOf[n]) if (seen.add(p)) next.add(p)
+            frontier = next
+            reachable.add(seen.size)
+        }
+
+        check(edges.size == EXPECTED_EDGES) {
+            "this fixture produced ${edges.size} edges and the shipped generator produces " +
+                "$EXPECTED_EDGES. The reproduction in SeedConceptGraph has drifted from " +
+                "Generator.writeConceptEdges -- the seed module is the authority"
+        }
+        check(reachable == REACHABLE_FROM_LAST_CONCEPT) {
+            "this fixture reaches $reachable concepts at depths 1..6 and the shipped graph " +
+                "reaches $REACHABLE_FROM_LAST_CONCEPT (PrerequisiteDepthTest). The " +
+                "reproduction has drifted"
+        }
+        return "reproduction matches the shipped graph: ${edges.size} edges, reachable $reachable"
+    }
+}

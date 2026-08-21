@@ -1,7 +1,7 @@
 # Measurement discipline
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-21
 
 **Status:** Settled before the first measurement, deliberately. Rules written after a
 number is inconvenient are not rules.
@@ -62,9 +62,49 @@ have cost a reader time:
   runs, and the field is left out until a report actually pins it — a stated JVM flag that
   no run used is worse than no flag, because it looks checkable and is not.
 
+  > **Measured 2026-08-21, and the correction above stopped one sentence short.** `R23`
+  > asserted the belief that survived it — that a container given 512 MB is a JVM with a
+  > 512 MB heap, so the flag was writing down what would have happened anyway — and got
+  > **134217728 bytes**, a quarter of the limit. `UseContainerSupport` defaults to `true` and
+  > `MaxRAMPercentage` to 25, so the ceiling is a fraction of the **cgroup**, never of the
+  > flag-less host.
+  >
+  > **The flag was not merely unsourced. Written beside a 512 MB limit it moves who refuses
+  > from the JVM to the kernel**: the ergonomic ceiling throws `OutOfMemoryError: Java heap
+  > space` and exits `1` with the container still up, and `-Xmx512m` at the same limit is
+  > `SIGKILL`, exit `137`, no stack trace and no log line. `ContainerHeapErgonomicsTest` holds
+  > both, and `R23` §3.2 carries the numbers.
+
 The image digest is recorded alongside the tag because `16-alpine` is a moving tag. Two
 people running `postgres:16-alpine` a month apart are not necessarily running the same
 server, and the digest is what makes the row citable.
+
+### When the run is inside a container, the block grows three lines
+
+Added 2026-08-21 by `ADR-012`. Every number taken before that date is on **one** application
+process with **no** memory or CPU limit, so the fields below would have read *unlimited, 1*
+on all of them and the block stays as it is above. The moment a report varies any of them
+they become part of the number:
+
+```
+  Container      : memory=512m memory-swap=512m cpus=<unset>  (per APPLICATION instance)
+  Instances      : 2 application containers, one database container
+  Heap           : ergonomic — no -Xmx. MaxHeapSize 134217728 (measured, not derived)
+```
+
+**`memory-swap` is on that line and not omitted**, because Docker's default when only
+`--memory` is given is to allow swap up to twice the limit. A limit with swap behind it is
+not a limit; it is a latency cost that shows up as page faults and never as a failure, and a
+report measuring what happens *at* a limit under that setting is measuring nothing.
+
+**`Heap` is measured rather than stated** for the reason the `-Xmx512m` bullet above is
+about. A container-aware JVM derives its ceiling from the cgroup, so a report that writes
+down the flag it passed has written down an input, not the heap.
+
+**`Instances` is there because a pool setting is per-process and a database's connection
+ceiling is not.** `R2` and `R18` both sized a pool on one instance; the arithmetic that
+breaks is `pool × instances`, and a pool number without an instance count beside it cannot be
+checked against anything. `R24` is what that costs.
 
 ---
 
@@ -154,3 +194,9 @@ believes. That is the mechanism behind the first report in this repository.
    the workflow API. Rule 3 already forbade it. **Rule 9 exists because rule 3 was not enough
    to stop somebody who had read it**, and because the lane it concerns had no way to say what
    it ran on until now.
+10. **A number taken inside a container carries the container's limits and the instance
+    count**, in the three lines above. Added 2026-08-21 by `ADR-012`. Rule 2 already required
+    "the environment", and rule 2 was not enough: every field in the block above describes the
+    *machine*, and a container is a machine the run invented. **The heap is measured rather
+    than stated** — `R23` found a JVM taking its ceiling from the cgroup and not from anything
+    a report would otherwise have written down.

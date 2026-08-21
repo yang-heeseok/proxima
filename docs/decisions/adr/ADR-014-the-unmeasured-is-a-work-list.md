@@ -1,4 +1,4 @@
-# ADR-014 — The unmeasured is a work list, and it is 169 entries long
+# ADR-014 — The unmeasured is a work list, and it is 170 entries long
 
 > **Created**: 2026-08-21
 > **Updated**: 2026-08-21
@@ -87,10 +87,10 @@ done | awk '{s+=$1} END {print s}'
 | --- | --- | --- |
 | files in the corpus | **37** | `docs/**/*.md` + `README.md` |
 | `미측정` occurrences | **100** | |
-| — the reader's-note line | 21 | 19 reports + `_TEMPLATE.md` + `README.md` |
-| — governing text that defines or cites the term | 6 | `measurement-discipline.md` ×2, `_TEMPLATE.md` ×2, `publication-readiness.md` ×1, `README.md` ×1 |
+| — the reader's-note line | 21 | 19 reports + `_TEMPLATE.md` + `README.md`. **`R5` is the only report without one** |
+| — governing text that defines or cites the term | 5 | `measurement-discipline.md` ×2, `_TEMPLATE.md` ×2, `publication-readiness.md` ×1 |
 | — quotations of a gap that lives somewhere else | 9 | `roadmap.md` ×3, `open.md` ×1, `R18` ×2, `R19` ×1, `R16` §9 ×2 |
-| — **naming a gap** | **64** | of which 46 are inside a §8 bullet and 18 are not |
+| — **naming a gap** | **65** | of which **46** are inside a §8 bullet and **19** are not |
 | §8 bullets across `R0`–`R19` | **154** | `R19` counted 145 at `b1c1b95` and `R19` itself adds 9 |
 
 **The 145 was re-derived rather than carried forward, and it holds.** Counting §8 bullets at
@@ -101,17 +101,40 @@ unnoticed; a count carried forward is a claim nobody re-establishes.
 
 ## The split
 
-**169 entries: 154 §8 bullets, plus 15 gap-naming `미측정` entries outside any §8 section.**
+**170 rows: 154 §8 bullets, plus 16 gap-naming `미측정` entries outside any §8 section.**
 
-The 18 gap-naming occurrences outside §8 collapse to 15 entries: two duplicate a §8 bullet
-already in the ledger, and three occurrences of *"the token filter's cost"* are one question.
+The 19 gap-naming occurrences outside §8 collapse to 16 entries, because three occurrences of
+*"the token filter's cost"* — `R15` §1, `R16` §1, `R16` §5 — are one question. **Two of the 16
+duplicate a §8 bullet already in the ledger** (`D.13` → `4.9`, `D.14` → `3.1`); they are listed
+so the enumeration is complete and are **not classified twice**.
+
+So **168 classified entries**:
 
 | | count | share |
 | --- | --- | --- |
 | **(a) measurable here, just not done** | **68** | 40 % |
 | **(b) not measurable here** | **28** | 17 % |
-| **(c) the question does not hold** | **73** | 43 % |
-| total | **169** | |
+| **(c) the question does not hold** | **72** | 43 % |
+| classified | **168** | |
+| + duplicates listed once more for completeness | 2 | |
+| **rows in the ledger** | **170** | |
+
+> **These counts were wrong when this file was first committed and are corrected here rather
+> than quietly overwritten.** `3afe305` said 169 rows, 64 gap-naming occurrences, 6 governing,
+> 18 outside a §8, and `73` for (c). **All five were produced by hand from a `grep` listing.**
+> They were re-derived on 2026-08-21 by a script that classifies each of the 100 occurrences
+> and prints the buckets, which is what found them.
+>
+> **The error was three occurrences of one question that the prose named and the table never
+> gave a row to** — the token filter's cost, `ADR-014`'s own `D.16`. The prose said *"three
+> occurrences … are one question"* and then the row was never written, so the total was short
+> by one entry and by one (c).
+>
+> **This is the same failure as `R25` §3.6's, in the file that states the rule against it**,
+> and it happened on the same afternoon. §*The corpus* re-derives `R19`'s 145 rather than
+> carrying it forward and says why; the numbers directly under that paragraph were carried
+> forward from a reading. **The re-derivation habit was applied to somebody else's count and
+> not to my own.**
 
 **(c) at 43 % is the number that changes how the corpus reads.** Nearly half of what looks
 like a backlog is not one — it is the *what would break the conclusion* line every report
@@ -441,6 +464,7 @@ their duplicate marked; they are not counted twice in the totals.
 | D.13 | `R2` §5, `R4` §5 | option D as a `미측정` cell in both remedy tables | b | — | — | **duplicate of 4.9** |
 | D.14 | `R3` §7 | nothing asserts on `EXPLAIN` output | **a** | 90 | L | **duplicate of 3.1** |
 | D.15 | `R9` §3.6 | CI time before and after container reuse | c | — | — | the question does not apply — a fresh runner has nothing to reuse |
+| D.16 | `R15` §1, `R16` §1, `R16` §5 | what the `T9` token filter costs the request path | c | — | — | **three occurrences, one question, closed by `R16`** at ≤ 0.9 µs/req — below that harness's floor. **This row was missing from the first commit of this file** and is what made the totals short; see the annotation in §The split |
 
 ## What the sweep found that no `미측정` marks
 
@@ -491,7 +515,7 @@ runner has pulled `16.15` ever since, twenty documents say `16.14`, and nothing 
 changed — so no date, no diff, and no `미측정` marked it.
 
 That is this ledger's own §*What this does not do* arriving on the same day it was written:
-**a sweep of recorded gaps finds recorded gaps.** The count is 169 and the denominator is
+**a sweep of recorded gaps finds recorded gaps.** The count is 170 and the denominator is
 still unknown, and the first evidence for that was produced by the sweep itself.
 
 ## Consequences

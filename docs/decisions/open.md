@@ -1,7 +1,7 @@
 # Open decisions
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-18
+> **Updated**: 2026-08-21
 
 **Status:** Live. This file exists so that *undecided* is a recorded state rather than a
 silence, and it discharges the `PUB-4` row that says so.
@@ -20,7 +20,12 @@ silence, and it discharges the `PUB-4` row that says so.
 
 | # | Question | Why it is not decided yet | Deadline |
 | --- | --- | --- | --- |
-*(empty as of 2026-08-18 — see below)*
+| `OPEN-10` | **Does the PostgreSQL image get pinned by digest — and if it does, do the twenty documents saying `16.14` get corrected, or do their numbers get re-baselined on `16.15`?** | Opened 2026-08-21 by `R27`. **The tag moved on 2026-08-13** and nothing in the tree changed: `postgres:16-alpine` resolved to `sha256:57c72fd2…` (PostgreSQL 16.14) when the first numbers were taken and resolves to `sha256:075f7ba6…` (16.15) now. `measurement-discipline.md` records the digest and says it is *"what makes the row citable"*; `TestcontainersConfiguration.kt` pins the tag, so the digest reaches no artefact. A GitHub runner has no image cache and has pulled 16.15 since 2026-08-13, while this machine's Docker cache still holds July's image — **local and CI have been running different servers.** `R27` §5 compares four options and **recommends pinning the digest and correcting the version rather than re-baselining**, on the ground that §3.2 measured the difference as one patch release with no effect on migrations or ordering. It is a row here and not a task because the second half is a **trade nobody has made**: measurement time against document accuracy, over twenty documents, and `R18` measured a 1.27× drift band on this machine that most of a re-baseline would sit inside. It also needs an edit to a file the parallel round assigned elsewhere | **now.** The claim is false today, and `ADR-003` condemned the deadline that cannot arrive. A row whose deadline is already past should be decided rather than carried — `OPEN-6` and `ADR-006` are the precedent, one morning apart |
+
+**The table is no longer empty, and it was emptied by decisions rather than by a sweep this
+time.** `OPEN-10` is the first row opened since `R19` filled and `ADR-007`–`ADR-009` cleared
+it on 2026-08-18. It arrived the way the paragraph below asks for: out of a *남는 위험* bullet
+— `R27` §8's first — that nobody can act on without a judgement.
 
 **An empty table here is a claim, not a default.** It says: everything undecided has been
 decided, and nothing currently known is waiting on a judgement. **That claim stood from
@@ -36,6 +41,14 @@ decided, and nothing currently known is waiting on a judgement. **That claim sto
 > is that the audit which established it — 145 bullets against one question — is written down
 > in `R19` §3 and can be run again by somebody else. The previous empty table rested on nobody
 > having looked.
+>
+> **Stale since 2026-08-21 and annotated rather than edited.** *"Every one of the nine rows this
+> file has ever held is now in the table below with an ADR beside it"* was true when written and
+> is not now: `OPEN-10` is the tenth and has no ADR. **The sentence would have gone false on the
+> next row whatever it was**, which is the shape `R19` §3.4 catalogues — a claim written about
+> one instant and read as a standing one. It is left standing because how it went stale is worth
+> more than a tidy file, and because `R17` §8's largest hole is a document edited on the day it
+> becomes false: this one was.
 
 **What would make it false**, and what to do about it:
 

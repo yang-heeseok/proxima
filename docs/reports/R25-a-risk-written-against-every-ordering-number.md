@@ -209,30 +209,51 @@ about what `BaselineMigrationTest` reads.
 
 ### 3.6 Every `order by` in the tree, and what each one orders
 
-The quantifier in `R9` §8's bullet, enumerated:
+The quantifier in `R9` §8's bullet, enumerated. **At `a417ce3`**, the base this round started
+from, so the set is the one the risk was written about and not one this report added to:
 
 ```bash
-git ls-files '*.kt' '*.sql' '*.js' '*.kts' | xargs grep -niE "order by"
+for f in $(git ls-tree -r --name-only a417ce3 | grep -E '\.(kt|kts|sql|js)$'); do
+  git show a417ce3:"$f" | grep -niE "order by" | sed "s|^|$f:|"
+done
 ```
 
-| where | expression | column type | collation-dependent |
-| --- | --- | --- | --- |
-| `RecommendationQueries.kt:58` | `order by i.difficulty, i.id` | `smallint`, `bigint` | **no** |
-| `RecommendationQueries.kt:116` | `order by i.difficulty, i.id` | `smallint`, `bigint` | **no** |
-| `BaselineMigrationTest.kt:46` | `order by table_name` | `name` | **no — §3.5** |
-| `BaselineMigrationTest.kt:70` | `order by installed_rank` | `integer` | **no** |
-| `BaselineMigrationTest.kt:100` | `order by i.indexname` | `name` | **no — §3.5** |
-| `MigrationDeduplicationTest.kt:135` | `order by id` | `bigint` | **no** |
-| `PopulatedMigrationTest.kt:131` | `order by m.id` | `bigint` | **no** |
-| `H2DivergenceTest.kt:295, 306` | `order by label` | `varchar` | **yes — and it is `R9`'s own probe** |
-| `V2__attempt_learner_time_index.sql:19` | prose in a comment | — | — |
+**Thirteen occurrences. Nine are SQL clauses and four are prose** — a comment in
+`V2__attempt_learner_time_index.sql`, two `Probe` labels in `H2DivergenceTest.kt`, and a KDoc
+line in `StaleStatisticsSkewTest.kt` quoting `R3` §3.5's query. The nine:
 
-**Nine `order by` clauses. Two are on text, both are on PostgreSQL's `name` type, and the
-only `varchar` ordering in the repository is the probe that raised the risk.**
+| # | where | expression | column type | collation-dependent |
+| --- | --- | --- | --- | --- |
+| 1 | `RecommendationQueries.kt:58` | `order by i.difficulty, i.id` | `smallint`, `bigint` | **no** |
+| 2 | `RecommendationQueries.kt:116` | `order by i.difficulty, i.id` | `smallint`, `bigint` | **no** |
+| 3 | `BaselineMigrationTest.kt:46` | `order by table_name` | `name` | **no — §3.5** |
+| 4 | `BaselineMigrationTest.kt:70` | `order by installed_rank` | `integer` | **no** |
+| 5 | `BaselineMigrationTest.kt:100` | `order by i.indexname` | `name` | **no — §3.5** |
+| 6 | `MigrationDeduplicationTest.kt:135` | `order by id` | `bigint` | **no** |
+| 7 | `PopulatedMigrationTest.kt:131` | `order by m.id` | `bigint` | **no** |
+| 8 | `H2DivergenceTest.kt:295` | `order by label` | `varchar` | **yes — `R9` §3.3's probe** |
+| 9 | `H2DivergenceTest.kt:306` | `order by label collate "en-US-x-icu"` | `varchar` | **yes — and it names a collation, which is the control that found the risk** |
 
-The application's single ordered query — the recommendation read that `R4`, `R8`, `R16` and
-`R18` all measure — orders by `smallint, bigint`. Every latency figure in `README.md`'s
-results table comes from it.
+**Nine clauses. Four are on text: two on PostgreSQL's `name` type, which §3.5 shows is
+`C`-collated by the type system, and two on `varchar` — and both of the `varchar` ones are
+`R9` §3.3's own probe, the second of them existing specifically to name a collation
+explicitly.**
+
+**So the set `R9` §8's quantifier ranges over — an `order by` on a `varchar` column that
+somebody would deploy — is empty.** The application's single ordered query, the recommendation
+read that `R4`, `R8`, `R16` and `R18` all measure, orders by `smallint, bigint`; every latency
+figure in `README.md`'s results table comes from it.
+
+> **This table was corrected before this report's own verification run finished, and what it
+> got wrong is worth more than what it says.** The first version merged rows 8 and 9 into one,
+> silently included the `V2` comment as a tenth row to keep the total at nine, and concluded
+> *"two are on text, both on the `name` type"* — which is false, and false in the direction
+> that flattered the finding. The total *nine* survived only because two errors cancelled.
+>
+> What caught it was re-running the sweep against `a417ce3` and counting the output instead of
+> reading the table again. That is the discipline `ADR-014` §*The corpus* states about `R19`'s
+> 145 — *a count carried forward is a claim nobody re-establishes* — and this report, which
+> came out of `ADR-014`, did not apply it to its own table for two commits.
 
 ### 3.7 Two things read off this run that belong to other documents
 
@@ -405,10 +426,22 @@ namely the enumeration in §3.6 — so it is a task and it is recorded in `ADR-0
 **그리고 정작 큰 발견은 반대편에 있었다.**
 
 두 콜레이션은 4,465쌍 중 4,461쌍에서 다르게 정렬한다. 99.91 %다. 그런데 이 저장소에서 `varchar`를
-정렬하는 쿼리는 **R9가 이 위험을 제기하려고 만든 프로브 하나뿐**이다. 애플리케이션의 유일한 `order
-by`는 `smallint, bigint`고, 테스트의 텍스트 정렬 두 개는 `name` 타입이라 타입 시스템이 이미 `C`로
-고정해 놨다.
+정렬하는 절은 **R9가 이 위험을 제기하려고 만든 프로브 두 개가 전부**다 — 하나는 기본 콜레이션,
+하나는 콜레이션을 명시한 대조군. 애플리케이션의 유일한 `order by`는 `smallint, bigint`고, 테스트의
+나머지 텍스트 정렬 두 개는 `name` 타입이라 타입 시스템이 이미 `C`로 고정해 놨다.
 
 R9 §8은 *"every `order by` on text in every report here"*라고 썼다. 그 한정사가 가리키는 집합의
 크기를 아무도 세어본 적이 없었고, 세어보니 **0**이었다. 메커니즘은 맞았고 범위는 틀렸다 —
 `ADR-014`가 하는 일이 정확히 이거다. **`미측정`은 세어보기 전까지 크기를 모르는 채로 인용된다.**
+
+**그리고 §3.6의 그 표를, 나는 처음에 틀리게 셌다.**
+
+`ADR-014`를 쓰면서 나는 R19의 145를 그대로 옮겨 적지 않고 `b1c1b95`에서 다시 세어봤다. 맞았다.
+그래놓고 **이 리포트의 표는 grep 출력을 한 번 훑고 손으로 옮겨 적었다.** 결과: 8번과 9번을 한 행으로
+합치고, `V2` 주석을 행으로 끼워 넣고, *"텍스트 정렬은 두 개, 둘 다 `name` 타입"*이라고 썼다. 총계
+아홉은 **오차 두 개가 서로 상쇄돼서** 살아남았다.
+
+잡힌 건 검증 실행을 기다리는 동안 `a417ce3`에 대고 sweep을 다시 돌려서 출력 줄 수를 세어봤을 때다.
+표를 다시 읽었으면 못 잡았다. **셈을 다시 세는 것과 셈을 다시 읽는 것은 다르다** — 그게
+`ADR-014`가 R19의 145에 대해 한 말인데, 그 ADR에서 나온 리포트가 자기 표에는 두 커밋 동안 적용하지
+않았다.

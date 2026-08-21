@@ -349,7 +349,7 @@ Two tests, run by `.github/workflows/build.yml`:
   container tag is in every measurement environment block in this repository, and until now
   nobody had established what that tag decides.**
 
-  > **Measured 2026-08-21 — `R25`. The mechanism is confirmed and larger; the quantifier is withdrawn.** §3.3's `미측정` is closed: a glibc PostgreSQL declaring the same `en_US.utf8` orders those four strings `apple,Apple,Banana,cherry`, and **4,461 of 4,465 two-character ASCII pairs re-order**. But *"every `order by` on text in every report here"* names an empty set — the only `varchar` ordering in the tree is §3.3's own probe, and `BaselineMigrationTest`'s two catalog orderings are on PostgreSQL's `name` type, whose collation is fixed at `C`. `R26` prices the deployment that would pay for it; `R27` is what the tag has done since.
+  > **Measured 2026-08-21 — `R25`. The mechanism is confirmed and larger; the quantifier is withdrawn.** §3.3's `미측정` is closed: a glibc PostgreSQL declaring the same `en_US.utf8` orders those four strings `apple,Apple,Banana,cherry`, and **4,461 of 4,465 two-character ASCII pairs re-order**. But *"every `order by` on text in every report here"* names an empty set — the only `varchar` orderings in the tree are §3.3's own two probe statements, and `BaselineMigrationTest`'s two catalog orderings are on PostgreSQL's `name` type, whose collation is fixed at `C`. `R26` prices the deployment that would pay for it; `R27` is what the tag has done since.
 - **The H2 dependency is itself the hazard.** It is on the test classpath so §3.2 can exist,
   and its presence is exactly what makes §3.4 possible. Two tests hold it down; a third
   configuration nobody thought of is not covered.

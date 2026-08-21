@@ -35,6 +35,35 @@ import kotlin.math.roundToInt
 class Generator(
     private val scale: Scale,
     private val seed: Long = SEED_VALUE,
+    /**
+     * **Edges deliberately emitted backwards, breaking the DAG property. Zero everywhere
+     * except in a test that is about cycles.**
+     *
+     * ## Why this exists at all
+     *
+     * `V1__baseline.sql` says acyclicity cannot be a `CHECK` constraint and is asserted by
+     * a test instead. That test asserts the generator does not produce a cycle. **Nothing
+     * anywhere asserts what happens when something else does** — a curriculum author, an
+     * import, a migration from another system — and *nothing* is a bad answer for a
+     * traversal, because the three shapes a recursive read can take die three different
+     * deaths on a cyclic graph. `docs/reports/R21` measures them, and it needs a cyclic
+     * graph that is reproducible rather than hand-built.
+     *
+     * ## Why it is a parameter and not a `Scale` field, and not a CLI flag
+     *
+     * A `Scale` field would put it in `Scale.FULL`'s and `Scale.TINY`'s constructor calls,
+     * where somebody would eventually set it. A CLI flag would let a cyclic dataset be
+     * loaded into a real database, and the whole point of `PUB-7` is that the seed is the
+     * thing a reader reproduces — a flag that quietly produces a different dataset from the
+     * published digests is a trap, not a feature. `Main.kt` does not expose this.
+     *
+     * ## What guarantees `Scale.FULL` is unaffected
+     *
+     * At the default of `0` the injection loop below does not execute and nothing else in
+     * this class reads this value, so the emitted bytes cannot differ. That is an argument;
+     * `SeedDigestTest` is the measurement, and it pins SHA-256 for both scales.
+     */
+    private val backEdges: Int = 0,
 ) {
 
     /** One stream per table, so tables are independent of each other's evolution. */
@@ -128,6 +157,10 @@ class Generator(
     private fun writeConceptEdges(w: BufferedWriter) {
         val r = rng(3)
         var edgeId = 1
+        // Only allocated when a cycle has been asked for. At the default it stays null and
+        // every line below that touches it is skipped, which is why the emitted bytes
+        // cannot move -- see the `backEdges` parameter, and SeedDigestTest.
+        val firstPrerequisite = if (backEdges > 0) IntArray(scale.concepts + 1) else null
         for (conceptId in 2..scale.concepts) {
             val available = conceptId - 1
             val wanted = minOf(scale.prerequisitesPerConcept, available)
@@ -149,7 +182,55 @@ class Generator(
                     .append(conceptId.toString()).append('\t')
                     .append(dec3(weight)).append('\n')
                 edgeId++
+                if (firstPrerequisite != null && firstPrerequisite[conceptId] == 0) {
+                    firstPrerequisite[conceptId] = prereq
+                }
             }
+        }
+        if (firstPrerequisite != null) writeBackEdges(w, firstPrerequisite, edgeId)
+    }
+
+    /**
+     * Closes [backEdges] cycles, each of a different length, by adding one edge that runs
+     * **upwards** — `prerequisite_id > concept_id`.
+     *
+     * Every forward edge runs from a lower concept id to a higher one, so a walk over
+     * prerequisites strictly decreases and cannot revisit anything. One upward edge from a
+     * concept `s` to a concept `t` that is already below it on a prerequisite chain closes
+     * a cycle whose length is the number of hops taken to get there, plus one.
+     *
+     * The chain is followed through `firstPrerequisite`, which is the lowest-numbered
+     * prerequisite of each concept and therefore a real edge rather than an invented one.
+     * **The cycles this produces are edges the database will accept**: `uk_concept_edge`
+     * sees a pair no forward edge can produce, and `ck_concept_edge_no_self` is satisfied
+     * because at least one hop was taken. That is the point — a cycle is not something the
+     * schema can refuse.
+     */
+    private fun writeBackEdges(w: BufferedWriter, firstPrerequisite: IntArray, startId: Int) {
+        var edgeId = startId
+        for (i in 0 until backEdges) {
+            // Spread across the id range rather than clustered, so a traversal starting
+            // anywhere near the top can reach one. The stride is a fraction of the range
+            // rather than a constant: the first version used 97, which is fine at 3,000
+            // concepts and puts every injection after the first below zero at TINY's 40 --
+            // so the test asking for three cycles got one, and said so.
+            var node = scale.concepts - i * (scale.concepts / (backEdges + 1))
+            if (node < 2) continue
+            val from = node
+            var hops = 0
+            val wanted = 2 + i
+            while (hops < wanted) {
+                val next = firstPrerequisite[node]
+                if (next == 0) break
+                node = next
+                hops++
+            }
+            if (hops == 0) continue
+            w.append(edgeId.toString()).append('\t')
+                .append(from.toString()).append('\t')  // prerequisite_id -- the HIGH one
+                .append(node.toString()).append('\t')  // concept_id     -- the LOW one
+                .append("1.000").append('\n')
+            edgeId++
         }
     }
 

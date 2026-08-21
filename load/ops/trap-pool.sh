@@ -64,12 +64,33 @@ write_burst() {
   local body='[{"itemId":1,"conceptId":1,"correct":true,"elapsedMs":10,"at":"2026-08-10T00:00:00Z","scoreDelta":0.000}]'
   local i
   for i in $(seq 1 "$concurrency"); do
-    curl -s -o /dev/null -w "%{http_code}\n" --max-time 90 \
+    curl -s -o /dev/null -w "%{http_code} %{time_total}\n" --max-time 90 \
       -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
       -X POST -d "$body" \
       "http://localhost:$port/api/v1/learners/1/attempts" &
   done
   wait
+}
+
+# The status distribution, and the shape of the durations behind it.
+#
+#   80 responses of `200` is not an answer to "does the starved instance serve worse". A
+#   duration is -- and it is the only duration this directory publishes, so it carries the
+#   caveats: ONE run, not the median of three that measurement-discipline rule 5 requires for
+#   a headline figure, and taken against a one-row fixture that no latency number elsewhere in
+#   this repository shares. R24 section 3.1 quotes it as an observation and says so.
+summarise_burst() {
+  local raw; raw=$(mktemp)
+  cat > "$raw"
+  printf '     status: %s\n' "$(awk '{print $1}' "$raw" | sort | uniq -c | awk '{printf "%s x%s  ", $2, $1}')"
+  local sorted; sorted=$(mktemp)
+  awk '{print $2}' "$raw" | sort -n > "$sorted"
+  local n; n=$(wc -l < "$sorted")
+  printf '     time_total  p50 %ss  p95 %ss  max %ss  (n=%s)\n' \
+    "$(sed -n "$(((n + 1) / 2))p" "$sorted")" \
+    "$(sed -n "$(((n * 95 + 99) / 100))p" "$sorted")" \
+    "$(tail -1 "$sorted")" "$n"
+  rm -f "$raw" "$sorted"
 }
 
 # Drives every instance at once, so that demand is concurrent across the fleet rather than
@@ -161,13 +182,21 @@ token=$(harness_token 1)
 for n in 1 3; do
   echo "-- $WRITE_CONCURRENCY concurrent single-recording POSTs at instance $n --"
   before=$(docker logs "$(app_name "$n")" 2>&1 | grep -c 'Connection is not available')
-  write_burst "$n" "$token" "$WRITE_CONCURRENCY" | sort | uniq -c | sed 's/^/     /'
+  write_burst "$n" "$token" "$WRITE_CONCURRENCY" | summarise_burst
   after=$(docker logs "$(app_name "$n")" 2>&1 | grep -c 'Connection is not available')
   echo "     Connection is not available, on instance $n: $((after - before))"
 done
-echo "-- attempt rows landed --"
+
+# The rows, not the responses. This has to wait until the fleet is torn down: with three
+# instances holding every slot, the query that would read the table is refused -- which is
+# section 3.1's own finding turned against the person trying to check it.
+echo "-- attempt rows landed (fleet stopped first, so a slot exists to ask from) --"
+docker rm -f "$(app_name 2)" "$(app_name 3)" >/dev/null 2>&1
+sleep 2
 docker exec proxima-db psql -U "$DB_USER" -d "$DB_NAME" -tAc \
-  "select 'attempt ' || count(*) from attempt where learner_id = 1" 2>&1 | sed 's/^/   /'
+  "select 'attempt rows ' || count(*) from attempt where learner_id = 1" 2>&1 | sed 's/^/   /'
+docker exec proxima-db psql -U "$DB_USER" -d "$DB_NAME" -tAc \
+  "select 'mastery attempts_count ' || attempts_count from mastery where learner_id = 1" 2>&1 | sed 's/^/   /'
 
 # THE DRIFT CONTROL. R18 section 3.3: identical configuration seventy minutes apart differed
 # by 1.27x, which was larger than one of the effects that report set out to claim. Nothing

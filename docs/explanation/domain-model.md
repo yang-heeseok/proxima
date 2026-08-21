@@ -56,7 +56,7 @@ Learner ──< Attempt >── Item ──< ItemConcept >── Concept ──<
 | --- | --- |
 | `learner` | A person learning. Identified by a generated reference, nothing more |
 | `concept` | One mathematical idea |
-| `concept_edge` | *This concept must come before that one.* A DAG, not a tree — most concepts have several prerequisites |
+| `concept_edge` | *This concept must come before that one.* A DAG, not a tree — most concepts have several prerequisites, and **the difference from a tree is measurable rather than decorative**: see §How deep the prerequisite graph is |
 | `item` | One problem |
 | `item_concept` | A problem exercises several concepts, with different weight |
 | `attempt` | One learner meeting one item once. **The hot table** |

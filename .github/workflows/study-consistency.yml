@@ -1,0 +1,163 @@
+# Guards `.study/리뷰 읽기/` — the review-reading track — against its own recurring failure.
+#
+# WHY THIS IS A SEPARATE FILE FROM docs-consistency.yml.
+#
+#   Not because the concern is different. It is the same concern: a sentence that was true
+#   when written and is false now. It is separate for two reasons, both practical.
+#
+#     1. A parallel session owns `docs-consistency.yml`. This repository has already lost a
+#        commit message to two lanes touching the same thing at once. A new file cannot
+#        collide with an edit to that one.
+#     2. This track needs the NETWORK. Its claims are about pull requests in OTHER
+#        repositories -- "#12880 is open" -- and nothing in this tree can contradict that.
+#        `docs-consistency.yml` is deliberately network-free and should stay that way.
+#
+#   If the two are merged later, the check to keep is S2. S1/S3/S4 are cheap; S2 is the one
+#   that sees a fact this repository cannot otherwise see.
+#
+# WHAT PROVOKED IT.
+#
+#   Six sentences in this folder went false between 2026-08-10 and 2026-08-21. Five were
+#   caught by a person reading the whole document; one was caught by the ledger this
+#   workflow checks, on the ledger's first run:
+#
+#     4장  "#12880 (2026-08-05 기준 열려 있음) -- 진행 중인 리뷰를 결론 모르고 예측해보는
+#          유일한 기회"          -- merged since. False for sixteen days. Nothing said so.
+#
+#   The cause was not the absence of a gate. `docs-consistency.yml` CHECK 1 already reads
+#   this folder, and on 2026-08-21 it was RED: commit f06cb1d wrote `SubscriptionState.java`
+#   -- a file in apache/kafka -- in backticks, and CHECK 1 has no concept of a foreign
+#   artefact, so it read it as a local file that had gone missing. Three chapters were
+#   committed without anyone running the gate they were subject to.
+#
+#   The cause was that this folder's STATE CLAIMS were prose, copied across several
+#   documents. A copy does not follow the original.
+#
+# WHAT THIS CANNOT DO -- stated here rather than discovered later.
+#
+#   It does not read a sentence, and it must not start. `docs-consistency.yml` wrote a prose
+#   check and discarded it because the check fired on the CORRECTED tree, since the
+#   correction quotes the sentence it replaces. That folder does this DELIBERATELY and
+#   constantly: 0장 §0.1 requires falsified text to be preserved under a ⚠ block rather than
+#   deleted. A keyword check here would fire on every correction this track has ever made.
+#
+#   So the coverage is exactly two of the six failures -- does a chapter exist, and is a PR
+#   in the state claimed. The other four (a premise generalised from one sample, a forward
+#   reference to a chapter not yet written, a method superseded by a later chapter, a
+#   self-referential "I have not fixed this yet") still need a person to read the document.
+#   That is a reduction, not a solution, and 상태.md says so in its header.
+
+name: study consistency
+
+on:
+  push:
+    paths: ['.study/**', '.github/workflows/study-consistency.yml']
+  pull_request:
+    paths: ['.study/**', '.github/workflows/study-consistency.yml']
+  workflow_dispatch:
+  # The point of S2 is that a claim about someone else's pull request goes false WITHOUT any
+  # commit here. A push-only trigger would never notice; that is the whole failure mode.
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: no document in .study claims a state that is not so
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      # ADR-004: a number quoted from a run carries that run's environment block.
+      - name: the environment any number from this run belongs to
+        run: |
+          set -eu
+          echo "run           : ${GITHUB_RUN_ID}, attempt ${GITHUB_RUN_ATTEMPT}"
+          echo "runner image  : ${ImageOS:-unknown} ${ImageVersion:-unknown} (${RUNNER_OS} ${RUNNER_ARCH})"
+          echo "kernel        : $(uname -sr)"
+          echo "git           : $(git --version)"
+          echo "python        : $(python3 --version 2>&1)"
+
+      # The unauthenticated GitHub API allows 60 calls an hour and the ledger holds nineteen
+      # anchors, so a local run can only be done three times an hour. The token removes that,
+      # and it is read-only public data either way.
+      - name: run the ledger checks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: sh ".study/리뷰 읽기/검사.sh"
+
+  self-test:
+    name: the guard refuses planted violations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      # Both halves are required. A check that refuses everything is as useless as one that
+      # refuses nothing, and this repository has already shipped one instrument that reported
+      # into nothing five separate times. Each plant below was run by hand on 2026-08-21
+      # before this file existed; this makes that permanent.
+      - name: plant, and require each check to fire
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          L=".study/리뷰 읽기/상태.md"
+          cp "$L" /tmp/ledger.orig
+          run() { sh ".study/리뷰 읽기/검사.sh" "$@" 2>&1 || true; }
+
+          # --- clean tree must pass, or every plant below proves nothing
+          run | tee /tmp/clean.txt
+          grep -q '^통과' /tmp/clean.txt || { echo "FAIL: the clean tree does not pass. Nothing below is meaningful."; exit 1; }
+
+          # --- S1a: ledger names a chapter file that does not exist
+          printf 'chapter\t-\t9\twritten\t2026-08-21\t9장. 없는 장.md\tplanted\n' >> "$L"
+          run --offline | grep -q '대장이 있다고 하는 장의 파일이 없다' \
+            || { echo "FAIL: S1 missed a ledger row with no file"; exit 1; }
+          cp /tmp/ledger.orig "$L"
+
+          # --- S1b: chapter file exists and the ledger has no row. THIS is the failure the
+          #     track actually made -- 2장 said "3장 미착수" while 3장 was in the tree.
+          grep -v '3장. apache-lucene' /tmp/ledger.orig > "$L"
+          run --offline | grep -q '파일은 있는데 대장에 행이 없다' \
+            || { echo "FAIL: S1 missed a chapter file with no ledger row"; exit 1; }
+          cp /tmp/ledger.orig "$L"
+
+          # --- S2: ledger asserts a state the API contradicts. kafka#23014 is merged and
+          #     will stay merged, so claiming `open` is a stable planted lie.
+          sed -i 's|^\(anchor\tapache/kafka\t23014\t\)merged|\1open|' "$L"
+          run | grep -q 'DRIFT apache/kafka#23014' \
+            || { echo "FAIL: S2 missed an anchor whose real state differs from the ledger"; exit 1; }
+          cp /tmp/ledger.orig "$L"
+
+          # --- S2 must NOT call a query failure a drift. On 2026-08-21 it did: a rate-limit
+          #     response was reported as seventeen DRIFTs, i.e. the check inventing findings.
+          out=$(GITHUB_TOKEN= http_proxy=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9 \
+                sh ".study/리뷰 읽기/검사.sh" 2>&1 || true)
+          printf '%s' "$out" | grep -q 'UNVERIFIED' \
+            || { echo "FAIL: an unreachable API did not produce UNVERIFIED"; exit 1; }
+          # `cmd && { exit 1; }` under `set -e` kills the script when grep finds NOTHING,
+          # which is the passing case. The negative assertion has to be an if, not an &&.
+          if printf '%s' "$out" | grep -q 'DRIFT'; then
+            echo "FAIL: an unreachable API was reported as DRIFT -- the check accusing the ledger of something it did not check."
+            exit 1
+          fi
+
+          # --- S3: a foreign artefact written the way that breaks docs-consistency CHECK 1
+          d=".study/리뷰 읽기/0장. 리뷰는 지식이 아니라 예측이다.md"
+          cp "$d" /tmp/zero.orig
+          printf '\n심은 위반: `TotallyNotHere.java`\n' >> "$d"
+          run --offline | grep -q 'TotallyNotHere.java' \
+            || { echo "FAIL: S3 missed a foreign artefact that would redden the shared gate"; exit 1; }
+          cp /tmp/zero.orig "$d"
+
+          # --- S4: a written chapter with no ✔ in 0장 §0.7
+          sed -i 's|\*\*3장\*\* ✔|**3장**|' "$d"
+          run --offline | grep -q '§0.7 표에 ✔ 가 없다' \
+            || { echo "FAIL: S4 missed a written chapter absent from the §0.7 table"; exit 1; }
+          cp /tmp/zero.orig "$d"
+
+          # --- and the tree must be clean again, or one of the restores above is wrong
+          run | grep -q '^통과' || { echo "FAIL: the restored tree does not pass. A restore above is incomplete."; exit 1; }
+          echo "OK: every check fires on what it claims to catch, and none fires on the clean counterpart."

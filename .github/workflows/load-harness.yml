@@ -71,17 +71,43 @@ jobs:
       #
       #   So the mode is asserted rather than assumed, and `./load/run.sh` is invoked as a path
       #   rather than as `bash load/run.sh`, which would paper over the bit and let it rot.
-      - name: the wrapper is executable as committed
+      #   THE CHECK NAMED ONE FILE AND THE HAZARD IS PER FILE. `load/ops/` arrived on
+      #   2026-08-21 with four more scripts, every one of them invoked as a path, and each
+      #   would have failed in CI for the same invisible reason. The loop below covers whatever
+      #   is in the tree rather than whatever was in it when this was written.
+      - name: every script under load/ is executable as committed
         run: |
           set -eu
-          mode=$(git ls-files -s load/run.sh | cut -d' ' -f1)
-          if [ "$mode" != "100755" ]; then
-            echo "FAIL: load/run.sh is committed as $mode, not 100755."
+          bad=""
+          for f in $(git ls-files 'load/**.sh' 'load/*.sh'); do
+            mode=$(git ls-files -s "$f" | cut -d' ' -f1)
+            [ "$mode" = "100755" ] || bad="$bad $f($mode)"
+          done
+          if [ -n "$bad" ]; then
+            echo "FAIL: these are committed non-executable:$bad"
             echo "A drvfs working tree shows every file as executable, so this is invisible"
-            echo "locally. Fix with: git update-index --chmod=+x load/run.sh"
+            echo "locally. Fix with: git update-index --chmod=+x <file>"
             exit 1
           fi
-          echo "OK: load/run.sh is $mode"
+          echo "OK: every load/ script is 100755."
+
+      # THE ops/ SCRIPTS CANNOT BE RUN HERE AND THE REASON IS THE SAME ONE AS ABOVE.
+      #
+      #   They need a Docker daemon sharing a filesystem namespace with the shell, the pinned
+      #   toolchain JDK to bind-mount, and a built boot jar -- and what they produce is an exit
+      #   code from a container that was deliberately killed, which `ADR-004` would not let this
+      #   lane publish anyway. What CAN be checked without any of that is that they parse.
+      #
+      #   That is a weak check and it is named as weak. It would have caught nothing this slice
+      #   actually hit. It is here because the alternative is a directory of shell scripts that
+      #   no automation has ever loaded, and `R0` §4 counts guards that have never been paid.
+      - name: the ops scripts parse
+        run: |
+          set -eu
+          for f in $(git ls-files 'load/ops/*.sh'); do
+            bash -n "$f" || { echo "FAIL: $f does not parse"; exit 1; }
+            echo "OK: $f parses"
+          done
 
       - name: a steady run passes, an unsteady one fails, a verdict-less one fails differently
         run: |

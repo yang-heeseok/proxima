@@ -1,9 +1,44 @@
 # ADR-009 — No recording endpoint, and the gap that leaves is named
 
 > **Created**: 2026-08-18
-> **Updated**: 2026-08-18
-> **Status**: Accepted
+> **Updated**: 2026-08-21
+> **Status**: **Superseded 2026-08-21 by `ADR-013`** — on the condition this document named
+> itself. Accepted from 2026-08-18 to 2026-08-21.
 > **Closes**: `OPEN-9`
+
+> ## The flip, 2026-08-21
+>
+> **`R24` is the measurement *What would flip this* describes, and the endpoint exists.**
+> Everything below stands as written; nothing in the reasoning turned out to be wrong, and
+> that is the point of leaving it. What arrived is the condition, not a counter-argument.
+>
+> `R24` asks what happens to a request that is **being processed** when the container goes
+> away, on the write path. There is no version of that question a JVM thread calling
+> `recordAll` can answer: the thread has no socket to reset, no Tomcat worker to drain, and no
+> relationship to `server.shutdown` — which on Spring Boot 4.1.0 defaults to `graceful`, read
+> out of `spring-boot-web-server-4.1.0.jar`'s own configuration metadata. **The trap is the
+> boundary between the container and the request, so the request has to exist for there to be
+> a boundary.**
+>
+> What that bought is deliberately one `POST` — `RecordingController`, authorised by the same
+> `ResourceAuthorisation.requireOwner` call the read path makes, returning `R14`'s outcome
+> list. The three things this document said an endpoint would have to guess at are still not
+> guessed: no idempotency key (`R14` §5's *contract with an absent party* is unchanged), no
+> retry protocol, no `Location`. **One status was chosen and it is argued rather than
+> assumed** — `200` with a per-item outcome, in `RecordingController`'s KDoc, with `207` and
+> `4xx` named and rejected.
+>
+> **What this cost, stated as plainly as the paragraph it replaces.** The public surface of
+> this application grew by one write endpoint, in a repository whose `R10` and `R11` both
+> declined to commit a live defect for a reader to find. This one is not a defect — it
+> authorises, and `RecordingEndpointTest` asserts that it refuses a cross-learner write
+> before the write happens. But it is surface, and surface is what this document was
+> protecting.
+>
+> The bullet below that says the write path under HTTP load is 미측정 is **no longer true for
+> shutdown behaviour and still true for everything else**: `R24` drives batches through the
+> socket to measure what a deployment cuts. **Write-path *latency* under HTTP load, and the
+> connection pool under concurrent writes, remain 미측정** — `R24` §8.
 
 ## Context
 

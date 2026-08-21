@@ -148,6 +148,52 @@ object SeedConceptGraph {
     /** Prefix for the items [installItems] owns. */
     const val ITEM_PREFIX = "gitm-"
 
+    /** `V5`'s constraint, which makes a backwards edge impossible. */
+    const val FORWARD_CONSTRAINT = "ck_concept_edge_forward"
+
+    /**
+     * **Lifts `V5` for the duration of [block], and puts it back.**
+     *
+     * A test that measures what a cycle does to a traversal has to be able to make one, and
+     * since `V5` it cannot. That is not an obstacle to work around — **it is the finding**:
+     * the only way to get a cycle into this schema is to remove the constraint first, and a
+     * test that has to do that in the open is a test that has documented why the constraint
+     * is worth having.
+     *
+     * The definition is read back out of `pg_constraint` rather than copied, for
+     * `MigrationDeduplicationTest`'s reason, and restored in a `finally` so that a failure
+     * here cannot leave `BaselineMigrationTest` failing about a constraint it never touched.
+     */
+    fun <T> withoutForwardOnlyConstraint(jdbc: JdbcTemplate, block: () -> T): T {
+        val definition = dropForwardOnlyConstraint(jdbc)
+        try {
+            return block()
+        } finally {
+            restoreForwardOnlyConstraint(jdbc, definition)
+        }
+    }
+
+    /** Drops `V5`'s constraint and returns its definition, for [restoreForwardOnlyConstraint]. */
+    fun dropForwardOnlyConstraint(jdbc: JdbcTemplate): String {
+        val definition = jdbc.queryForList(
+            "select pg_get_constraintdef(oid) from pg_constraint where conname = ? " +
+                "and conrelid = 'concept_edge'::regclass",
+            String::class.java,
+            FORWARD_CONSTRAINT,
+        ).firstOrNull()
+        check(definition != null) {
+            "$FORWARD_CONSTRAINT is not on concept_edge. V5 adds it, and a cycle test that " +
+                "silently succeeds without having to remove it is measuring a schema that " +
+                "no reader gets"
+        }
+        jdbc.execute("alter table concept_edge drop constraint $FORWARD_CONSTRAINT")
+        return definition
+    }
+
+    fun restoreForwardOnlyConstraint(jdbc: JdbcTemplate, definition: String) {
+        jdbc.execute("alter table concept_edge add constraint $FORWARD_CONSTRAINT $definition")
+    }
+
     /**
      * One item per concept, so a page of *problems* can be taken over an expanded graph.
      *

@@ -80,8 +80,9 @@ class BaselineMigrationTest {
         //   2  attempt (learner_id, attempted_at)   R3
         //   3  mastery uniqueness          R7, and its dedup statement R15
         //   4  concept_edge (concept_id)   R20
+        //   5  concept_edge forward-only   R21, ADR-010
         assertEquals(
-            listOf("1", "2", "3", "4"), applied.map { it["version"] },
+            listOf("1", "2", "3", "4", "5"), applied.map { it["version"] },
             "the migration sequence changed -- it is the argument this repository makes, " +
                 "so a change to it needs a report (ADR-002)",
         )
@@ -146,5 +147,77 @@ class BaselineMigrationTest {
             "a learner has exactly one mastery of one concept, and only the database can " +
                 "hold that. See ADR-002 and docs/reports/R7",
         )
+    }
+
+    /**
+     * **The claim `V1` made and `V5` withdrew.**
+     *
+     * `V1`'s table comment said acyclicity *cannot* be a `CHECK` constraint. True of the
+     * general problem; false of this schema, because the generator holds something stronger
+     * — every edge runs from a lower concept id to a higher one — and that IS a row
+     * predicate. `R21` and `ADR-010`.
+     *
+     * Asserted as an exact set for the same reason the index list is: whoever removes this
+     * is removing the only thing standing between `concept_edge` and the three deaths `R21`
+     * measured, and they should have to say so here.
+     */
+    @Test
+    fun `concept_edge cannot hold a cycle, which V1 said a constraint could not prevent`() {
+        val checks = jdbc.queryForList(
+            """
+            select conname
+              from pg_constraint
+             where conrelid = 'concept_edge'::regclass
+               and contype = 'c'
+             order by conname
+            """.trimIndent(),
+            String::class.java,
+        )
+        assertEquals(
+            listOf("ck_concept_edge_forward", "ck_concept_edge_no_self", "ck_concept_edge_weight"),
+            checks,
+            "the check constraints on concept_edge changed. ck_concept_edge_forward is what " +
+                "makes a prerequisite walk strictly decreasing and therefore acyclic; " +
+                "removing it needs ADR-010's named condition -- an explicit ordering column " +
+                "on concept -- and its own report",
+        )
+
+        // AND THE CONSTRAINT IS WATCHED REFUSING, not merely watched existing. R9 §7 is
+        // about a gate that passes whether or not there is anything to substitute; a
+        // constraint asserted only by name in pg_constraint is that gate.
+        // Two concepts of this test's own, so the probe cannot depend on what else is in the
+        // shared container -- including on there being anything at all.
+        val low = jdbc.queryForObject(
+            "insert into concept (code, name, grade_band) values ('bmt-fwd-1', 'low', 'G1-2') returning id",
+            Long::class.java,
+        )!!
+        val high = jdbc.queryForObject(
+            "insert into concept (code, name, grade_band) values ('bmt-fwd-2', 'high', 'G1-2') returning id",
+            Long::class.java,
+        )!!
+        try {
+            assertTrue(high > low, "identity did not hand out an increasing id; the probe is void")
+            jdbc.update(
+                "insert into concept_edge (prerequisite_id, concept_id, weight) values (?, ?, 1.000)",
+                low, high,
+            )
+            val refused = try {
+                jdbc.update(
+                    "insert into concept_edge (prerequisite_id, concept_id, weight) values (?, ?, 1.000)",
+                    high, low,
+                )
+                "accepted"
+            } catch (e: org.springframework.dao.DataAccessException) {
+                e.mostSpecificCause.message.orEmpty()
+            }
+            assertTrue(
+                refused.contains("ck_concept_edge_forward"),
+                "a backwards edge was not refused by ck_concept_edge_forward. The database " +
+                    "said: '$refused'",
+            )
+        } finally {
+            jdbc.update("delete from concept_edge where prerequisite_id in (?, ?)", low, high)
+            jdbc.update("delete from concept where id in (?, ?)", low, high)
+        }
     }
 }

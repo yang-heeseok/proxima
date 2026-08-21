@@ -54,7 +54,12 @@ class ExpandedPagingTest {
         val ids = SeedConceptGraph.install(jdbc)
         SeedConceptGraph.installItems(jdbc, ids)
         top = ids[SeedConceptGraph.CONCEPTS]
-        jdbc.execute("analyze")
+        // NAMED TABLES, NOT A BARE `analyze`. The first version of this line analysed the
+        // whole database, and every test class in this module shares one container: fresh
+        // statistics on `learner` and `attempt` changed the plan of an unordered paged query
+        // in CollectionPagingTest, which then returned a different arbitrary page and failed.
+        // A fixture is allowed to change its own tables and nothing else.
+        jdbc.execute("analyze concept_edge, concept, item, item_concept")
     }
 
     @AfterAll

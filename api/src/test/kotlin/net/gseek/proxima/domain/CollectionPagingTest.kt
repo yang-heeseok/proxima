@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Instant
 import java.time.ZoneOffset
@@ -102,7 +103,7 @@ class CollectionPagingTest {
     @Test
     fun `a page with a collection fetch returns the page and the whole collection`() {
         val pageSize = 5
-        val page = queries.pageWithAttempts(PageRequest.of(0, pageSize))
+        val page = queries.pageWithAttempts(PageRequest.of(0, pageSize, BY_ID))
 
         assertEquals(pageSize, page.size)
         assertEquals(
@@ -122,8 +123,8 @@ class CollectionPagingTest {
     @Test
     fun `distinct changes the rows returned and not where the page is applied`() {
         val pageSize = 5
-        val plain = queries.pageWithAttempts(PageRequest.of(0, pageSize))
-        val distinct = queries.pageWithAttemptsDistinct(PageRequest.of(0, pageSize))
+        val plain = queries.pageWithAttempts(PageRequest.of(0, pageSize, BY_ID))
+        val distinct = queries.pageWithAttemptsDistinct(PageRequest.of(0, pageSize, BY_ID))
 
         assertEquals(pageSize, plain.size)
         assertEquals(pageSize, distinct.size)
@@ -141,7 +142,7 @@ class CollectionPagingTest {
     @Test
     fun `paging roots alone lets the database apply the page`() {
         val pageSize = 5
-        val roots = queries.pageRootsOnly(PageRequest.of(0, pageSize))
+        val roots = queries.pageRootsOnly(PageRequest.of(0, pageSize, BY_ID))
         assertEquals(pageSize, roots.size)
 
         val withCollections = queries.fetchAttemptsFor(roots.mapNotNull { it.id })
@@ -150,5 +151,30 @@ class CollectionPagingTest {
             pageSize * attemptsEach,
             withCollections.distinctBy { it.id }.sumOf { it.attempts.size },
         )
+    }
+
+    private companion object {
+        /**
+         * **The page needs a total order, and until 2026-08-21 these requests had none.**
+         *
+         * `LearnerPageQueries` carries no `order by`, so `PageRequest.of(0, 5)` asked for
+         * *five learners* and PostgreSQL was free to return any five. The tests passed for
+         * eleven days because the plan happened to be stable — and then a different test
+         * class ran `analyze` over the whole shared container, the statistics moved, the
+         * plan moved, and *distinct changes the rows returned and not where the page is
+         * applied* failed comparing `[41, 42, 43, 44, 45]` against `[48, 51, 52, 56, 60]`.
+         *
+         * Both results were correct. Neither query promised anything else.
+         *
+         * The sort is added **here** rather than in `LearnerPageQueries` on purpose: those
+         * five queries are `R5`'s subject and their text is what `CollectionPagingWarningTest`
+         * asserts against. Spring Data appends the order to the generated statement, so the
+         * page becomes defined without the thing under measurement changing.
+         *
+         * This is `R22`'s finding — *a page over an unordered set is not a page* — found in
+         * this repository's own suite by a fixture in another package, which is a more
+         * convincing demonstration than the one `R22` had to construct.
+         */
+        val BY_ID: Sort = Sort.by(Sort.Direction.ASC, "id")
     }
 }

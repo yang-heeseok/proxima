@@ -74,10 +74,23 @@ class CycleTraversalTest {
      */
     private var intoCycle = 0L
 
+    /**
+     * `V5`'s constraint, lifted for the life of this class.
+     *
+     * **This is not a workaround, it is the report's last line.** Since `V5` the only way to
+     * put a cycle into `concept_edge` is to remove `ck_concept_edge_forward` first, and a
+     * test that has to do that in the open has documented what the constraint is worth
+     * better than any prose could. `SeedConceptGraph.dropForwardOnlyConstraint` fails loudly
+     * if the constraint is absent, so this class can never quietly become a measurement of a
+     * schema no reader gets.
+     */
+    private lateinit var liftedConstraint: String
+
     @BeforeAll
     fun install() {
         println(SeedConceptGraph.assertMatchesTheShippedGraph())
         println(SeedConceptGraph.assertCyclesWereInjected(BACK_EDGES))
+        liftedConstraint = SeedConceptGraph.dropForwardOnlyConstraint(jdbc)
         val ids = SeedConceptGraph.install(jdbc, backEdges = BACK_EDGES)
         top = ids[SeedConceptGraph.CONCEPTS]
         val cycleTail = ids[2_121]
@@ -92,7 +105,10 @@ class CycleTraversalTest {
     }
 
     @AfterAll
-    fun uninstall() = SeedConceptGraph.remove(jdbc)
+    fun uninstall() {
+        SeedConceptGraph.remove(jdbc)
+        SeedConceptGraph.restoreForwardOnlyConstraint(jdbc, liftedConstraint)
+    }
 
     /**
      * **Death 1 — `union all`, and the symptom that does not name the cause.**
@@ -355,10 +371,14 @@ class CycleTraversalTest {
         c.createStatement().use { s -> s.execute("set statement_timeout = '${TIMEOUT_MS}ms'") }
         try {
             c.createStatement().use { s ->
-                s.executeQuery(sql).use { rs ->
-                    var n = 0
-                    while (rs.next()) n++
-                    ArmResult(rows = n, sqlState = null, message = "completed")
+                // `count(*)` rather than fetching rows: the driver buffers a whole result
+                // set in the client, and the arms here report six-figure row counts. The
+                // recursion does identical work either way and the client holds one row.
+                // Fetching them killed the whole `:api:test` executor with `Java heap
+                // space`, naming no test.
+                s.executeQuery("select count(*) from (\n$sql\n) counted").use { rs ->
+                    rs.next()
+                    ArmResult(rows = rs.getInt(1), sqlState = null, message = "completed")
                 }
             }
         } catch (e: SQLException) {

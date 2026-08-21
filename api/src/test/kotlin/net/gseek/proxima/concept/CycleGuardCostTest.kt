@@ -177,12 +177,42 @@ class CycleGuardCostTest {
      * `CHECK` cannot express it; this measures that a trigger cannot either, and the only
      * things that could — `SERIALIZABLE`, or a table-level lock on every edge insert — are
      * not free and are not what a trigger gives you.
+     *
+     * ## The half that is the decision
+     *
+     * `V5` has to be **lifted** for this race to be possible at all, and the first half of
+     * this test shows what happens with it in place: the second insert is refused by
+     * `ck_concept_edge_forward` before the trigger ever runs, in a concurrent transaction,
+     * without seeing any other transaction's rows — because it is a row predicate and a row
+     * predicate needs no snapshot.
+     *
+     * **That is `ADR-010`.** Not a better guard than the trigger; a guard that is checking a
+     * different and smaller thing, and can therefore be checked at all.
      */
     @Test
     fun `two concurrent inserts each pass the guard and together make a cycle`() {
         installGuard()
         val a = freshConcept("cyc-a")
         val b = freshConcept("cyc-b")
+
+        // FIRST, WITH V5 IN PLACE. The backwards edge is refused with no reference to any
+        // other transaction, because prerequisite_id < concept_id is true or false of the
+        // row on its own.
+        val underV5 = try {
+            insertEdge(jdbc, b, a); "accepted"
+        } catch (e: SQLException) {
+            "${e.sqlState} -- ${e.message?.trim()}"
+        }
+        println("with V5 in place, the backwards edge gives: $underV5")
+        assertTrue(
+            underV5.contains(SeedConceptGraph.FORWARD_CONSTRAINT),
+            "with V5 applied the backwards edge was not refused by " +
+                "${SeedConceptGraph.FORWARD_CONSTRAINT}; it gave '$underV5'. If that " +
+                "constraint has stopped covering this, ADR-010's decision has expired",
+        )
+
+        // NOW LIFT IT, and the trigger is on its own.
+        val lifted = SeedConceptGraph.dropForwardOnlyConstraint(jdbc)
         try {
             val one = connect()
             val two = connect()
@@ -236,6 +266,10 @@ class CycleGuardCostTest {
             dropGuard()
             jdbc.update("delete from concept_edge where prerequisite_id in (?, ?) or concept_id in (?, ?)", a, b, a, b)
             jdbc.update("delete from concept where id in (?, ?)", a, b)
+            // Restored last, and after the rows it would refuse are gone -- adding a CHECK
+            // back over a table that still holds a violating row fails on the scan, and the
+            // failure would name V5 rather than this test.
+            SeedConceptGraph.restoreForwardOnlyConstraint(jdbc, lifted)
         }
     }
 
@@ -428,13 +462,24 @@ class CycleGuardCostTest {
     private fun medianOf(sql: String): Timed =
         (1..3).map { run(sql) }.sortedBy { it.ms }[1]
 
+    /**
+     * Runs [sql] as `select count(*) from (…)` rather than fetching its rows.
+     *
+     * **Not a convenience.** The PostgreSQL driver buffers a whole result set in the client
+     * by default, and the path-guarded arm at depth 12 produces 797,160 rows — which is
+     * exactly the number this test exists to report, and which exhausts a 512 MB test JVM if
+     * it is carried across the wire. Counting server-side measures the same recursion doing
+     * the same work and leaves the client holding one row.
+     *
+     * The first version of this class fetched the rows and the whole `:api:test` executor
+     * died with `Java heap space`, naming no test.
+     */
     private fun run(sql: String): Timed = connect().use { c ->
         val started = System.nanoTime()
         c.createStatement().use { s ->
-            s.executeQuery(sql).use { rs ->
-                var n = 0
-                while (rs.next()) n++
-                Timed(n, (System.nanoTime() - started) / 1_000_000.0)
+            s.executeQuery("select count(*) from (\n$sql\n) counted").use { rs ->
+                rs.next()
+                Timed(rs.getInt(1), (System.nanoTime() - started) / 1_000_000.0)
             }
         }
     }

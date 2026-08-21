@@ -303,6 +303,7 @@ class PopulatedMigrationTest {
         "V2__attempt_learner_time_index.sql",
         "V3__mastery_unique_learner_concept.sql",
         "V4__concept_edge_by_concept.sql",
+        "V5__concept_edge_forward_only.sql",
     )
 
     private val DML = listOf("insert", "update", "delete", "select", "with")

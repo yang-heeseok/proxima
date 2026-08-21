@@ -68,5 +68,6 @@ same reason and is a run artefact, not a record.
 | --- | --- |
 | `recommendations.js` | `GET /api/v1/learners/{id}/recommendations` under concurrency |
 | `run.sh` | not a scenario — the wrapper every scenario is run through. `ADR-008` |
+| `ops/` | **not scenarios, and not run through `run.sh`.** Container limits, instance counts, health checks and shutdown — `R23` and `R24`. Their results are exit codes and connection counts, so there is no measurement window for the wrapper to have an opinion about. `ops/README.md` |
 | *(to come)* `attempts-concurrent.js` | concurrent writes to one learner's mastery row |
 | *(to come)* `attempts-paging.js` | deep paging, offset against keyset |

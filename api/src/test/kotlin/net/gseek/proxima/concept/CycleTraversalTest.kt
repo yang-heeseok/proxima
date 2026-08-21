@@ -306,6 +306,44 @@ class CycleTraversalTest {
         )
     }
 
+    /**
+     * **The green side, and the uncomfortable reason it is green.**
+     *
+     * `PrerequisiteQueries.closure` — the read this slice ships — returns on the cyclic
+     * graph, in one statement, with the right concepts in it. Every other arm above either
+     * hangs or gives something up.
+     *
+     * **It is not `union` that saves it.** `R21` §3.2 measured the identical query without
+     * the bound and it did not terminate. What saves it is `where w.depth < :maxDepth`, a
+     * clause written for `R20`'s reasons — the closure of a 294-edge chain is not a thing
+     * anybody wants — with no cycle in mind at all.
+     *
+     * So the shipped read is cycle-safe **by accident of an unrelated bound**, and the moment
+     * somebody raises `maxDepth` to 294 to get the full closure, it stops being. That is not
+     * a property to leave undocumented, and `ADR-011` is where it stops being an accident.
+     */
+    @Test
+    fun `the shipped read returns on a cyclic graph, and the depth bound is the only reason`() {
+        val bounded = counter.count { graph.closure(top, maxDepth = 12) }
+        val unbounded = runWithTimeout(UNBOUNDED_UNION_WITH_DEPTH)
+
+        println("closure(top, 12) on the cyclic graph: ${bounded.result.size} concepts in ${bounded.statements} statement")
+        println("the same recursion unbounded        : $unbounded")
+
+        assertEquals(1, bounded.statements, "the shipped read is one statement, cycle or not")
+        assertTrue(
+            bounded.result.isNotEmpty(),
+            "the shipped read returned nothing on the cyclic graph, so it did not survive " +
+                "it -- it merely failed quietly, which is worse",
+        )
+        assertEquals(
+            "57014", unbounded.sqlState,
+            "the same query without the depth bound completed on a cyclic graph, which " +
+                "would mean `union` is what makes the shipped read safe. It is not, and the " +
+                "difference decides ADR-011",
+        )
+    }
+
     // -----------------------------------------------------------------------------------
 
     /**

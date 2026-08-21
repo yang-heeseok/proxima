@@ -145,8 +145,44 @@ object SeedConceptGraph {
         return ids
     }
 
-    /** Removes everything [install] added, and nothing else. */
+    /** Prefix for the items [installItems] owns. */
+    const val ITEM_PREFIX = "gitm-"
+
+    /**
+     * One item per concept, so a page of *problems* can be taken over an expanded graph.
+     *
+     * Difficulty is `1 + (ordinal * 7) % 10` — deterministic, spread over the whole `1..10`
+     * band `ck_item_difficulty` allows, and **deliberately uncorrelated with concept id**.
+     * A difficulty that rose with the concept id would make `order by difficulty, id` and
+     * `order by depth, id` agree by accident, and `ExpandedPagingTest` is entirely about
+     * them disagreeing.
+     */
+    fun installItems(jdbc: JdbcTemplate, ids: LongArray) {
+        jdbc.batchUpdate(
+            "insert into item (code, concept_primary_id, difficulty, is_active) values (?, ?, ?, true)",
+            (1..CONCEPTS).map { ordinal ->
+                arrayOf<Any>(
+                    "$ITEM_PREFIX${ordinal.toString().padStart(6, '0')}",
+                    ids[ordinal],
+                    (1 + (ordinal * 7) % 10).toShort(),
+                )
+            },
+        )
+        jdbc.update(
+            """
+            insert into item_concept (item_id, concept_id, weight)
+            select i.id, i.concept_primary_id, 1.000
+              from item i where i.code like '$ITEM_PREFIX%'
+            """.trimIndent(),
+        )
+    }
+
+    /** Removes everything [install] and [installItems] added, and nothing else. */
     fun remove(jdbc: JdbcTemplate) {
+        jdbc.update(
+            "delete from item_concept where item_id in (select id from item where code like '$ITEM_PREFIX%')",
+        )
+        jdbc.update("delete from item where code like '$ITEM_PREFIX%'")
         jdbc.update(
             """
             delete from concept_edge

@@ -305,6 +305,59 @@ class TieBreakPagingTest {
     }
 
     // ------------------------------------------------------------------------------------
+    // 2b. WHY the unmanipulated walk lost a row — the mechanism, measured not assumed
+    // ------------------------------------------------------------------------------------
+
+    /**
+     * **The defect appeared in the arm built as the control, and this is the test that finds
+     * out why.**
+     *
+     * The first walk holds one session, changes nothing, and touches no planner setting — and
+     * it still returned one row twice and one row never. The arm that deliberately toggled
+     * `enable_seqscan` between pages came back clean. That is the opposite of the designed
+     * expectation, so the mechanism has to be measured rather than reasoned about.
+     *
+     * The hypothesis under test: **`OFFSET` is part of the plan.** Each page is a separate
+     * execution with a different `OFFSET`, the planner costs each one independently, and the
+     * cheapest way to answer *"rows 0–9 of this ordering"* need not be the cheapest way to
+     * answer *"rows 90–99"*. If the plan flips partway through the walk, the tie order flips
+     * with it — and nothing outside the database did anything.
+     *
+     * ⛔ **If the plans come back identical at every offset, the hypothesis is wrong** and
+     * `R41` §4 says so and reports what else could produce it. This test prints the plan at
+     * every page boundary and asserts only that it got a plan for each.
+     */
+    @Test
+    fun `does the plan change as the offset walks the pages`() {
+        connect().use { c ->
+            seed(c)
+
+            val plans = LinkedHashMap<Int, String>()
+            var offset = 0
+            while (offset < ROWS) {
+                val rows = explain(c, "select id from $SCHEMA.tied order by grp limit $PAGE offset $offset")
+                // The node type of the scan is what decides tie order; the Limit wrapper is
+                // always there and says nothing.
+                plans[offset] = rows.firstOrNull { it.contains("Scan") }?.trim() ?: rows.joinToString(" | ")
+                offset += PAGE
+            }
+
+            println()
+            println("R41-OFFSET >>> the same statement, one page apart, planned independently")
+            plans.forEach { (off, node) -> println("  offset %3d  %s".format(off, node)) }
+            val distinct = plans.values.map { it.substringBefore("  (cost") }.distinct()
+            println("  distinct scan strategies across the walk: ${distinct.size}")
+            distinct.forEach { println("    - $it") }
+            println()
+
+            assertTrue(
+                plans.size == ROWS / PAGE,
+                "expected one plan per page boundary",
+            )
+        }
+    }
+
+    // ------------------------------------------------------------------------------------
     // 3. ADR-014 row 44.3, on the real table and the real index
     // ------------------------------------------------------------------------------------
 

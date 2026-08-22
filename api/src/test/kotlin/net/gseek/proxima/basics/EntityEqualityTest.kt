@@ -219,14 +219,38 @@ class EntityEqualityTest {
     // ------------------------------------------------------------------------------------
 
     /**
-     * **`getClass()` and `instanceof` do not agree about a lazy proxy, and one of them is
-     * wrong about how many rows there are.**
+     * **`getClass()` and `instanceof` do not agree about a lazy proxy — and one of the three
+     * ways of asking costs a `SELECT`.**
      *
      * A Hibernate proxy is a generated subclass. Its `javaClass` is that subclass, so an
      * `equals` guarded by `javaClass != other.javaClass` returns `false` for two references to
-     * one row — which is the single most common way a hand-written entity `equals` is broken.
+     * one row — the single most common way a hand-written entity `equals` is broken.
      * `instanceof` is satisfied by the subclass and `Hibernate.getClass` unwraps it, so both
      * of those agree with the database.
+     *
+     * ## ⚠️ The cost half of this test began as a wrong prediction
+     *
+     * It first asserted *"asking a proxy for its type must not initialise it"*, expecting **0**
+     * statements, and measured **1**. The assertion below is corrected to the measured value —
+     * **it is not loosened**: it is still exact, and it now attributes the cost to a single
+     * operation rather than to the group, which the original could not do.
+     *
+     * `Hibernate.getClass` unwraps a proxy by reaching its *implementation*, and reaching the
+     * implementation is what initialisation means. Unwrapping is therefore not free, and
+     * **`BaseEntity.equals` calls it on both operands** — so the shipped equality issues a
+     * statement per uninitialised proxy it is handed. That is `R39`'s finding and it was
+     * produced by being wrong in public rather than by reasoning.
+     *
+     * ## Why each probe gets its own proxy
+     *
+     * The first operation that initialises a proxy makes every later operation on it free.
+     * Measuring five operations against one proxy would credit the entire cost to whichever
+     * happened to run first — which is exactly what the original version of this test did, and
+     * why it could only report `1` for the group.
+     *
+     * ⭐ **`label` is the control.** It is an ordinary property, so reading it *must* initialise.
+     * If it ever reported 0, the counter would be blind and every 0 above would mean nothing —
+     * `R8` §3.3's failure mode, guarded against rather than assumed away.
      */
     @Test
     fun `a lazy proxy and the loaded entity of one row, under three type checks`() {
@@ -242,35 +266,43 @@ class EntityEqualityTest {
         var byJavaClass = true
         var byInstanceOf = false
         var byShippedEquals = false
-        var statementsForTypeChecks = 0L
         var proxyClassName = ""
 
         sf.openSession().use { s1 ->
             sf.openSession().use { s2 ->
                 val proxy = s1.getReference(EqParent::class.java, parentId)
                 val loaded = s2.find(EqParent::class.java, parentId)
-
-                sf.statistics.clear()
-                val before = sf.statistics.prepareStatementCount
-
                 proxyClassName = proxy.javaClass.simpleName
                 byHibernateGetClass = Hibernate.getClass(proxy) == Hibernate.getClass(loaded)
                 byJavaClass = proxy.javaClass == loaded.javaClass
-                byInstanceOf = proxy is EqParent && loaded is EqParent
-                statementsForTypeChecks = sf.statistics.prepareStatementCount - before
-
+                // Widened deliberately: `equals` receives `Any?`, which is how real code meets
+                // a proxy. It also stops the compiler warning that a check against the
+                // static type is always true -- the question here is about the RUNTIME class.
+                val asAny: Any = proxy
+                byInstanceOf = asAny is EqParent
                 byShippedEquals = proxy == loaded
             }
         }
 
+        val costJavaClass = costOnAFreshProxy(sf, parentId) { it.javaClass }
+        val costInstanceOf = costOnAFreshProxy(sf, parentId) { (it as Any) is EqParent }
+        val costIdGetter = costOnAFreshProxy(sf, parentId) { it.id }
+        val costGetClass = costOnAFreshProxy(sf, parentId) { Hibernate.getClass(it) }
+        val costReadLabel = costOnAFreshProxy(sf, parentId) { it.label }
+
         println()
         println("R39-PROXY >>> one row, one uninitialised proxy, one loaded instance")
-        println("  proxy runtime class          : $proxyClassName")
-        println("  Hibernate.getClass agrees    : $byHibernateGetClass")
-        println("  javaClass agrees             : $byJavaClass")
-        println("  instanceof agrees            : $byInstanceOf")
-        println("  BaseEntity-shaped equals     : $byShippedEquals")
-        println("  statements the type checks cost: $statementsForTypeChecks")
+        println("  proxy runtime class        : $proxyClassName")
+        println("  Hibernate.getClass agrees  : $byHibernateGetClass")
+        println("  javaClass agrees           : $byJavaClass")
+        println("  instanceof agrees          : $byInstanceOf")
+        println("  BaseEntity-shaped equals   : $byShippedEquals")
+        println("  --- what each way of asking costs, each on its OWN fresh proxy ---")
+        println("  proxy.javaClass            : $costJavaClass")
+        println("  proxy is EqParent          : $costInstanceOf")
+        println("  proxy.id  (identifier)     : $costIdGetter")
+        println("  Hibernate.getClass(proxy)  : $costGetClass")
+        println("  proxy.label  (CONTROL)     : $costReadLabel")
         println()
 
         assertTrue(byHibernateGetClass, "Hibernate.getClass must unwrap the proxy")
@@ -281,11 +313,61 @@ class EntityEqualityTest {
         )
         assertTrue(byInstanceOf, "a proxy is a subclass, so instanceof must hold")
         assertTrue(byShippedEquals, "one row must equal itself across two sessions")
+
         assertEquals(
-            0, statementsForTypeChecks.toInt(),
-            "asking a proxy for its type must not initialise it",
+            1, costReadLabel.toInt(),
+            "THE CONTROL. Reading an ordinary property must initialise the proxy and cost " +
+                "exactly one statement. If this is 0 the counter is blind and every other " +
+                "number in this test means nothing -- R8 section 3.3",
+        )
+        assertEquals(
+            0, costJavaClass.toInt(),
+            "asking for the runtime class is answered by the proxy itself",
+        )
+        assertEquals(
+            0, costInstanceOf.toInt(),
+            "a type test is answered by the proxy's own class hierarchy",
+        )
+        assertEquals(
+            0, costIdGetter.toInt(),
+            "the identifier is the one property a proxy already knows, so reading it must " +
+                "not initialise. If this becomes 1, every id-based equals in this repository " +
+                "starts issuing SQL",
+        )
+        // 1, NOT 0 -- AND THE HISTORY STAYS HERE RATHER THAN ONLY IN THE REPORT.
+        //
+        //   Predicted 0 in `94fe9ee`, with the message "asking a proxy for its type must not
+        //   initialise it". Measured 1. The assertion was corrected to the measured value in
+        //   the same commit that published the finding -- it is still exact in both
+        //   directions and it is NOT a loosened threshold.
+        //
+        //   A corrected claim that erases its own history is R43's subject, so the prediction
+        //   that was wrong is written down beside the number that replaced it.
+        assertEquals(
+            1, costGetClass.toInt(),
+            "1, not 0: Hibernate.getClass initialises the proxy -- it unwraps by reaching " +
+                "the implementation, and reaching the implementation is what initialisation " +
+                "is. Predicted 0 in 94fe9ee, measured 1. BaseEntity.equals calls it on BOTH " +
+                "operands, so the shipped equality costs one statement per uninitialised " +
+                "proxy handed to it. See R39 section 1 -- this is the report's finding, not " +
+                "a fixture detail",
         )
     }
+
+    /**
+     * Runs [op] against a proxy nothing has touched yet, and returns what it cost.
+     *
+     * A new session each time, because a proxy is only uninitialised once.
+     */
+    private fun costOnAFreshProxy(sf: SessionFactory, id: Long, op: (EqParent) -> Any?): Long =
+        sf.openSession().use { session ->
+            val proxy = session.getReference(EqParent::class.java, id)
+            check(sf.statistics.isStatisticsEnabled) { "statistics are off; this would count 0" }
+            sf.statistics.clear()
+            val before = sf.statistics.prepareStatementCount
+            op(proxy)
+            sf.statistics.prepareStatementCount - before
+        }
 
     // ------------------------------------------------------------------------------------
     // 3. The headline: how many queries one equality check costs

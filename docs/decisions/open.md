@@ -1,7 +1,7 @@
 # Open decisions
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-21
+> **Updated**: 2026-08-22
 
 **Status:** Live. This file exists so that *undecided* is a recorded state rather than a
 silence, and it discharges the `PUB-4` row that says so.
@@ -22,20 +22,26 @@ silence, and it discharges the `PUB-4` row that says so.
 | --- | --- | --- | --- |
 | `OPEN-10` | **Does the PostgreSQL image get pinned by digest — and if it does, do the twenty documents saying `16.14` get corrected, or do their numbers get re-baselined on `16.15`?** | Opened 2026-08-21 by `R27`. **The tag moved on 2026-08-13** and nothing in the tree changed: `postgres:16-alpine` resolved to `sha256:57c72fd2…` (PostgreSQL 16.14) when the first numbers were taken and resolves to `sha256:075f7ba6…` (16.15) now. `measurement-discipline.md` records the digest and says it is *"what makes the row citable"*; `TestcontainersConfiguration.kt` pins the tag, so the digest reaches no artefact. A GitHub runner has no image cache and has pulled 16.15 since 2026-08-13, while this machine's Docker cache still holds July's image — **local and CI have been running different servers.** `R27` §5 compares four options and **recommends pinning the digest and correcting the version rather than re-baselining**, on the ground that §3.2 measured the difference as one patch release with no effect on migrations or ordering. It is a row here and not a task because the second half is a **trade nobody has made**: measurement time against document accuracy, over twenty documents, and `R18` measured a 1.27× drift band on this machine that most of a re-baseline would sit inside. It also needs an edit to a file the parallel round assigned elsewhere | **now.** The claim is false today, and `ADR-003` condemned the deadline that cannot arrive. A row whose deadline is already past should be decided rather than carried — `OPEN-6` and `ADR-006` are the precedent, one morning apart |
 | `OPEN-11` | **Does the load path run `VACUUM`, and if it does not, does this repository stop offering covering indexes as a remedy?** | Opened 2026-08-21 by `R20` §3.6. The covering index `R20` measured was **rejected on its numbers** — 85 % more space and not faster — because `Heap Fetches: 5,424`: an index-only scan is only index-only once `VACUUM` has set the visibility map, and `seed/`'s load path runs `generate`, `load`, `analyze` and **never `VACUUM`**. `R3` rejected a covering index under exactly the same condition and attributed it to the index rather than to the loader, so **two reports have now priced the same remedy against a database that cannot pay it**. It is a judgement and not a task because adding `VACUUM` to the loader changes every number taken after it while leaving every number taken before it uncomparable — `measurement-discipline.md` rule 3 — and the alternative, saying so in both reports and leaving the loader alone, is a decision about what this repository claims rather than about what it does | **before the next index is measured.** Any further covering-index measurement on this dataset repeats the same confound |
-| `OPEN-12` | **A regression gate that cannot tell "the defect did not occur" from "the defect was hidden" — is it repaired, re-scoped, or accepted as a false-alarm-only instrument?** | Opened 2026-08-21 at round two's integration, not by a report. `UniquenessRaceTest` failed once on the merge of slice `C` and passed on the two full runs after it, on a tree byte-identical to the branch where it was green. Its own assertion message names the ambiguity — *"expected the losers to fail loudly; none did, so either the race did not happen or something is swallowing the violation"* — and under a loaded suite the eight threads serialise, each check-then-insert finding the row the last one wrote, so no violation exists to catch. **The direction of the error is the safe one**: it raises a false alarm rather than issuing a false clean bill, which is the opposite of the shape `R9` §7 and `R16`'s `rate>=0.0` threshold are about. That is why this is a judgement — forcing the race deterministically changes what is being tested, retrying hides exactly the flake that is evidence, and accepting it means `R0` §4's count of gates includes one that fires on the machine rather than on the code | **before it fails a second time.** A gate whose failures are dismissed twice stops being read |
 
 **The table is no longer empty, and it was emptied by decisions rather than by a sweep this
 time.** `OPEN-10` is the first row opened since `R19` filled and `ADR-007`–`ADR-009` cleared
 it on 2026-08-18. It arrived the way the paragraph below asks for: out of a *남는 위험* bullet
 — `R27` §8's first — that nobody can act on without a judgement.
 
-**Three rows, and only one of them came from a report.** `OPEN-11` came from `R20` §3.6 the
-same way `OPEN-10` came from `R27` §8. `OPEN-12` did not: it came from **running the merged
+**Three rows opened, and only one of them came from a report.** `OPEN-11` came from `R20` §3.6
+the same way `OPEN-10` came from `R27` §8. `OPEN-12` did not: it came from **running the merged
 tree**, where a round-one gate failed once and passed twice on a tree byte-identical to the
 branch it had been green on. No report contains it, because no slice owned it — it is a
 property of the three together, and integration is the only place it could have been seen.
 `R19` swept *남는 위험* bullets for decisions filed as risks and found three; **this is the
 first row that a sweep of the documents could not have produced at all.**
+
+> **`OPEN-12` closed the same day it opened, by `ADR-015`, and closing it found something
+> larger than the row.** The gate that failed asserts *the losers failed loudly*, so an unraced
+> run raises a false alarm. **Three sibling arms assert `failures == 0`**, which a serialised
+> run satisfies without exercising anything — so the flaky arm was the safe one and the quiet
+> ones were the hazard. A row opened about one test was discharged across four.
+
 
 **An empty table here is a claim, not a default.** It says: everything undecided has been
 decided, and nothing currently known is waiting on a judgement. **That claim stood from
@@ -145,3 +151,4 @@ precisely the class of defect this repository exists to collect.
 | `OPEN-5` | **How the measurement environment is pinned in CI** | `ADR-004` — **the lane states its environment per run**, 2026-08-13. Closed by the hazard arriving rather than by the deadline: this row guarded *CI publishing numbers*, and what actually happened is that a **report reached into CI and took one** — `R9` §3.6 divided a container-start figure from this machine by a step timing read off the workflow API. That breaks `measurement-discipline.md` **rule 3**, which predates every measurement here, and the report's own §8 was uneasy about the sentence without noticing which rule it broke. `measurement-discipline.md` gains rule 9, and `R9` §3.6 is annotated rather than corrected |
 | `OPEN-3` | **Identifier generation strategy** | `ADR-003` — **`IDENTITY` stays**, 2026-08-13. Measured rather than assumed: 1,000 inserts cost 1,000 statements under `IDENTITY` and 40 under `SEQUENCE(allocationSize = 50)`, about 10× — and `SEQUENCE(allocationSize = 1)` costs 1,020 and wins nothing, so the gain is the allocation size and not the sequence. No path here inserts more than one row per transaction, so the 10× is unclaimed rather than lost. `IdentifierGenerationTest` is the trip-wire |
 | `OPEN-2` | **How QueryDSL is generated on Kotlin** | `ADR-001` — **the community fork `io.github.openfeign.querydsl` 7.0 via `kapt`**, 2026-08-10. Timebox 30 min, used ~15. Both candidates were built and run against PostgreSQL and **both passed**; the predicted classifier friction did not occur. The fork won on maintenance, not on capability |
+| `OPEN-12` | **A regression gate that cannot tell "the defect did not occur" from "the defect was hidden"** | `ADR-015` — **every arm proves its own precondition**, 2026-08-22. `RaceOverlap.peak` measures how many calls were ever open at one instant and `assertRaced` requires two, so an unraced run now says *the harness failed* instead of *the losers did not fail*. **The arm that was flaky turned out to be the safe one**: it asserts `failures > 0` and raises a false alarm, while the other three assert `failures == 0`, which a serialised run satisfies **without exercising the remedy at all** — `R9` §7 and `R16`'s `rate >= 0.0` in three tests at once. Fixing only the one that failed would have left those untouched. The control was watched refusing: `peak` planted to return 1 always, the shape `study-consistency.yml`'s `S3` actually had, fails 2 of 5 and exits 1 |

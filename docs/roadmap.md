@@ -74,6 +74,8 @@ under load, concurrency, or scale.** That is a specific class of defect, and the
 is the interesting class is that it is exactly the class a compiler, a type system, a
 linter, and a generated test suite all miss.
 
+**This document owns the rule and not the provenance.** Where the nine candidates came from is `docs/explanation/why-these-nine.md`, which records that the original research trail was not preserved and that every source it lists was found after the fact.
+
 ## Order, and why this order
 
 Tier 1 before Tier 2 is not difficulty ordering. It is *what the next experiment needs*:

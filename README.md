@@ -125,6 +125,8 @@ Each one is a pair of commits — the state in which it was observed, and the st
 it was not — plus a report carrying the numbers, the alternatives that were compared, the
 gate that keeps it from coming back, and **what is still wrong**.
 
+**Where that list of nine came from** is `docs/explanation/why-these-nine.md` — corroboration found after the fact, because the original research trail was not kept, and the document says so rather than implying otherwise.
+
 A report with an empty *남는 위험 / Remaining risk* section fails this repository's own
 publication rules. That is not paperwork: a report that found nothing left to worry about
 has usually stopped looking.

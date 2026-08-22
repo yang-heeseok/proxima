@@ -298,6 +298,29 @@ plain shell, so I ran their logic locally against my own files while the machine
 KDoc I added, which is substantial. My sources pass because they make no index claim at all, not
 because an axis verified the claims they do make.
 
+⭐ **That is `R43` §3.5's lesson arriving from the other direction, and the pair is worth keeping
+together.** There, a green was **vacuous because the input was empty** — `git ls-files` returned
+nothing inside WSL2, both harvested lists came back empty, and the check reported OK on a tree
+with two real findings in it. Here, a green is **thin because the subject is empty** — the input
+is fine, the corpus is fine, and my sources simply make no claim of the kind the axis inspects.
+
+Same shape, opposite cause, and the same required response: **say which kind of green you have.**
+`R43` answered it by asserting both inputs are non-empty before trusting the result. The
+equivalent answer here is a sentence, because there is no assertion a workflow can make about
+whether the thing it is checking for was ever going to be present.
+
+### CHECK 3 was already red at my base, so my branch's CI colour is not evidence about my work
+
+Verified by running CHECK 3's loop on both branches:
+
+```
+round3/basics    FAIL — R39 R40 R41 R42 R43 R44 R45     (seven)
+round3/recency   FAIL — R43 R44 R45                     (three, at my base 99d558b)
+```
+
+⛔ **Review this branch by diff, not by CI colour.** `docs consistency` was failing before my
+first commit and will be failing after my last, for a reason neither commit touches.
+
 ⚠️ **CHECK 5 reads KDoc only.** 172 of this tree's 552 comment blocks are outside its corpus.
 ⛔ A green CHECK 5 must not be read as "no comment in this tree is false" — including for the
 KDoc I added, which is substantial.

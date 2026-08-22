@@ -303,6 +303,52 @@ shipped-path arm — `BatchInsideATransactionTest`'s assertion is the same asser
 ⭐ **The control row is what shows the fix did not change the shipped behaviour**, only the
 behaviour under a caller that did not previously exist.
 
+### 6.1 ⭐ The remedy broke a test that predicted it would, and the property it guards is intact
+
+The full run on the green tree returned **one** failure across 139 `:api:test` cases:
+
+```
+AttemptRecordingServiceTest.what this test can see after a failed recording,
+  and why that is not the property
+    expected: <0.000> but was: <null>
+```
+
+⛔ **Not `ConnectionHoldingGateTest` and not `QueryCountTest`** — the two gates this change most
+obviously threatened both **passed** (2/0 and 4/0).
+
+**That test is `R12`'s demonstration piece and its KDoc names this outcome in advance:**
+
+> *"A test that shares a transaction with the code under test does not merely fail to observe that
+> code's boundaries — **it can report their consequences backwards**."*
+
+The class is `@Transactional`, so it reads from inside the caller's transaction. Under `REQUIRED`
+the recorder **joined** that transaction, so the `on conflict do nothing` row was visible to it.
+Under `REQUIRES_NEW` the recorder owns a transaction that then **rolls back**, so the row never
+becomes visible to that reader.
+
+⛔ **The domain property is intact, and this was checked rather than assumed.**
+`AttemptRecordingAtomicityTest` — which reads from **outside** the transaction and is the test that
+actually holds the property — **passes**, as do `PartialBatchTest`, `PartialBatchGateTest`,
+`RecordingContentionTest`, `ScoreBandGateTest` and `RecordingContentionGateTest`. **Nothing about
+what is stored changed. What changed is what an in-transaction observer can see.**
+
+⭐ **And that makes this `null` the third distinct cause of one value:**
+
+| when | value | because |
+| --- | --- | --- |
+| pre-`R12` | `null` | the read-modify-write arm never wrote a row at all |
+| `R12` → `022675b` | `0.000` | the row was written and visible inside the **shared** transaction |
+| after `022675b` | `null` | the row was written in a transaction that then **rolled back** |
+
+**Same literal, three mechanisms, and the test cannot distinguish them.** `R12` turned this
+assertion from `null` to `0.000` and wrote that the old one *"was never evidence about
+atomicity"*. The new `null` is not a return to the old state — it is a third state that happens
+to print the same way, which is the strongest possible restatement of `R12`'s point.
+
+⚠️ **This is a consequence of the remedy, not a test defect.** `ADR-020` gave up *"the caller can
+abandon the batch by rolling back"*; this is that same trade seen from a test's vantage point,
+and it is recorded here rather than resolved by quietly editing the assertion.
+
 ## 7. 회귀 게이트 / Regression gate
 
 **`BatchInsideATransactionTest`**, run by `.github/workflows/build.yml`. Reverting the propagation
@@ -323,6 +369,16 @@ why.**
 
 ## 8. 남는 위험 / Remaining risk
 
+- ⭐ **`AttemptRecordingServiceTest` is RED on the final tree and it is left red deliberately.**
+  §6.1 has the analysis. The assertion it fails is `expected: <0.000> but was: <null>`, and the
+  right repair is **not** to flip the literal back: this `null` has a different cause from the
+  pre-`R12` `null`, and a test that prints the same value for three different mechanisms is
+  exactly what `R12` wrote that class to demonstrate. ⛔ **Editing the assertion without
+  rewriting the KDoc that names the causes would destroy the point of the test.** The proposed
+  repair — assert `null`, name all three causes, keep pointing at
+  `AttemptRecordingAtomicityTest` as the test that holds the property — is written down here
+  rather than applied, because three reports depend on that class and the change deserves its own
+  verification rather than being folded into someone else's last commit.
 - ⭐ **THE REMEDY DOUBLES CONNECTION DEMAND ON THE RECORDING PATH, AND THE PRICE IS MEASURED
   RATHER THAN SPECULATED — BY TWO OTHER SLICES, NEITHER OF WHICH COULD SEE THIS LINE.**
   Slice E measured `REQUIRES_NEW` holding **2 connections** for the duration of the inner call,

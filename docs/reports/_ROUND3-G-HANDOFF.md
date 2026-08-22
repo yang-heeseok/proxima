@@ -3,8 +3,8 @@
 > **Slice**: G · **Branch**: `round3/basics` · **Base**: `99d558b` on `round3/recency`
 > **Written**: 2026-08-22, as the work happened rather than after it.
 
-> ⚠️ **One number is still outstanding and it is named as such in §3**: the slice-level test count
-> on the **final** tree. Every trap number is measured and final. ⛔ Nothing here is an estimate.
+> ✅ **Every number is measured.** The slice-level count on the final tree is in §3, with the two
+> earlier readings kept beside it and the tree each came from. ⛔ Nothing here is an estimate.
 
 ---
 
@@ -197,14 +197,53 @@ it laziness rather than overhead.
 
 ### Slice-level test counts, and which tree each came from
 
-⚠️ **This is the one figure still owed.** Three readings exist and they are **not**
+✅ **Taken.** Three readings exist and they are **not**
 interchangeable:
 
 | Reading | Tree | `:api:test` | `:seed:test` |
 | --- | --- | --- | --- |
 | baseline | base `99d558b`, before any commit of mine | 125 tests / 48 classes | 15 / 5 |
 | mid-slice | after the instruments, **before** `ae2b2da` and `022675b` | 138 tests / 53 classes, **2 failures** | 15 / 5 |
-| **final tree** | `4bfa268` | **PENDING — a full run is owed** | **PENDING** |
+| **final tree** | `d9b7cb3` | **139 tests / 53 classes, 1 failure** | **15 / 5, 0 failures** |
+
+⚠️ **The final-tree reading was taken after a host WSL2 VM restart at 18:38:24 KST**, on a
+roughly fifteen-minute-old VM with a cold page cache and a cold Docker daemon. It is a **count**,
+so the condition does not affect it — but the condition is stated rather than implied.
+⛔ **That run's wall time (17m10s) is not a measurement of anything and is not compared with the
+earlier 20m01s**, which was taken under contention on a warm VM. Two conditions, refused.
+
+#### The one failure on the final tree is a shipped test, and it is a finding
+
+⛔ **It is not `ConnectionHoldingGateTest` and not `QueryCountTest` — both passed** (2/0 and 4/0),
+which is worth recording because those are the two the change most obviously threatened and the
+two my package filter had missed.
+
+**`AttemptRecordingServiceTest.what this test can see after a failed recording, and why that is
+not the property`** — `expected: <0.000> but was: <null>`.
+
+⭐ **That test predicted this in its own KDoc**, which reads: *"A test that shares a transaction
+with the code under test does not merely fail to observe that code's boundaries — **it can report
+their consequences backwards**."* The class is `@Transactional`, so it reads from inside the
+caller's transaction. Under `REQUIRED` the recorder **joined** it and the `on conflict do nothing`
+row was visible. Under `REQUIRES_NEW` the recorder owns a transaction that **rolls back**, so the
+row never becomes visible to this reader.
+
+⛔ **The domain property is intact and this was checked rather than assumed.**
+`AttemptRecordingAtomicityTest` — which reads from **outside** the transaction and is the test that
+actually holds the property — **passes**, as do `PartialBatchTest`, `PartialBatchGateTest`,
+`RecordingContentionTest`, `ScoreBandGateTest` and `RecordingContentionGateTest`. **Nothing about
+what is stored changed. What changed is what an in-transaction observer can see.**
+
+⭐ **And this `null` is the third distinct cause of the same value:**
+
+| when | value | because |
+| --- | --- | --- |
+| pre-`R12` | `null` | the read-modify-write arm never wrote a row at all |
+| `R12` → `022675b` | `0.000` | the row was written and visible inside the **shared** transaction |
+| now | `null` | the row was written in a transaction that then **rolled back** |
+
+**Same literal, three mechanisms, and the test cannot tell them apart** — `R12`'s thesis arriving a
+second time, from a change `R12` never contemplated.
 
 ⭐ **The baseline is corroborated, not merely remembered.** The orchestrator counted 48 / 125 / 0
 from the same XML independently before it was overwritten. The `:seed:test` XML survives on disk.

@@ -254,6 +254,33 @@ E.
   | of those naming `16.14` **with** a digest in the entry | **8** |
   | of those naming `16.14` **with no digest at all** | **18** |
 
+  ⛔ **The middle two rows above are unit-dependent and the table as first written implied they
+  were not. Corrected here rather than left standing.** Three careful counts — mine, the
+  orchestration session's, and a third — produced **three different totals**, because each of us
+  chose a different unit and a different scope and none of us published one:
+
+  | scope / unit | total | with digest | without |
+  | --- | --- | --- | --- |
+  | `docs/` + `README.md`, first `PostgreSQL:` line only, 3-line window | 23 | 6 | **17** |
+  | `git ls-files` docs globs, whole entry *(mine)* | 26 | 8 | **18** |
+  | `git ls-files '*.md'` repo-wide, whole fenced block | 25 | 7 | **18** |
+
+  ⭐ **The total is not a fact about the tree. It moves with the unit.** What is stable is the
+  half that matters: **18 blocks name `16.14` with no digest at all**, in two of three methods,
+  and `measurement-discipline.md`'s *"eight"* lands on the **with-digest** subset under every
+  one of them (6, 7, 8). So the mechanism is confirmed independently of whose count is used.
+
+  **The finding to carry forward is therefore a number plus its unit, and never the number
+  alone.** Any report quoting a total must state the scope and the unit beside it, or it is not
+  reproducible — and the reason all three of us diverged is that `measurement-discipline.md`
+  imposes no such requirement, **which is also why its own count was wrong.** That gap is F's,
+  and it is a change to a file I am forbidden to touch.
+
+  The first count's blind spot is worth recording because it is the same shape as the defect it
+  was reporting: it matched only the **first** `PostgreSQL:` line, and `R9` carries `16.14` on
+  the **second** line of its entry — so `R9` was invisible to the instrument built to find
+  exactly `R9`.
+
   The eighteen: `ADR-003`, `R5`, **`R6`**, `R7`, `R8`, **`R9`**, `R10`, `R11`, `R12`, `R13`,
   `R14`, `R15`, `R16`, `R18`, `R20`, `R21`, `R22`, `_ROUND2-A-HANDOFF`.
 
@@ -277,10 +304,8 @@ E.
      name the string only inside a sentence saying `measurement-discipline.md`'s value **must
      not be copied**. Their own pins are `cf78e766…`.
 
-  I have not verified the orchestration session's own figures against mine and they differ
-  slightly — it reported 17 without a digest and I count 18, the difference being `R9`. **My
-  number is the one I ran; theirs is the one I was told.** F should re-derive rather than
-  inherit either.
+  **F must re-derive rather than inherit any of the three, and must publish the unit beside
+  whatever number it arrives at.**
 - **I have not merged, rebased or pushed.** The branch sits where it was created.
 
 ---
@@ -360,6 +385,12 @@ is marked half done rather than ticked**, which is the distinction this ledger e
 
 ⚠ **The `README.md` row above quotes no duration and that is deliberate**, not an omission to
 be filled in later from a similar run.
+
+⚠ **One change belongs in `docs/explanation/measurement-discipline.md` and it is not mine to
+make.** Beyond the two false claims at lines 92-103 (§6), that file requires an environment
+block for every number and **does not require a count to publish the unit it counted**. Three
+sessions counting the same property of the same tree got three totals for exactly that reason.
+This is the rule whose absence produced the error the file itself contains.
 
 ⚠ **`ADR-014`'s entry `6.6` must be marked half done, not closed.** §7 says exactly what was
 and was not measured.

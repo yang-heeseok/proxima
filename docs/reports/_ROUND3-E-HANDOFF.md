@@ -19,7 +19,7 @@ Branch `round3/layers`, worktree `../proxima-e`, base **`77022a5`**.
 | **E1** — three remedies at three layers, one instance then two | `PENDING` — instrument and tests committed, **not yet run** |
 | **E2** — a singleton bean holding mutable state | `PENDING` — instrument and tests committed, **not yet run** |
 | **E3** — memory visibility, a flag one thread may never see | `PENDING` — instrument and tests committed, **not yet run** |
-| **E4** — deadlock, two rows locked in opposite order | **`REPRODUCED`** |
+| **E4** — deadlock, two rows locked in opposite order | **`REPRODUCED`** — red and green both taken |
 | **E5** — nested transactions, `REQUIRES_NEW` against `NESTED` | `PENDING` — instrument and tests committed, **not yet run** |
 
 ⛔ `PENDING` is not one of the four verdicts §5 permits, and it is used deliberately rather
@@ -57,7 +57,7 @@ uses them.
 | E1 | `R34` | not written yet |
 | E2 | `R35` | not written yet |
 | E3 | `R36` | not written yet |
-| E4 | **`R37`** | **written**, red half complete, §6 `미측정` |
+| E4 | **`R37`** | **written and green.** §6 carries all three arms |
 | E5 | `R38` | not written yet |
 | — | **`ADR-019`** | **written, `Proposed` not `Accepted`** — *a lock order is a convention, nothing can be made to keep it, and no guard is written for a caller that does not exist*. `395ea38` |
 
@@ -65,7 +65,7 @@ uses them.
 
 | Trap | Red SHA | Green SHA | What flipped |
 | --- | --- | --- | --- |
-| **E4** | **`a108715`** | *(none yet)* | The opposed pair, asserted to complete, does not: `pairs=10 casualties=10 bothDied=0`, `40P01` ten times. The green arm — `lockInAscendingIdOrder` plus a retry-outside arm — has **not run** |
+| **E4** | **`a108715`** | **`5501f32`** | Red: the opposed pair, asserted to complete, does not — `casualties=10 bothDied=0 bothBetweenLocks=10`, `40P01` ten times. Green: ascending order gives `casualties=0` **and `bothBetweenLocks=0`** — the interleaving is removed, not survived; retry-outside gives `casualties=0` with `retries=10 over 10 pairs`. `4 tests, 0 failures` |
 | **E1** | **`3b90db2`** | *(none yet)* | Instrument at `853cc3d`; test asserts the naive belief at one and at two instances. **Not yet run**, so `3b90db2` is a *state* and not yet an observed red |
 | **E2** | **`5d1554d`** | *(none yet)* | Instrument at `b6f4097`. **Not yet run** |
 | **E3** | **`ba52381`** | *(none yet)* | Instrument at `fe846bd`. **Not yet run** |
@@ -316,21 +316,24 @@ E.
 
 | Id | Claim | Status |
 | --- | --- | --- |
-| **`6.6`** | *"one row, one column, one increment; no lock ordering, no deadlocks"* — class **a**, 120 min, importance **M** | ⚠ **PARTLY CLOSED, not closed.** |
+| **`6.6`** | *"one row, one column, one increment; no lock ordering, no deadlocks"* — class **a**, 120 min, importance **M** | ⭐ **CLOSED.** |
 
-⛔ **Not closed by argument, and here is exactly what was and was not measured.** The entry has
-two halves and I have measured one of them.
+⛔ **Closed by measurement, not by argument — and I called it wrong once on the way.** An
+earlier revision of this handoff marked `6.6` *partly closed* because the remedy had not run.
+That was right when written and is no longer. The entry names two things `R6` measured nothing
+about, and both are now measured in one invocation:
 
-- **Deadlocks: measured.** `R37` §3 — 10 opposed pairs, 10 deadlocks, `40P01`, one casualty
-  each, `bothDied=0`, with the four governing `pg_settings` read off the server. The red half
-  is complete and committed at `a108715`.
-- **Lock ordering: NOT yet measured.** The remedy `lockInAscendingIdOrder` exists in the tree
-  and **has never been run.** `R37` §6 is `미측정` and the report has no green commit.
+| the entry's two halves | evidence |
+| --- | --- |
+| **deadlocks** | `R37` §3 — 10 opposed pairs, 10 deadlocks, `40P01`, one casualty each, `bothDied=0`, with `deadlock_timeout`, `lock_timeout`, `statement_timeout`, `log_lock_waits` and `max_locks_per_transaction` all read off the running server |
+| **lock ordering** | `R37` §3.4 — ascending order gives `casualties=0` **and `bothBetweenLocks=0`**: the ordered pair cannot interleave at all. Plus the retry fallback at `retries=10 over 10 pairs`, one per pair |
 
-So `6.6` moves from *not done* to *half done*, and **the integrator must not tick it in
-`ADR-014` yet.** When the ordered-lock arm and the retry-outside arm have run and `R37` goes
-green, it closes — both arms are counts, so neither needs the timing lock, and this is
-expected to complete inside this slice.
+Red `a108715`, green `5501f32`, `4 tests, 0 failures, 0 errors, 0 skipped`.
+
+**What closing it does not mean.** It does not mean multi-row locking is understood here. It
+means the specific gap `R6` §8 named is measured. Seven **new** entries replace it below, which
+is the ledger working rather than a hedge — a closed entry that spawns successors has been paid
+for, and one that spawns none usually was not really closed.
 
 ### Entries to **add** to `ADR-014`'s ledger
 
@@ -365,22 +368,24 @@ to place there. **Only `R37`'s rows are ready.** The rest follow when their repo
 ### `docs/roadmap.md` — *After the traps* table
 
 ```markdown
-| **R37** | **Two rows, and an order nobody agreed on.** `R6` §8 closed with *"one row, one column, one increment. Multi-row transactions introduce lock ordering and deadlocks, which this measured nothing about"*, and `ADR-014` priced that sentence as ledger entry `6.6` | **red half done** — `R37`, red `a108715`, **no green commit yet**. Two transactions taking the same two rows in opposite order deadlock **10 pairs out of 10**, `SQLSTATE 40P01`, with **exactly one casualty per pair and `bothDied=0`** — the server detects the cycle and kills the minimum rather than letting both hang. `deadlock_timeout` is **`1000ms` at `source=default` and is not a timeout that kills**: it is when a backend stops waiting and runs the cycle check. `lock_timeout` and `statement_timeout` are both `0`, so **had the detector not run, nothing on this server would ever have ended the wait**, and `log_lock_waits=off` means the server logs nothing about the waiting either. The loser receives `PessimisticLockingFailureException` — not `DeadlockLoserDataAccessException` — which extends `TransientDataAccessException`, so the framework types it retryable before any application code decides. **The remedy is an application convention the database cannot enforce**: the sorted call and the unsorted one are the same two statements against the same two rows, and unlike `V3`'s uniqueness rule there is nowhere to move it to. **And the detector is not a substitute** — it killed one side ten times without anyone ordering anything, which converts a hang into a failure and prevents no cycle |
+| **R37** | **Two rows, and an order nobody agreed on.** `R6` §8 closed with *"one row, one column, one increment. Multi-row transactions introduce lock ordering and deadlocks, which this measured nothing about"*, and `ADR-014` priced that sentence as ledger entry `6.6` | **done** — `R37`, red `a108715` / green `5501f32`. Two transactions taking the same two rows in opposite order deadlock **10 pairs out of 10**, `SQLSTATE 40P01`, with **exactly one casualty per pair and `bothDied=0`** — the server detects the cycle and kills the minimum rather than letting both hang. `deadlock_timeout` is **`1000ms` at `source=default` and is not a timeout that kills**: it is when a backend stops waiting and runs the cycle check. `lock_timeout` and `statement_timeout` are both `0`, so **had the detector not run, nothing on this server would ever have ended the wait**, and `log_lock_waits=off` means the server logs nothing about the waiting either. The loser receives `PessimisticLockingFailureException` — not `DeadlockLoserDataAccessException` — which extends `TransientDataAccessException`, so the framework types it retryable before any application code decides. **The remedy is an application convention the database cannot enforce**: the sorted call and the unsorted one are the same two statements against the same two rows, and unlike `V3`'s uniqueness rule there is nowhere to move it to. **And the detector is not a substitute** — it killed one side ten times without anyone ordering anything, which converts a hang into a failure and prevents no cycle. ⭐ **The green arm's headline is a count nobody would have thought to take**: under ascending order `bothBetweenLocks` goes **10 → 0**, because the two sides *cannot* both sit between their locks once they queue on the same first row — **the order removes the race rather than surviving it**, and `casualties=0` alone could not have told those apart. The retry fallback recovers **10 of 10, one retry each** |
 ```
 
 ### `README.md` — Results table
 
 ```markdown
-| Two transactions, two rows, opposite lock order — *2026-08-22* | **10 of 10 pairs deadlock, `40P01`, one casualty each** — and `lock_timeout` and `statement_timeout` are both `0`, so nothing but the detector would have ended the wait | **미측정 — no green commit yet.** The remedy is a lock order, which is **a convention the database cannot enforce** | [`R37`](docs/reports/R37-two-rows-and-an-order-nobody-agreed-on.md) |
+| Two transactions, two rows, opposite lock order — *2026-08-22* | **10 of 10 pairs deadlock, `40P01`, one casualty each** — and `lock_timeout` and `statement_timeout` are both `0`, so nothing but the detector would have ended the wait | **0 of 10, with `bothBetweenLocks` 10 → 0** — an imposed lock order removes the interleaving rather than surviving it. The remedy is **a convention the database cannot enforce** | [`R37`](docs/reports/R37-two-rows-and-an-order-nobody-agreed-on.md) |
 ```
 
 ### `R0` — the scorecard
 
 ```markdown
-`R37` took `ADR-014` ledger entry `6.6` — *"no lock ordering, no deadlocks"* — and **half of
-it closes.** Deadlocks are measured: 10 pairs, 10 detections, one casualty each. Lock ordering
-is not: the remedy is committed and has never been run, and `R37` §6 is `미측정`. **The entry
-is marked half done rather than ticked**, which is the distinction this ledger exists to make.
+`R37` closes `ADR-014` ledger entry `6.6` — *"no lock ordering, no deadlocks"* — **by measuring
+both halves, in one invocation.** Deadlocks: 10 pairs, 10 detections, `40P01`, one casualty
+each, `bothDied=0`. Lock ordering: `casualties=0` under ascending order, and `bothBetweenLocks`
+**10 → 0**, which is the stronger claim — the ordered pair cannot interleave at all, so the
+remedy removes the race instead of surviving it. Seven new entries replace it, which is what a
+closure that was really paid for looks like.
 ```
 
 ⚠ **The `README.md` row above quotes no duration and that is deliberate**, not an omission to
@@ -392,8 +397,10 @@ block for every number and **does not require a count to publish the unit it cou
 sessions counting the same property of the same tree got three totals for exactly that reason.
 This is the rule whose absence produced the error the file itself contains.
 
-⚠ **`ADR-014`'s entry `6.6` must be marked half done, not closed.** §7 says exactly what was
-and was not measured.
+⭐ **`ADR-014`'s entry `6.6` is CLOSED and may be ticked.** §7 gives the evidence for each of
+its two halves. Note that an earlier revision of this handoff said *half done*; that was true
+until `5501f32` and is not now. **Add entries `37.1`–`37.8` in the same edit** — closing `6.6`
+without them would understate what is still open.
 
 ---
 

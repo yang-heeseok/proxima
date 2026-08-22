@@ -2,10 +2,11 @@
 
 > **Created**: 2026-08-22
 > **Updated**: 2026-08-22
-> **Status**: **Proposed.** ⚠ Half of its premise is measured and half is not — see *What is
-> still missing* at the end. It does not become Accepted until `R37` has a green commit.
+> **Status**: **Accepted.** Both halves of its premise are now measured — `R37` green,
+> `5501f32`.
 > **Answers**: `R37` §8's one bullet that needs a judgement rather than work.
-> **Closes**: nothing yet.
+> **Closes**: nothing on its own. `R37` closes `ADR-014` ledger entry `6.6`; this ADR is the
+> judgement that entry's closure exposed.
 
 ## Context
 
@@ -16,6 +17,11 @@ The remedy is not in doubt and is three lines long. Take the lower identifier fi
 two callers that both sort cannot form a cycle, because a cycle needs one holder waiting on a
 lower id while another waits on a higher one, and neither ever asks in that direction.
 `RowLocker.lockInAscendingIdOrder` is that method.
+
+**Measured, not assumed**: under the ordered arm, 10 pairs produced **0 casualties**, and the
+count that matters is `bothBetweenLocks` going **10 → 0** — the two sides could not both be
+between their locks at all, because the second is queued on the first row. `R37` §3.4.
+The remedy does not survive the race; it removes it.
 
 **The difficulty is that nothing can make anyone call it.**
 
@@ -58,6 +64,7 @@ enforce it, or does it record the gap and stop?**
 | Option | What it would catch | What it would not | |
 | --- | --- | --- | --- |
 | **A.** Nothing beyond the method, its KDoc and `R37` | — | everything | **✔** |
+| **A′.** As A, plus the retry arm as the fallback when order cannot be imposed | recovers a cycle that formed: **10 of 10, one retry each** | prevents nothing; pays a round trip per casualty | noted |
 | **B.** An ArchUnit rule: only `lockInAscendingIdOrder` may call `lockInGivenOrder` | a second caller inside `RowLocker`'s own shape | any code that writes `for update` itself, which is the realistic way this arrives | |
 | **C.** Make the unordered method non-public | the same subset as B | the same as B, and it would have to stay reachable for `DeadlockTest`'s red arm, which is the whole gate | |
 | **D.** Forbid multi-row locking entirely; require one statement | the class of defect, genuinely | it forbids work this domain may legitimately need, and no such work exists yet to weigh it against | |
@@ -112,16 +119,27 @@ any of these becomes true:
    detector is what ends the wait. `R37` §8 and `ADR-014` `37.3` carry this as importance
    **H**, and it changes which failure a caller sees.
 
+## What was still missing when this was Proposed, and what closed it
+
+This ADR was filed `Proposed` on the ground that half its premise was unmeasured: `R37` had
+shown the **unsorted** pair deadlocks ten times out of ten and had **not** shown that the
+sorted one does not. Deciding that a convention is the remedy before the remedy had been
+observed to work would have been the same error `6.6` is being closed out of — a conclusion
+reached by argument where a measurement was available.
+
+`5501f32` took both arms. `casualties=0` and `bothBetweenLocks=0` under ascending order;
+`retries=10 over 10 pairs` under the retry arm, every loser recovering on its second attempt.
+**The decision above is unchanged by the measurement**, which is worth stating plainly: the
+numbers did not rescue a decision made without them, they were taken first and the decision
+was withheld until they existed.
+
 ## What is still missing
 
-⚠ **This ADR is `Proposed` and not `Accepted`, because half its premise is unmeasured.**
-
-`R37` measured that the **unsorted** pair deadlocks, ten times out of ten. It has **not** yet
-measured that the sorted one does not — `lockInAscendingIdOrder` is committed and has never
-been run, and `R37` §6 is `미측정` with no green commit behind it.
-
-Deciding that a convention is the remedy, before the remedy has been observed to work, would
-be the same error `ADR-014` `6.6` is being closed out of: **a conclusion reached by argument
-where a measurement was available.** Both remaining arms — the ordered pair and a
-retry-outside pair — are counts, so neither needs the measurement lock, and this ADR is
-expected to reach `Accepted` inside slice E rather than being carried.
+- **The ordered arm's control lives in a sibling arm.** `R37` §3.4: `bothBetweenLocks=0` cannot
+  by itself distinguish *the order worked* from *the harness stopped racing*. Only the retry
+  arm reporting `10` in the same invocation separates them. **Run the arms separately and this
+  ADR's evidence quietly becomes vacuous.**
+- **Ten pairs, one invocation, one machine.** Run-to-run stability is `미측정`.
+- **The retry fallback is measured at one opposed pair at a time.** Whether its recovery rate
+  holds when more than two transactions cycle is `미측정`, and `R6` §5's *"pessimistic wins when
+  contention is high"* is the neighbouring claim nothing here tests.

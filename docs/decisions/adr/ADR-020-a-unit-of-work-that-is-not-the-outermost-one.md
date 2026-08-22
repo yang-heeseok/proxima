@@ -100,18 +100,35 @@ also means the shipped configuration will not exercise the new arm, so the pool 
 different thing and decays the moment a transactional caller appears. `40.1` is what stops that
 from being discovered under load.
 
-## Both arms stay in the binary
+## This one does NOT get a configuration arm, and that is a departure worth justifying
 
-`R4` §2's argument, and the pattern `proxima.recording.batch`,
-`proxima.recording.mastery-update`, `proxima.security.authorisation` and
-`proxima.security.expiry-policy` already follow: the rejected arm stays runnable so that the red
-state is reproducible from the shipped artefact rather than only from a commit.
+Four properties in this repository keep their rejected arm runnable in the shipped binary —
+`proxima.recording.batch`, `proxima.recording.mastery-update`, `proxima.security.authorisation`,
+`proxima.security.expiry-policy` — each citing `R4` §2. **A fifth was drafted here and then
+dropped.** The reasons, in order:
 
-    proxima.recording.propagation
-      required       the caller's transaction is joined. `red` -- R40's measured loss
-      requires-new   one recording is one unit of work whatever the caller is doing
+1. **`R4` §2's argument is about comparison under load.** Those four arms exist because someone
+   needs to *run both* and measure the difference — throughput, rejection rates, latency. There
+   is nothing to compare here. The two arms differ in whether a defect occurs, and the answer is
+   a row count that is either right or wrong. A binary correctness property does not need to stay
+   dialable.
+2. **The red state is already preserved, by the red commit.** `§0` rule 5 requires red and green
+   as separate commits precisely so that the red state stays reachable. `94fe9ee` is it.
+   A configuration arm would be a *second* mechanism for the same guarantee.
+3. **It would cost a container.** `PartialBatchTest` reaches its arm with
+   `@SpringBootTest(properties = [...])`, which is a distinct Spring context and therefore a
+   distinct `PostgreSQLContainer` — this module already starts about ten. Adding one to preserve
+   a state a `git checkout` already preserves is a real cost paid for a duplicate guarantee, on a
+   machine that is shared.
 
-PENDING — which value ships as the default.
+⭐ **Recorded as a departure rather than done quietly.** Four properties set a precedent and this
+declines to follow it; an integrator who notices the asymmetry should find the reason here rather
+than conclude it was an oversight.
+
+So the change is to the propagation itself, and `record` keeps its name and signature. The
+methods that call it directly — `RecordingContentionTest`, `ScoreBandGateTest`,
+`RecordingContentionGateTest` — are unaffected, because none of them holds a transaction and
+`REQUIRES_NEW` is indistinguishable from `REQUIRED` when there is none.
 
 ## Consequences
 

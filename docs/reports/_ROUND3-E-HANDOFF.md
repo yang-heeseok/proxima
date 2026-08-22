@@ -7,8 +7,9 @@
 Branch `round3/layers`, worktree `../proxima-e`, base **`77022a5`**.
 
 > ⚠ **THIS FILE IS IN PROGRESS.** Slices D and G hold the machine; the measurement lock is
-> D's. Everything below that is marked `PENDING` has had **no run**, and no verdict is
-> claimed for it. Written as I go, per §5.
+> D's. **All five traps have now run at least once.** The one thing still outstanding is E1's
+> cost comparison, which is a duration sweep and needs an exclusive machine. Written as I go,
+> per §5.
 
 ---
 
@@ -16,16 +17,32 @@ Branch `round3/layers`, worktree `../proxima-e`, base **`77022a5`**.
 
 | Trap | Verdict |
 | --- | --- |
-| **E1** — three remedies at three layers, one instance then two | `PENDING` — instrument and tests committed, **not yet run** |
+| **E1** — three remedies at three layers, one instance then two | **`REPRODUCED`** — correctness measured; ⛔ **the cost comparison is `미측정` and needs the exclusive lock** |
 | **E2** — a singleton bean holding mutable state | **`REPRODUCED`** — two of its three sub-arms; the third is `NOT-REPRODUCED` and §4 names it |
 | **E3** — memory visibility, a flag one thread may never see | **`REPRODUCED`** — 0 of 6 trials observed the write, across two invocations |
 | **E4** — deadlock, two rows locked in opposite order | **`REPRODUCED`** — red and green both taken |
-| **E5** — nested transactions, `REQUIRES_NEW` against `NESTED` | `PENDING` — instrument and tests committed, **not yet run** |
+| **E5** — nested transactions, `REQUIRES_NEW` against `NESTED` | **`BLOCKED-BY-FRAMEWORK`** as shipped — `NESTED` is refused outright, and measured anyway in a second context that enables it |
 
-⛔ `PENDING` is not one of the four verdicts §5 permits, and it is used deliberately rather
-than picking one of them early. **Four of these five traps have no run behind them**, and
-writing `REPRODUCED` or `NOT-REPRODUCED` against a test that has never executed is exactly the
-failure this repository's §5 exists to prevent. They become real verdicts or they do not.
+**On E5's verdict.** `BLOCKED-BY-FRAMEWORK` is chosen over `NOT-REPRODUCED` because the trap
+did not fail to appear — **it could not be attempted.** `JpaTransactionManager` refuses
+`PROPAGATION_NESTED` before any transaction exists:
+
+```
+org.springframework.transaction.NestedTransactionNotSupportedException:
+Transaction manager does not allow nested transactions by default -
+specify 'nestedTransactionAllowed' property with value 'true'
+```
+
+⭐ **And that refusal produced a test that passed while measuring nothing** — see §3. The trap
+is then measured properly in a second application context that sets the switch the exception
+message itself names, so `R38` carries both *what this application does* and *what the
+alternative would have done*.
+
+**An earlier revision of this section used a `PENDING` marker** for traps that had not run,
+which is not one of the four verdicts §5 permits. That was deliberate at the time — writing
+`REPRODUCED` against a test that has never executed is the failure §5 exists to prevent — and
+it is recorded here rather than erased, because the reason it was needed is worth more than the
+tidiness of never having needed it.
 
 ---
 

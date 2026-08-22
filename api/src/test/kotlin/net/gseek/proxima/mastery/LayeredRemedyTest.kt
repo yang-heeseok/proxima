@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.PlatformTransactionManager
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * `E1` — one defect, three layers, and the number of instances as the variable.
@@ -155,16 +156,40 @@ class LayeredRemedyTest {
      * §1's sentence arriving one layer up.
      */
     @Test
-    fun `on TWO instances all three remedies keep every increment`() {
+    fun `on TWO instances only the database remedy survives, and nothing reports it`() {
         val sync = race("(1) synchronized", freshMastery("f"), 2) { c, id -> c.incrementBySynchronized(id) }
         val cas = race("(2) CAS write-through", freshMastery("g"), 2) { c, id -> c.incrementByCas(id) }
         val behind = race("(2) CAS write-behind", freshMastery("h"), 2, flushAtEnd = true) { c, _ -> c.incrementInMemoryOnly() }
         val db = race("(3) database", freshMastery("i"), 2) { c, id -> c.incrementByDatabase(id) }
 
-        assertEquals(0, sync.failures + cas.failures + behind.failures + db.failures, "nothing failed -- that is the point")
-        assertEquals(expected, sync.row, "(1) a monitor still excludes every writer")
-        assertEquals(expected, cas.row, "(2) an atomic is still atomic")
-        assertEquals(expected, behind.row, "(2) the counter is still exact in memory")
-        assertEquals(expected, db.row, "(3) the row is still the scope")
+        assertEquals(
+            0, sync.failures + cas.failures + behind.failures + db.failures,
+            "NOTHING FAILED. No exception, no rejection, no constraint, no log line -- that is " +
+                "the entire point, and it is why the only way to know is to have counted",
+        )
+
+        assertEquals(expected, db.row, "(3) the row is the scope, and every instance shares the row")
+
+        assertTrue(sync.row < expected, "(1) a monitor excludes threads in ONE JVM; got ${sync.row}")
+        assertTrue(cas.row < expected, "(2) each instance has its own atomic; got ${cas.row}")
+        assertTrue(behind.row < expected, "(2) each instance flushes its own total; got ${behind.row}")
+
+        // The sharpest form of the defect, and the reason (2) is worse than (1) rather than
+        // merely equal to it: every instance's in-memory counter is EXACTLY RIGHT about its own
+        // work, the totals add to exactly 1,000, and the row holds half. Each process is
+        // internally consistent and confidently wrong, which is the state that survives a
+        // debugging session.
+        assertEquals(
+            expected, cas.inMemory.sum(),
+            "(2) the instances between them counted every increment: ${cas.inMemory}",
+        )
+        assertEquals(
+            expected, behind.inMemory.sum(),
+            "(2) same for the write-behind arm: ${behind.inMemory}",
+        )
+        assertTrue(
+            cas.inMemory.all { it < expected },
+            "(2) and no single instance knows the total -- each would answer with its own half",
+        )
     }
 }

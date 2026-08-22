@@ -56,18 +56,28 @@ class NestedCounter(
         throw IllegalStateException("the outer unit of work failed after the inner savepoint")
     }
 
-    /** The outer succeeds; the inner fails and is caught. Which caller is still usable? */
+    /**
+     * The outer succeeds; the inner fails and is caught. Which caller is still usable?
+     *
+     * ⭐ **Returns the class of whatever the inner call threw, and that return value is not a
+     * convenience.** The row afterwards is `100` whether the inner unit of work ran and rolled
+     * back, or never started at all — so a test asserting only the row **passes for the wrong
+     * reason** when the propagation is refused outright. Measured, not supposed: that is
+     * exactly what happened at `98cbe2e`, and `R38` §3.2 is the record of it.
+     */
     @Transactional
-    fun outerSurvivesFailedRequiresNew(id: Long) {
-        runCatching { inner.incrementThenFailRequiresNew(id) }
+    fun outerSurvivesFailedRequiresNew(id: Long): String? {
+        val failure = runCatching { inner.incrementThenFailRequiresNew(id) }.exceptionOrNull()
         jdbc.update("update mastery set attempts_count = attempts_count + 100 where id = ?", id)
+        return failure?.let { it::class.java.name }
     }
 
-    /** The same shape over a savepoint. */
+    /** The same shape over a savepoint. See the note above on why this reports the failure. */
     @Transactional
-    fun outerSurvivesFailedNested(id: Long) {
-        runCatching { inner.incrementThenFailNested(id) }
+    fun outerSurvivesFailedNested(id: Long): String? {
+        val failure = runCatching { inner.incrementThenFailNested(id) }.exceptionOrNull()
         jdbc.update("update mastery set attempts_count = attempts_count + 100 where id = ?", id)
+        return failure?.let { it::class.java.name }
     }
 
     /** Counts the pool slots held while the inner call is open, under `REQUIRES_NEW`. */

@@ -169,6 +169,46 @@ catch.
 
 **So both of this report's failure modes are silent.** The one that had a name did not happen.
 
+### 3.4 ⭐ And does any bean this application actually ships do this?
+
+**No. Measured, by reflection over the running context, not by grep.**
+
+```
+E2 >>> shipped-bean sweep   beans=19 fields=39 findings=0
+```
+
+`ShippedBeanStateTest` enumerates every bean definition in the started `ApplicationContext`,
+resolves each through `AopProxyUtils.ultimateTargetClass` so a proxy cannot hide the class that
+declares the state, walks the superclass chain, and flags a field if it is **either** non-`final`
+**or** a `final` reference to a container type — arrays, `Collection`, `Map`, and the atomics.
+
+| | |
+| --- | --- |
+| beans examined (`net.gseek.proxima`, excluding this slice's own instruments) | **19** |
+| declared instance fields examined | **39** |
+| **findings** | **0** |
+
+**Why reflection and not a text search**, since the text search is the obvious tool: `var` in
+source is not the population. A grep cannot see inherited fields, `lateinit`, delegated
+properties, anything Kotlin lowers into a backing field, or — the case that matters most for
+this report — **a `val` holding a `MutableList`**, which is a final reference to a mutable
+object and is exactly as shared as a `var`. Nor can it see through an AOP proxy.
+
+**The sweep asserts that it looked**, before it asserts what it found: at least 5 beans and at
+least 5 fields, or the test fails. A sweep that examined zero beans would report zero findings
+and mean nothing, which is `ADR-015`'s vacuous pass with a different subject.
+
+⭐ **A clean negative is a result here, and `R5` is the precedent** — *the defect the framework
+already fixed*. It changes what this whole report is entitled to say. Not *"proxima has a
+concurrency defect"*, and not merely *"this can happen in Spring"*, but the narrower and more
+useful:
+
+> **The class of defect is reachable in this stack, no shipped bean in this repository is in
+> it, and the reason is not that anyone guarded against it.**
+
+That last clause is §8's problem, not §3's: nothing enforces this, and the sweep is now the
+thing that would notice.
+
 ## 4. 원인 / Mechanism
 
 Two different mechanisms produce §3.1 and §3.2, and conflating them is what makes *"use a
@@ -260,11 +300,20 @@ Four arms, and three of them are characterisation assertions on a defect — the
   short of entry loss occurred here is `미측정` — nothing inspected the table.
 - **Eight threads and 2,000 keys are chosen numbers.** No sweep was run. `R6` §8 carries the
   identical item about its own chosen retry count.
-- **There is no production caller.** This proves the class of defect is reachable in a Spring
-  bean here; it does **not** prove any bean in this application holds mutable state. **A sweep
-  of the application's own beans for mutable fields was not run and is `미측정`** — and it is
-  the measurement that would turn this report from a demonstration into a finding about
-  `proxima`. It is the cheapest valuable thing left in `E2`.
+- **The sweep is a snapshot and nothing keeps it true.** §3.4 found `0` of 39 fields across 19
+  beans, and `ShippedBeanStateTest` will keep finding it — **but a bean that is never
+  instantiated in the test context is a bean the sweep never sees.** It enumerates
+  `beanDefinitionNames` from a context started by `@SpringBootTest`; anything conditional on a
+  profile, a property, or a runtime environment this test does not create is outside the
+  population. **How much of the shipped bean graph the test context actually instantiates is
+  `미측정`.**
+- **The container filter is deliberately over-broad and was never exercised against a positive.**
+  It flags any `Collection`, `Map`, array or atomic. Nothing in this run tripped it, so **the
+  instrument has never been watched refusing anything** — `R0` §4 keeps a count of exactly that
+  shape. A planted violation would fix it and was not written.
+- **`0 findings` says nothing about mutable state held anywhere other than a field.** A bean
+  reaching a `ThreadLocal`, a companion object, a top-level `object`, a static, or an external
+  cache is invisible to this sweep by construction. `미측정`.
 - **`ADR-005` is untouched and this report must not be read as pressure on it.** If anything it
   strengthens it: the no-cache decision removes the most likely place this shape would have
   appeared.

@@ -86,8 +86,13 @@ ba52381  test(mastery): E3 -- the visibility trap, built as a pair so a null res
 98cbe2e  test(mastery): E5 -- REQUIRES_NEW against NESTED, and this is the small one
 ```
 
-⚠ **`3b90db2`, `5d1554d`, `ba52381` and `98cbe2e` have never been compiled or run.** Each
-commit message says so in its own body. They are the states the runs will be taken at.
+⚠ **`3b90db2`, `5d1554d`, `ba52381` and `98cbe2e` have not been run.** Each commit message
+says so in its own body. They are the states the runs will be taken at.
+
+**They now compile.** `:api:compileTestKotlin` — `BUILD SUCCESSFUL`, exit 0, with
+`kaptGenerateStubsTestKotlin`, `kaptTestKotlin` and `compileTestKotlin` all *executed* rather
+than `UP-TO-DATE`, so the four new classes really went through the compiler. **A clean compile
+is not a run and no verdict follows from it.**
 
 ---
 
@@ -234,10 +239,48 @@ E.
   and `ADR-014` `6.5` prices it separately at importance **H**. It is not in this brief and
   `R37` does not close it.
 - **`R6`'s environment block still reads `postgres:16-alpine — server 16.14` with no digest
-  line.** I noticed it while annotating §8 and **did not change it** — correcting identifier
-  lines is `ADR-017`'s work and that ADR states it corrected six of eight deliberately. I am
-  flagging it rather than silently widening my own diff. **The integrator may want to check
-  whether `R6` was one of the eight.**
+  line, and it is one of eighteen.** I noticed it while annotating §8, **did not change it**,
+  and then counted the population myself rather than accepting a relayed number. ⛔ **This is
+  `F`'s to fix, not mine** — correcting identifier lines is `ADR-017`'s work and widening my
+  own diff into eighteen files would be exactly the silent scope creep §6 exists to catch.
+
+  Counted over `git ls-files 'docs/*.md' 'docs/**/*.md' README.md`, taking a *`PostgreSQL`
+  identifier line inside a `측정 환경` block* as the unit and looking for `sha256:` anywhere in
+  that entry:
+
+  | | |
+  | --- | --- |
+  | `PostgreSQL` identifier lines in environment blocks | **32** |
+  | of those naming `16.14` **with** a digest in the entry | **8** |
+  | of those naming `16.14` **with no digest at all** | **18** |
+
+  The eighteen: `ADR-003`, `R5`, **`R6`**, `R7`, `R8`, **`R9`**, `R10`, `R11`, `R12`, `R13`,
+  `R14`, `R15`, `R16`, `R18`, `R20`, `R21`, `R22`, `_ROUND2-A-HANDOFF`.
+
+  **What this contradicts.** `measurement-discipline.md:92-103` says *"every environment block
+  that names 16.14 has the digest on the next line, so none of them was ever wrong about what
+  it ran on"*, and puts the population at **eight**. The population is **26** blocks naming
+  `16.14`, of which **8** carry a digest. The mechanism is worth more than the count: *eight*
+  is exactly the set of blocks that **carry a digest** — the author counted the ones that were
+  disambiguable, called that the population, and concluded the sweep was complete. **The
+  blocks with no digest were invisible to the count meant to find them**, and they are the
+  ones actually at risk, because they name `16.14` against a tag that now resolves to 16.15.
+
+  ⭐ **Two refinements the raw count hides, and F should have both.**
+
+  1. **`R9` is in the eighteen and is the least at risk of them.** Its entry carries the
+     verbatim `select version()` string — `PostgreSQL 16.14 on x86_64-pc-linux-musl, compiled
+     by gcc (Alpine 15.2.0)` — which is a *measured* identifier. It cannot be pinned to an
+     image, but it was never vague about what it ran on. Sweeping it as though it were `R6` would
+     lose that.
+  2. **`R37` and this handoff appear in any naive `16.14` grep and must not be swept.** Both
+     name the string only inside a sentence saying `measurement-discipline.md`'s value **must
+     not be copied**. Their own pins are `cf78e766…`.
+
+  I have not verified the orchestration session's own figures against mine and they differ
+  slightly — it reported 17 without a digest and I count 18, the difference being `R9`. **My
+  number is the one I ran; theirs is the one I was told.** F should re-derive rather than
+  inherit either.
 - **I have not merged, rebased or pushed.** The branch sits where it was created.
 
 ---

@@ -349,15 +349,24 @@ class TieBreakPagingTest {
                     )
                     // 20,000 attempts spread over 20 learners -- ADR-007's threshold, and
                     // enough that a sequential scan is not automatically the cheapest plan.
+                    //
+                    // THE IDS COME FROM TWO ARRAYS AGGREGATED ONCE, not from a correlated
+                    // subquery per row. An earlier draft used `join lateral (... limit 1)`
+                    // twice, which is 40,000 subquery executions to insert 20,000 rows -- a
+                    // measurement fixture that costs more than the thing being measured. It
+                    // also avoids assuming the freshly inserted ids are consecutive, which
+                    // they are only until another test consumes part of the sequence.
                     st.execute(
                         "insert into attempt (learner_id, item_id, correct, elapsed_ms, hint_used, attempted_at) " +
-                            "select l.id, i.id, (g % 3 = 0), 4200, false, " +
-                            "       timestamptz '2026-08-01 00:00:00Z' + (g % 500) * interval '1 minute' " +
+                            "select ls.a[(g % array_length(ls.a, 1)) + 1], " +
+                            "       itm.a[(g % array_length(itm.a, 1)) + 1], " +
+                            "       (g % 3 = 0), 4200, false, " +
+                            "       timestamptz '2026-08-01 00:00:00Z' + ((g % 500) * interval '1 minute') " +
                             "  from generate_series(1, $ATTEMPTS) g " +
-                            "  join lateral (select id from learner where external_ref like 'learner-g3%' " +
-                            "                 order by id offset (g % 20) limit 1) l on true " +
-                            "  join lateral (select id from item where code like 'item-g3%' " +
-                            "                 order by id offset (g % 20) limit 1) i on true",
+                            "  cross join (select array_agg(id order by id) a from learner " +
+                            "               where external_ref like 'learner-g3%') ls " +
+                            "  cross join (select array_agg(id order by id) a from item " +
+                            "               where code like 'item-g3%') itm",
                     )
                     st.execute("analyze attempt")
                 }

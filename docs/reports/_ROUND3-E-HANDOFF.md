@@ -71,11 +71,11 @@ uses them.
 
 | Trap | Report | State |
 | --- | --- | --- |
-| E1 | `R34` | not written yet |
+| E1 | **`R34`** | **written and green.** Correctness only — ⛔ the cost half is `미측정` |
 | E2 | **`R35`** | **written and green.** *A cache in a bean, and the repair that fixes half of it* |
 | E3 | **`R36`** | **written and green.** *A flag one thread wrote and another never saw* |
 | E4 | **`R37`** | **written and green.** §6 carries all three arms |
-| E5 | `R38` | not written yet |
+| E5 | `R38` | **pending the nested-enabled arm's re-run** |
 | — | **`ADR-019`** | **written, `Proposed` not `Accepted`** — *a lock order is a convention, nothing can be made to keep it, and no guard is written for a caller that does not exist*. `395ea38` |
 
 ### The commits
@@ -83,10 +83,10 @@ uses them.
 | Trap | Red SHA | Green SHA | What flipped |
 | --- | --- | --- | --- |
 | **E4** | **`a108715`** | **`5501f32`** | Red: the opposed pair, asserted to complete, does not — `casualties=10 bothDied=0 bothBetweenLocks=10`, `40P01` ten times. Green: ascending order gives `casualties=0` **and `bothBetweenLocks=0`** — the interleaving is removed, not survived; retry-outside gives `casualties=0` with `retries=10 over 10 pairs`. `4 tests, 0 failures` |
-| **E1** | **`3b90db2`** | *(none yet)* | Instrument at `853cc3d`; test asserts the naive belief at one and at two instances. **Not yet run**, so `3b90db2` is a *state* and not yet an observed red |
+| **E1** | **`3b90db2`** | **`35aadbb`** | Red: at 2 instances ① gives **565** and ② gives **500**, both with `failures=0`. Green: ③ pinned at **1,000** at both instance counts, ① and ② pinned strictly below, and the per-instance totals asserted to sum to 1,000 while the row holds half. `2 tests, 0 failures` |
 | **E2** | **`5d1554d`** | **`8e526ec`** | Red: plain `HashMap` keeps **1,939 of 2,000** with `raised=0`, and `get`-then-`put` on a `ConcurrentHashMap` loads **8** times for one key. Green: `computeIfAbsent` loads **1**, and the defect is pinned as characterisation. `5 tests, 0 failures` |
 | **E3** | **`ba52381`** | **`8e526ec`** | Red: the plain flag's write is **never** observed — `0/3`, all three trials running the full 2×10⁹. Green: `@Volatile` observed `3/3`, defect characterised loosely so CI cannot flake it. `1 test, 0 failures` |
-| **E5** | **`98cbe2e`** | *(none yet)* | Instrument at `87df20e`. **Not yet run** |
+| **E5** | **`98cbe2e`** | **`35aadbb`** | Red: `NestedTransactionNotSupportedException`, **and an arm that passed while measuring nothing**. Green: the assertion moved off the row and onto what the inner call threw; `duringNESTED=-1` records the refusal as refusal. `3 tests, 0 failures` |
 
 Full branch, oldest first:
 
@@ -152,6 +152,22 @@ is not a run and no verdict follows from it.**
 | `max_locks_per_transaction` | **`64`**, `source=default` | no — a `pg_settings` row |
 | server version | `PostgreSQL 16.15 on x86_64-pc-linux-musl…` | no — a row value |
 
+**E1 (`R34`), two runs — the right-hand column is the point:**
+
+| remedy | 1 instance | 2 instances | raised | moved between runs? |
+| --- | --- | --- | --- | --- |
+| control — read-modify-write | 126 / 124 | — | 0 | **yes** |
+| ① `synchronized` | 1,000 / 1,000 | **565 / 557** | 0 | **yes** |
+| ② CAS (both forms) | 1,000 / 1,000 | **500 / 500** | 0 | **no** |
+| ③ database | 1,000 / 1,000 | **1,000 / 1,000** | 0 | no |
+
+**E2's shipped-bean sweep (`R35` §3.4):** `beans=19 fields=39 findings=0`. By reflection over
+the running context, not by grep.
+
+**E5 as shipped (`R38`):** `duringREQUIRES_NEW=2`, `duringNESTED=-1` — the `-1` is a refusal
+recorded rather than a connection count, because `NESTED` is refused before a connection is
+taken.
+
 **Green arm, same invocation, same two rows (`5501f32`):**
 
 | arm | pairs | casualties | both died | **both between locks** | retries |
@@ -205,7 +221,7 @@ rule 3 forbids the arithmetic and there is no ratio worth the breach.
 | Report | Title | One line | §8 non-empty? |
 | --- | --- | --- | --- |
 | **`R37`** | Two rows, and an order nobody agreed on | Opposed lock order deadlocks 10 pairs of 10 at `40P01` with **one casualty each and `bothDied=0`**; `deadlock_timeout` is when the server *looks*, not when it kills, and `lock_timeout`/`statement_timeout` are both `0` so nothing else would have ended the wait — and the remedy, a lock order, is **a convention the database cannot enforce**, while the detector that saved every pair **prevents nothing** | **yes** — 11 bullets, including a judgement routed to `ADR-019` and the falsification of `R6` §8 |
-| `R34` | *(E1)* | not written | — |
+| **`R34`** | Two remedies that are correct only while there is one instance | On one instance ①, ② and ③ all keep every increment. On two, ① gives **565/557** and ② gives **500/500** with `failures=0` and nothing logged, while ③ holds **1,000**. ⭐ The finding is the *shape*: ① fails like a race and moves between runs; **② fails like a partition — exactly 500, `inMemory=[500,500]`, each instance internally perfect and confidently wrong** | **yes** — 8 bullets, led by the missing cost comparison |
 | **`R35`** | A cache in a bean, and the repair that fixes half of it | A `HashMap` on a bean loses **61 then 32** of 2,000 entries with **nothing raised**; `ConcurrentHashMap` fixes that and **not** the compound operation — `get`-then-`put` loads **8 then 2** times for one key where `computeIfAbsent` loads **1** both times. ⭐ The `after` column is stable across runs and the `before` column is not | **yes** — 9 bullets, including the retraction of its own drafted headline |
 | **`R36`** | A flag one thread wrote and another never saw | The brief warned this might not reproduce; **it reproduced 6 of 6**, the plain arm running the full 2×10⁹ every time while the `@Volatile` control terminated every time. The mechanism is **not** the memory system — it is C2 hoisting the read, which makes it deterministic rather than rare | **yes** — 8 bullets |
 | `R38` | *(E5)* | not written | — |

@@ -115,6 +115,27 @@ class LayeredCounter(
         inMemory.incrementAndGet()
     }
 
+    /**
+     * ① with no database in it at all — a monitor around a plain `Int`.
+     *
+     * **This is the arm that makes the cost comparison mean something.** Every other ① and ②
+     * here pays a round trip per increment, and a round trip is so much more expensive than
+     * either primitive that it hides the difference the brief asks about. With the database
+     * removed, `synchronized` against `AtomicInteger` is a straight contest between a monitor
+     * and a CAS loop — which is where the two are known to **invert** as contention rises, and
+     * finding that point is the measurement.
+     */
+    @Synchronized
+    fun incrementInMemorySynchronized() {
+        guarded++
+    }
+
+    /** The monitor's counter. A plain `Int` on purpose: an atomic here would measure nothing. */
+    private var guarded = 0
+
+    /** Read under the same monitor, so the read cannot race the last write. */
+    val guardedValue: Int get() = synchronized(this) { guarded }
+
     /** The flush that makes [incrementInMemoryOnly] visible to anyone else. */
     fun flushInMemory(id: Long) {
         transactions.executeWithoutResult { writeCount(id, inMemory.get()) }

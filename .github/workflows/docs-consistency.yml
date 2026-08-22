@@ -315,6 +315,22 @@ jobs:
             ' "$f" >> /tmp/c5_blocks
           done
 
+          # BOTH INPUTS ARE ASSERTED, NOT ASSUMED.
+          #
+          #   This check is two greps over two harvested lists, and if either list comes
+          #   back empty it prints OK and refuses nothing. That is the shape `S3` had --
+          #   ADR-017: "a guard that stops finding its input and reports OK" -- and the
+          #   shape `fetch-depth: 1` would give the date checks above.
+          #
+          #   It is not hypothetical. Verifying this very step from WSL2, `git ls-files`
+          #   failed -- a git worktree's `.git` is a pointer to a Windows path that WSL
+          #   cannot resolve -- both lists came back empty, and the check printed OK on a
+          #   tree that had two real findings in it. It was caught only because that green
+          #   was expected and arrived too easily. The next reader will not have that
+          #   expectation, so the assertion is here instead.
+          [ -s /tmp/c5_idx ] || { echo 'FAIL: no create-index statement found in any migration. This check just became vacuous.'; exit 1; }
+          [ -s /tmp/c5_blocks ] || { echo 'FAIL: no KDoc block found in any tracked source. This check just became vacuous.'; exit 1; }
+
           : > /tmp/c5_find
           while IFS="$(printf '\t')" read -r file line body; do
             printf '%s' "$body" | grep -qiE 'no index|without an index|lacks an index|no [a-z]+ index' || continue

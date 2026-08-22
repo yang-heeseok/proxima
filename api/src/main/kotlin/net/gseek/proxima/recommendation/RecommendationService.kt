@@ -68,8 +68,13 @@ class RecommendationService(
     private companion object {
         /**
          * Step 4 of the documented rule bands difficulty by the learner's recent accuracy.
-         * That is a second pass over three million `attempt` rows on a schema with no index
-         * for it, so the band is fixed for now. See `RecommendationQueries`.
+         * The band is fixed here instead.
+         *
+         * The cost given as the reason — a second pass over three million `attempt` rows —
+         * stopped being the reason on 2026-08-12, when `V2` created `(learner_id,
+         * attempted_at)`. This comment and the KDoc on `RecommendationQueries` carried the
+         * same expired claim in two files, and `docs-consistency.yml` CHECK 5 is what reads
+         * them now. See `RecommendationQueries` for what actually blocks step 4.
          */
         val DIFFICULTY_BAND = 3..7
 

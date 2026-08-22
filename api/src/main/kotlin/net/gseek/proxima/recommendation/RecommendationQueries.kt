@@ -16,12 +16,20 @@ import net.gseek.proxima.domain.Item
  * this query is fixed, not assembled from optional predicates, so the type-safe
  * construction `ADR-001` bought is not what this needs.
  *
- * **What is deliberately not implemented yet.** Step 4 of the rule filters to a difficulty
- * band matched to the learner's *recent accuracy*. Computing that means a second pass over
- * `attempt`, which is three million rows with **no index on `(learner_id, attempted_at)`**
- * — absent on purpose, see `ADR-002`, and the subject of `T4`. The band is passed in
- * instead. That is a real deviation from the documented rule and it is recorded here rather
- * than in a commit message, because the deviation belongs where someone reads the query.
+ * **What is deliberately not implemented yet — and the reason first recorded here expired
+ * ten days before anything noticed.** Step 4 of the rule filters to a difficulty band matched
+ * to the learner's *recent accuracy*. The reason written here was the cost of a second pass
+ * over `attempt`, three million rows whose only index at the time was its primary key.
+ * `V2__attempt_learner_time_index.sql` created `(learner_id, attempted_at)` on 2026-08-12 and
+ * `R3` measured that read at **0.056 ms against 36.6 ms** without it. The justification was
+ * spent from that day, and this sentence went on giving it until 2026-08-22 — because
+ * nothing here read a KDoc until `docs-consistency.yml` CHECK 5 did.
+ *
+ * The band is passed in instead, and that is still a real deviation from the documented rule.
+ * **What blocks step 4 now is a decision rather than a cost:** *recent* can mean a count of
+ * attempts or a span of days, and those are different questions that disagree on this
+ * dataset. Recorded here rather than in a commit message, because the deviation belongs
+ * where someone reads the query.
  */
 interface RecommendationQueries : Repository<Item, Long> {
 

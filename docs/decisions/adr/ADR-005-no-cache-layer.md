@@ -1,7 +1,7 @@
 # ADR-005 — No cache layer, and the experiment that was already run
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-22
 > **Status**: Accepted
 > **Closes**: `OPEN-4`
 
@@ -34,6 +34,24 @@ against it in both states:
 | --- | --- |
 | cold buffers | **576.8 ms** |
 | warm | **140 ms** |
+
+> ⚠️ **Marked 2026-08-22, and the marking is on the pair rather than on the decision.**
+> This pair was taken with the setting that governs guest page-cache reclaim **unrecorded**.
+> The reclaim machinery is **confirmed present and enabled** on this build; whether the key or
+> the default enabled it is **미측정**.
+>
+> `.wslconfig` carries `[experimental] autoMemoryReclaim=gradual`, and the guest kernel on
+> 2026-08-22 reports `Free page reporting enabled` and `hv_balloon: Cold memory discard hint
+> enabled with order 9` on WSL `2.6.3.0`. Guest page cache is what *cold buffers* and *warm*
+> are a measurement of, so a setting that returns page cache to Windows while the VM runs is
+> an input to this table. It was recorded in no environment block — see
+> `measurement-discipline.md` §*The environment block* — and `ADR-014` `D.17` carries the
+> procedure that would settle it.
+>
+> **What this does not do.** It does not put a number in doubt in a direction anyone can name.
+> The two figures are a cold/warm contrast an order of magnitude apart, and no argument here
+> turns on their exact size. **It does mean neither figure may be re-taken and compared to
+> these** without the setting being recorded in both runs.
 
 **4.1×, from caching alone, on a statement nobody had changed.** And `R2` §9 records what
 happened next: the cold figure was reported to the PO as fact, and a proposal to change `T1`'s
@@ -116,6 +134,11 @@ different direction.
 
 ## What was not measured
 
+- **Whether this WSL build honours `autoMemoryReclaim`, or has the reclaim machinery on by
+  default.** The boot lines above are reachable by both routes and only one was named. The
+  A/B that separates them is one `wsl --shutdown` with the key commented out, and it was
+  **not run**, because the only quiet machine available on 2026-08-22 had the round's last
+  measurement on it. **미측정**, with the procedure in `ADR-014` `D.17`.
 - **What a cache would actually buy.** Nothing was built, so nothing was measured. Every
   figure above is about a cache *displacing* a measurement, not about its benefit. **미측정.**
 - **Whether the recommendation result is cacheable at all** given that it must reflect an

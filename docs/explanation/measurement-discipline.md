@@ -38,6 +38,9 @@ its numbers.
   Hardware       : Intel Core Ultra 7 258V, 8 cores / 8 threads, 31.5 GB RAM
   OS             : Windows 11 Home 10.0.26200
                    WSL2 Ubuntu 24.04, kernel 6.6.87.2-microsoft-standard-WSL2, 15 GiB
+  WSL VM config  : .wslconfig — networkingMode=nat, vmIdleTimeout=60000,
+                   [experimental] autoMemoryReclaim=gradual. Added to this block
+                   2026-08-22; see below for what each one can do to a number
   Docker         : Docker Engine 29.5.3 (API 1.54), NATIVE INSIDE WSL2 — not Docker Desktop
   JVM            : Temurin 21.0.12+8 -- RECORDED, not pinned. gradle.properties pins
                    language version 21 and nothing else; see below
@@ -163,6 +166,42 @@ have cost a reader time:
   > still correct about what it ran on — five of them additionally claimed the pin, and are
   > corrected. Whether the build *should* pin a vendor is a trade, not an errand, and is
   > `OPEN-13` rather than a change made here.
+
+- **It said nothing at all about the virtual machine the entire lane runs inside**, and that
+  is the line above rather than a fifth mistake of the same kind. Added 2026-08-22. `Docker`
+  says *NATIVE INSIDE WSL2*, so **every number in this repository was taken inside a VM whose
+  memory and lifetime are configured by a file no block named**: `C:\Users\<user>\.wslconfig`.
+  Counted the same day: **31 environment blocks in `docs/`, and not one carries any key from
+  that file.**
+
+  > **`vmIdleTimeout` is not a hypothetical, and this repository has been paying it since
+  > round one.** `R16` §8 records *"a split WSL session that let `vmIdleTimeout` stop the
+  > database"* as one of three self-inflicted contaminations. The value changed from `-1` to
+  > `60000` on 2026-07-25 — the file says so, with the reason — and on 2026-08-22 that
+  > setting restarted the VM three times during round 3, costing slice `D` two measurement
+  > attempts and slice `E` two count-only runs. **A block that records the kernel version but
+  > not the idle timeout has recorded the machine and omitted the thing that removes it.**
+  >
+  > **`autoMemoryReclaim` is an input to any cold/warm contrast**, because guest page cache is
+  > what such a contrast is a measurement of. `ADR-005` §1's `576.8 ms` / `140 ms` pair is
+  > marked for it. Whether this build honours the key or has the machinery on by default is
+  > **미측정**; `ADR-014` `D.17` carries the procedure.
+  >
+  > **And the sharpest part is that the doubt was written down beside the setting, by the
+  > person who set it, on the day they set it**, in the file's own comment:
+  >
+  > > *"If this key is ignored by this WSL build (2.6.3.0), the before/after measurement will
+  > > show no change and it can simply be removed - it is inert, not harmful."*
+  >
+  > That is `R43`'s class — **a true sentence nothing read** — and it is a harder case than
+  > `R43`'s, because a KDoc at least has a corpus that a gate can sweep. `.wslconfig` lives
+  > outside the repository, so **no report, no block and no CI check has ever opened it.**
+  >
+  > **The 31 existing blocks are not retro-filled, and that is a decision rather than an
+  > oversight.** `vmIdleTimeout`'s history is recoverable by date; `autoMemoryReclaim` has no
+  > recorded introduction date, so its value during any past run is **미측정** and writing one
+  > in would be inventing it. Blocks from here on carry the line; earlier blocks are silent,
+  > and this paragraph is why.
 
 The image digest is recorded alongside the tag because `16-alpine` is a moving tag. Two
 people running `postgres:16-alpine` a month apart are not necessarily running the same

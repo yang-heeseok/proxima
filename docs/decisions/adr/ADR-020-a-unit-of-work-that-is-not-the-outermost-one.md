@@ -2,7 +2,7 @@
 
 > **Created**: 2026-08-22
 > **Updated**: 2026-08-22
-> **Status**: PENDING — Proposed. Accepted once `R40`'s measurement window has run.
+> **Status**: **Accepted** — 2026-08-22, on the measurement in `R40` §3.4.
 
 ## Context
 
@@ -33,24 +33,22 @@ caller does. If it is a description of the current call graph, it must say so.
 
 ## What was measured before choosing
 
-PENDING — `R40` §3. The figures this decision rests on:
+`R40` §3.4, red commit `94fe9ee`. Five recordings, the third invalid, four valid:
 
 | | |
 | --- | ---: |
-| valid recordings that land, called with no outer transaction | PENDING |
-| valid recordings that land, called from a `@Transactional` caller | PENDING |
-| what the caller receives in the second case | PENDING |
+| valid recordings that land, called with **no** outer transaction | **4 of 4** |
+| valid recordings that land, called from a `@Transactional` caller | **0 of 4** |
+| what the caller receives in the second case | **`UnexpectedRollbackException`, and no outcome list at all** |
 
-⛔ **Nothing is decided here on the strength of the mechanism alone.** The mechanism was
-understood before the measurement and that is not the same as having measured it.
+⛔ **Nothing here was decided on the strength of the mechanism alone.** The mechanism was
+understood before the measurement, and that is not the same as having measured it — this
+repository has three published counts that were wrong while their mechanism was right.
 
 ## Decision
 
-PENDING — to be recorded once `R40` has run. The intended decision, with the alternatives it is
-being weighed against:
-
-**The KDoc sentence is a requirement. `AttemptRecorder.record` isolates itself, so that the unit
-of work is one recording regardless of who calls it.**
+**The KDoc sentence is a requirement. `AttemptRecorder.record` is `REQUIRES_NEW`, so the unit of
+work is one recording regardless of who calls it.** Green commit `022675b`.
 
 | Option | Effect | What it gives up |
 | --- | --- | --- |

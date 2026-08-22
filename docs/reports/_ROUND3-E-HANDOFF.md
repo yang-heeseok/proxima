@@ -98,7 +98,7 @@ is not a run and no verdict follows from it.**
 
 ## 3. NUMBERS
 
-**One measurement exists so far. It is E4's red half.**
+**One trap is fully measured: E4, red and green. The other four have not run.**
 
 ```
 측정 환경 / Measurement environment
@@ -109,13 +109,15 @@ is not a run and no verdict follows from it.**
   PostgreSQL     : Testcontainers, pinned BY DIGEST, read out of
                    TestcontainersConfiguration.POSTGRES_IMAGE at this commit —
                    sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
-                   Server version string: 미측정. `select version()` has NOT been run in this
-                   session. measurement-discipline.md's block says "server 16.14" against a
-                   DIFFERENT digest (57c72fd2…) and was not copied — rule 9.
+                   Server: PostgreSQL 16.15 on x86_64-pc-linux-musl, compiled by gcc
+                   (Alpine 15.2.0) 15.2.0, 64-bit — `select version()` IN THIS RUN.
+                   measurement-discipline.md's block says "server 16.14" against a DIFFERENT
+                   digest (57c72fd2…) and was not copied — rule 9. This run confirms 16.15.
   Isolation      : READ COMMITTED, default, unchanged
   Contention     : 2 transactions, 2 rows, opposed order, barrier BETWEEN the two locks
-  Repetitions    : 10 opposed pairs, one invocation, at a108715
-  WHAT ELSE WAS RUNNING: slices D and G, concurrently, on other worktrees.
+  Repetitions    : 10 opposed pairs per arm, 3 arms; red at a108715, green at 5501f32
+  WHAT ELSE WAS RUNNING: slice D's full test run, with its own Testcontainers up, plus
+                   slice G. Three Gradle daemons. Nothing flaked; no arm was re-run.
 ```
 
 | Figure | Value | Contends with D/G? |
@@ -131,6 +133,26 @@ is not a run and no verdict follows from it.**
 | `statement_timeout` | **`0ms`**, `source=default` | no — a `pg_settings` row |
 | `log_lock_waits` | **`off`**, `source=default` | no — a `pg_settings` row |
 | `max_locks_per_transaction` | **`64`**, `source=default` | no — a `pg_settings` row |
+| server version | `PostgreSQL 16.15 on x86_64-pc-linux-musl…` | no — a row value |
+
+**Green arm, same invocation, same two rows (`5501f32`):**
+
+| arm | pairs | casualties | both died | **both between locks** | retries |
+| --- | --- | --- | --- | --- | --- |
+| opposite order | 10 | **10** | 0 | **10** | — |
+| **ascending id order** | 10 | **0** | 0 | **0** | — |
+| **retry outside, 3 attempts** | 10 | **0** | 0 | **10** | **10** |
+
+`4 tests, 0 failures, 0 errors, 0 skipped`, from
+`api/build/test-results/test/TEST-net.gseek.proxima.mastery.DeadlockTest.xml`.
+
+⭐ **`bothBetweenLocks` 10 → 0 is the headline and `casualties=0` is not.** The two sides
+cannot both sit between their locks once they queue on the same first row, so an imposed order
+**removes the interleaving** rather than surviving it. `casualties=0` on its own cannot
+distinguish that from *this run did not race* — and `R37` §3.4 records that the ordered arm
+**cannot prove its own precondition** and depends on the retry arm reporting `10` in the same
+invocation. That is a control living in a sibling arm, which is a shape this repository has not
+had before, and running the two arms separately would silently make the green result vacuous.
 
 ⭐ **Every figure above was taken while slices D and G were running, and the environment block
 says so.** Each is a count, a SQLSTATE, an exception type or a `pg_settings` row value —
@@ -146,10 +168,12 @@ the server either detected it or it did not; another slice's load cannot move th
   brief forbids concluding *"CAS is faster than locking"* and requires finding where it
   inverts. That is a duration sweep. **`미측정`, and it is the only part of this slice that
   genuinely needs the lock.**
-- **Any test count.** I have run `:api:test --tests DeadlockTest` only. **I have no
+- **Any suite-wide test count.** I have run targeted `--tests` filters only. **I have no
   `:api:test` + `:seed:test` figure and will not quote one until I have run both modules
-  myself.** Note for the record: that run reported `2 tests completed, 1 failed` for the one
-  class named, which is not a suite count and is not offered as one.
+  myself.** For the record the two `DeadlockTest` invocations reported `2 tests completed, 1
+  failed` (red) and `4 tests, 0 failures` (green) for that one class; neither is a suite count
+  and neither is offered as one. **I am also not citing slice G's baseline** — G is on
+  `99d558b`, a different tree with H's step-4 change in it, so its query count is not mine.
 
 ### Comparisons I am not making
 

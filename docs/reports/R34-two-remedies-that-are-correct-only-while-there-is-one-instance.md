@@ -120,13 +120,17 @@ E1 >>> (3) database               instances=2 row=1000   inMemory=[0, 0]        
 
 | remedy | 1 instance | 2 instances | raised | **moved between runs?** |
 | --- | --- | --- | --- | --- |
-| *control* — read-modify-write | **126** / **124** | — | 0 | **yes** |
-| **① `synchronized`** | 1,000 / 1,000 | **565** / **557** | **0** | **yes** |
-| **② CAS, write-through** | 1,000 / 1,000 | **500** / **500** | **0** | **no** |
-| **② CAS, write-behind** | 1,000 / 1,000 | **500** / **500** | **0** | **no** |
-| **③ the database** | 1,000 / 1,000 | **1,000** / **1,000** | **0** | no |
+| *control* — read-modify-write | 126 / 124 | — | 0 | **yes** |
+| **① `synchronized`** | 1,000 every run | **565 / 557 / 618** | **0** | **yes** |
+| **② CAS, write-through** | 1,000 every run | **500 / 500 / 500** | **0** | **no** |
+| **② CAS, write-behind** | 1,000 every run | **500 / 500 / 500** | **0** | **no** |
+| **③ the database** | 1,000 every run | **1,000 / 1,000 / 1,000** | **0** | no |
 
-`2 tests, 0 failures` in run 2.
+⭐ **Three runs, the third inside the full 146-test suite with 56 classes competing for eight
+cores — and the split holds exactly.** ① moved again, to 618. ② did not move at all, for the
+third time. **A busier machine changed the race arm and left the partition arm untouched**,
+which is the sharpest evidence available that they are not the same failure wearing different
+numbers.
 
 ### 3.1 The premise was checked, not assumed
 

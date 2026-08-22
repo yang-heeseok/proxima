@@ -102,14 +102,15 @@ E2 >>> iterate-while-writing     raised=0
 | arm | entries kept, of 2,000 | **lost** | raised |
 | --- | --- | --- | --- |
 | plain `HashMap`, single thread | 2,000, every run | 0 | 0 |
-| **plain `HashMap`, 8 threads** | **1,939 / 1,968 / 1,936 / 1,817** | **61 / 32 / 64 / 183** | **0**, every run |
+| **plain `HashMap`, 8 threads** | **1,939 / 1,968 / 1,936 / 1,817 / 1,421** | **61 / 32 / 64 / 183 / 579** | **0**, every run |
 | `ConcurrentHashMap`, 8 threads | 2,000, every run | 0 | 0 |
 
-⭐ **Four runs, and the same sentence covers this arm as covers §3.2: the direction reproduces
+⭐ **Five runs, and the same sentence covers this arm as covers §3.2: the direction reproduces
 and the magnitude does not.** Every run lost entries; every run raised nothing. The size of the
-loss spans **32 to 183, nearly 6×**, and **no single figure for it is published** — not a mean,
-not a rate, not a percentage. A loss rate quoted from this table would be a coincidence of
-scheduling wearing the clothes of a property.
+loss spans **32 to 579 — a factor of 18** — and **no single figure for it is published**: not a
+mean, not a rate, not a percentage. A loss rate quoted from this table would be a coincidence of
+scheduling wearing the clothes of a property, and the fifth run widened the spread by 3× on its
+own.
 
 Every key had exactly one writer, so there is no last-writer-wins ambiguity to explain the
 gap: in run 1, 61 insertions were performed and are not there. Concurrent `put`s collide during resize
@@ -123,10 +124,14 @@ the option that reports nothing — in both runs.
 
 `ConcurrentHashMap` returns all 2,000. That is the whole of what it fixes.
 
-| arm, 8 threads on **one** key | run 1 | run 2 | ⛔ run 3 | run 4 (300 ms loader) |
-| --- | --- | --- | --- | --- |
-| **`get`, then `put` — on the `ConcurrentHashMap`** | **8** | **2** | *refused* | **8** |
-| `computeIfAbsent` — on the same map | **1** | **1** | *refused* | **1** |
+| arm, 8 threads on **one** key | run 1 | run 2 | ⛔ run 3 | run 4 (300 ms) | run 5 (300 ms, full suite) |
+| --- | --- | --- | --- | --- | --- |
+| **`get`, then `put` — on the `ConcurrentHashMap`** | **8** | **2** | *refused* | **8** | **8** |
+| `computeIfAbsent` — on the same map | **1** | **1** | *refused* | **1** | **1** |
+
+⭐ **Run 5 is the one that proves the repair.** It is the same full-suite condition that refused
+in run 3 — 56 classes, eight cores — and with the 300 ms loader it returns **8**, not `1`. The
+overlap no longer depends on the scheduler.
 
 ⛔ **Run 3 is not a data point and must not be averaged with the other three.** It was taken
 inside the full 146-test suite and **no thread overlapped the window**, so both arms returned

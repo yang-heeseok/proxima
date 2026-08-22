@@ -127,6 +127,15 @@ predicts, because a hoisted read is a compiler decision rather than a race outco
 **The plain arm did not merely stop late. It never stopped**, in any trial of either
 invocation, and every figure is the bound exactly.
 
+⭐ **This report's finding about `btime` has an independent confirmation from a second reader.**
+`R34` §3.4 records that `/proc/stat btime` on this host **steps** rather than drifting smoothly.
+While verifying the full-suite run, the orchestration session watched it move
+`1787395345 → 1787395380` — **a 35-second step** — and saw process-derived start times move four
+times for a process that started once. That is a third sampling of the same instrument by a
+second party, and it is why the suite's freshness was established by **file mtime against a
+planted marker file** rather than by any process clock: two file timestamps share one clock and
+cannot step against each other.
+
 ⛔ **The `stoppedAt` figures are not a rate and must not be read as one.** They are the
 iteration the loop happened to be on. The control's six values span 7,168 to 699,146 — nearly
 100× — which is scheduling noise on a loaded machine and is exactly why the *magnitude* carries

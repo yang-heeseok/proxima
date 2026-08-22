@@ -188,6 +188,32 @@ the running context, not by grep.
 recorded rather than a connection count, because `NESTED` is refused before a connection is
 taken.
 
+### ⭐ THE FULL SUITE — both modules, separately
+
+```
+./gradlew :api:test :seed:test --rerun-tasks        BUILD SUCCESSFUL in 24m 50s, exit 0
+started 22:37:03, finished 23:01:53
+
+  :api:test     56 classes   146 tests   0 skipped   0 failures   0 errors
+  :seed:test     4 classes    14 tests   0 skipped   0 failures   0 errors
+```
+
+**Read from this run's own XML, not from the console summary**: all 56 api files written
+23:01:44–23:01:45, all 4 seed files 22:40:41, and `grep '<failure'` / `grep '<error'` across all
+60 files matches **zero**. `:seed:test` runs early in the build, which is why its files are
+twenty minutes older than the api ones and still belong to this invocation.
+
+**WHAT ELSE WAS RUNNING: nothing.** Only this worktree had a process; no other worktree, no VM
+restart (uptime unbroken across the run), and the only containers were the buildkit builder plus
+this run's own Testcontainers postgres and ryuk. **This is the first full suite of the day that
+genuinely had the machine to itself.**
+
+**146 was expected to stay 146.** An earlier full suite reported `146 tests, 1 failed` — the
+failure being this slice's own `SingletonStateTest` precondition. The only change since was the
+300 ms loader inside an existing test method; **no test was added, removed or renamed**, and the
+class count is 56 in both runs. So the denominator holding while the failure disappears is the
+expected result of that fix and not a coincidence to be waved at.
+
 ### ⚠ What else was on this machine, per run — and it was not always what I said
 
 Every count above was taken while other slices worked, which is stated in each report's block
@@ -200,7 +226,8 @@ declare it:
 | E2/E3/E4/E5/E1 counts | slices D and G — declared in every block |
 | `R34` §3.4 **cost sweep** | **nothing** — floor verified by me immediately beforehand |
 | full suite, attempt 2 (`20:07`) | ⚠ **another worktree's Gradle daemon built twice inside my run**, at 20:13 and 20:32. Neither I nor the orchestration session knew at the time |
-| full suite, final | **nothing** — only this worktree has a process |
+| full suite, attempt 4 (`21:35`) | alive and writing when cut — `binary` results written **14 s before** the cancel |
+| **full suite, attempt 5 — the reported one** | **nothing.** Only `proxima-e`, uptime unbroken, no other worktree |
 
 **There are nine worktrees on this machine**, four of them from a separate line of work that is
 not part of this round. They were never counted as writers by anyone.
@@ -297,7 +324,7 @@ is not being made a fifth. **`R6` is not on this slice's forbidden list** — th
 
 | Workflow | State | Note |
 | --- | --- | --- |
-| `build.yml` | **not yet run on this branch** | It remains my completion signal, per the round's policy. ⛔ **The earlier note here described a tree that no longer exists** — it said the branch held *"a deliberately failing test plus four uncompiled test classes"*, which was true mid-slice and stopped being true at `67240c3`. **Every trap is now green and every test class compiles and has been run**; the last outstanding item is the full-suite count in §3, not a known-red test |
+| `build.yml` | **not run on this branch, and the local equivalent is green** | It remains my completion signal per the round's policy, and CI has not executed on this branch. What I can report is the same command run locally: `:api:test :seed:test --rerun-tasks` — **146/0 and 14/0, `BUILD SUCCESSFUL`**, §3. ⛔ **An earlier note here described a tree that no longer exists** — *"a deliberately failing test plus four uncompiled test classes"*, true mid-slice and false since `67240c3` |
 | `docs-consistency.yml` | expected red, ignored | It wants a `docs/roadmap.md` row per report and I am forbidden to touch that file. Per the round's policy this is the normal state and is **not** read as a signal about this work |
 | `image-pin.yml`, `load-harness.yml`, `no-learner-data.yml`, `secret-scan.yml`, `study-consistency.yml` | untouched | no file in their scope was edited |
 
@@ -418,6 +445,24 @@ E.
   close and do not match, and I am not resolving a 15-second gap by choosing which clock to
   trust.** What is established is only what it was *not*. Recorded because inventing a tidier
   cause after the fact is the same error as leaving one unexamined.
+- ⚠ **Five of my full-suite attempts, and the four that failed were killed by the launcher, not
+  by the build.** Attempt 1 completed in 21m01s. Attempts 2 and 4 were cut at **exactly 60
+  minutes** by a Windows-side background-task limit — attempt 4 was **alive and writing results
+  14 seconds before it was cancelled**. Attempt 3 was a genuine wedge and the only one with a
+  cause I established directly: a thread dump showed **two Kotlin compile daemons alive and no
+  test worker ever forked**, because `./gradlew --stop` does **not** kill Kotlin compile daemons
+  (`--daemon-autoshutdownIdleSeconds=7200`) and my "clean floor" between runs left one behind.
+  Attempt 5 ran `setsid nohup` **detached from its launcher** and finished in 24m50s with zero
+  disconnections. ⛔ **Attempt 2's cause remains unestablished** — the 60-minute correlation fits
+  it, but I have direct evidence only for 3 and 4, and adopting a neighbouring explanation is the
+  error this handoff already records twice.
+- ⚠ **A negative claim about containers was nearly published and would have been false.** The
+  orchestration session was about to report that no postgres container appeared during attempts
+  3 and 4, from five `docker ps -a` samples. **`docker ps -a` cannot see Testcontainers
+  containers** — they are removed on stop — and every sample fell before the point in the build
+  where container startup happens. Caught before sending. It is recorded here because it is the
+  same class as `R35` §3.3's silent `ConcurrentModificationException` arm: **an instrument that
+  cannot record the event, reporting its absence.**
 - ⛔ **I did NOT fix the two inherited `CHECK 5` findings, deliberately.**
   `RecommendationQueries.kt:9` and `RecommendationService.kt:69` report on this branch because
   `round3/layers` is based on `main`, which predates slice H's correction. **H has already fixed

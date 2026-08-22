@@ -303,6 +303,22 @@ limitation of **keyword checks over documents**. A CI check, a slice contract, a
 flag and a shell chain say it is a property of **specifications**, and prose was where it happened
 to be noticed first. `R17` keeps the finding.
 
+#### Two vacuous zeros, and neither was caught by the number looking wrong
+
+| | what it reported | what it had measured |
+| --- | --- | --- |
+| slice D, `R33`'s first pinning run | **0 pinned events** | **6,000 requests, every one `{"error":"missing-token"}`** — `xargs` stripped the quotes from `-H Authorization:`, so the application answered 401 without touching JDBC |
+| slice E, `SingletonStateTest` inside the full suite | `loads=1` against `loads=1` | **nothing** — no thread overlapped the window, so both arms exercised the same empty case |
+
+⛔ **A zero reads like a clean result and so does a tie.** Six thousand measurements of nothing
+came back as a number a reader would have quoted.
+
+⭐⭐ **Neither was caught by the figure looking wrong. Both were caught by a precondition that
+refused the run** — D by reading the response bodies instead of trusting the zero, E by an
+assertion that says a race test must prove a race happened. **That is the argument for
+preconditions stated as a measurement rather than as advice**, and it is the same argument as
+`dea05a5` re-reading the file from disk before `git` was allowed to run.
+
 #### What repaired, and why the growing ledger is not the failure
 
 **The ledger grew all day. The debt did not.** Four repairs landed inside the pass that found the
@@ -432,6 +448,13 @@ architecture, not the review, not the types.
 > one trips them; that is a promise, not a payment."* ⭐ **Two slices, independently, argued
 > against counting their own work as evidence.** The number is **2**, and the count of gates went
 > up by far more than that again.
+>
+> ⭐⭐ **A scorecard is worth something only when the scored argue their score down.** This
+> repository's signature line has always been *"eight of nine are still a promise."* Round three
+> **added heavily to the promise column and moved the paid column by exactly one** — and the two
+> parties who would have benefited from the other reading are the two who refused it, separately,
+> without being asked. **That is the only evidence a scorecard can offer that it is not
+> marketing.**
 
 **Exactly one regression gate ever refused this author's work.** Nine test classes in this
 repository exist to refuse a future edit rather than to measure anything —

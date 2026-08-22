@@ -38,6 +38,19 @@ sees it** — not once in six trials across two invocations, and never within tw
 There is no exception, no deadlock, no lock, and no contention. One writer, one reader, one
 boolean. A torn `boolean` is not a thing, so there is nothing here that atomicity would fix.
 
+⭐ **This trap was expected not to reproduce, and it reproduced every single time — for a
+different reason than the warning was about.** The brief's caution was that *on x86 it is
+rare*, which is correct **about the memory system**: x86 is strongly ordered, a store becomes
+visible almost at once, and a visibility defect that depended on hardware would be a
+hard-to-catch flicker. That is not what this is.
+
+**The mechanism is C2 hoisting the read out of the loop** — a compiler decision, not a
+hardware race. Once the warm-up guarantees the loop has been compiled, there is nothing
+probabilistic left: the field is read once and never again. So the expectation was reasonable
+and its subject was the wrong layer, and the observable consequence is the opposite of
+"rare" — **6 of 6 trials, two invocations, the full bound every time.** §4 is the mechanism
+and §8 records what would still make it disappear.
+
 ## 2. 재현 / Reproduction
 
 ```bash
@@ -135,11 +148,17 @@ the program never asked for the field to be re-read.
 field, so the read cannot be hoisted, and the loop must terminate. The keyword does not make
 the write *faster*; it makes it **required to be visible**.
 
-**This is why the brief expected it might not reproduce, and why it did.** On x86 the hardware
-is strongly ordered, so if the effect were a memory-system delay it would be rare and brief.
-It is not a memory-system effect. It is a compiler decision, and once the warm-up guarantees
-C2 has compiled the loop, it is not a race at all — it is deterministic on this JVM. Six of
-six, at the bound exactly, across two invocations two minutes apart.
+**This is why the brief expected it might not reproduce, and why the expectation was aimed one
+layer below the effect.** If the defect were a memory-system delay, x86's strong ordering would
+indeed make it rare and brief — the warning is sound about that layer. **It is not a
+memory-system effect.** It is a compiler decision, and once the warm-up guarantees C2 has
+compiled the loop it is not a race at all: it is deterministic on this JVM. Six of six, at the
+bound exactly, across two invocations two minutes apart.
+
+The practical consequence is worth stating because it inverts the usual advice about this class
+of bug. **A visibility defect of this shape does not get rarer the longer a process runs — it
+gets more certain**, because the longer the loop runs the more surely it has been compiled. The
+background thread that has been up for a week is the one that cannot hear you.
 
 ## 5. 처방 / Remedy
 

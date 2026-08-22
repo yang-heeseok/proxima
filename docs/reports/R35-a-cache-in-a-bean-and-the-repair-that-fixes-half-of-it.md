@@ -39,6 +39,13 @@ afterwards holds **1,939**.
 **Nothing raised.** `threadsRaised=0`. Sixty-one entries are simply absent, and the only way to
 know is to have counted what should have been there.
 
+⭐ **And the one arm that could have announced the defect stayed silent too.** A separate arm
+iterated the plain map through 200,000 concurrent writes specifically to provoke a
+`ConcurrentModificationException` — the only place in `E2` where this failure has a *name*. It
+never fired, in either run. **So both of this report's failure modes are silent**: entries that
+are quietly not there, and an expensive load that quietly ran eight times. The absence of the
+exception is the worst news in this report, not a relief, and §3.3 is where it is measured.
+
 ## 2. 재현 / Reproduction
 
 ```bash

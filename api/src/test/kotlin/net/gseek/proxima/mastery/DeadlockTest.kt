@@ -242,6 +242,27 @@ class DeadlockTest {
      * is still holding it — so the rendezvous times out. The remedy did not survive the race;
      * **it removed it.**
      */
+    /**
+     * ⛔ **DO NOT RUN THIS ARM WITHOUT `a retry outside the transaction completes both sides`
+     * IN THE SAME INVOCATION. Do not split this file.**
+     *
+     * This arm's precondition is **unprovable inside this arm**, because the remedy removes the
+     * very interleaving the precondition would observe. `bothBetweenLocks=0` paired with
+     * `casualties=0` is produced identically by *the order worked* and by *this run never
+     * raced* — the two are indistinguishable from these numbers alone, which is exactly the
+     * confusion `ADR-015` exists to prevent.
+     *
+     * What rescues it is the **retry arm**, which runs the unordered pair against the same two
+     * rows in the same invocation and reports `bothBetweenLocks=10`. That is what establishes
+     * the harness can still build a cycle at all, and therefore that this arm's `0` is the
+     * order's doing.
+     *
+     * **A control that lives in a sibling arm is fragile in a way one inside its own arm is
+     * not.** Split this class for tidiness, move either arm to another file, or disable the
+     * retry arm, and the evidence for the green result silently evaporates — **and nothing
+     * goes red.** `R37` §8 carries the same warning for the reader of the report; this one is
+     * for whoever is about to edit the file.
+     */
     @Test
     fun `an ascending lock order removes the interleaving rather than surviving it`() {
         val outcomes = (1..pairs).map { opposedPair(2) { l, first, second, between -> l.lockInAscendingIdOrder(first, second, between) } }

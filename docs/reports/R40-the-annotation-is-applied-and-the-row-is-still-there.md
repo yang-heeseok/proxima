@@ -66,6 +66,26 @@ test that shares a transaction with the code it is testing **cannot observe that
 transaction boundaries.** These tests run outside a transaction and count committed rows with a
 fresh statement.
 
+### 2.1 The Java arm is the first Kotlin-to-Java type reference in this build's test sources
+
+Worth recording because it was an assumption before it was a fact.
+
+`R1` already put planted violations in Java — `proxima.planted.PlantedFinalEntity` and two others
+— because the Kotlin compiler plugins would have fixed a Kotlin plant before the rule could see
+it. **But nothing reaches those classes by type.** `TransactionBoundaryRulesSelfTest` finds them
+through ArchUnit's `importPackages("proxima.planted")`, which is a string. Verified by searching:
+no Kotlin file in `api/src/test/kotlin` names any of the three.
+
+`RollbackRuleTest` imports `net.gseek.fixtures.basics.JavaRollbackProbe` **as a type**, which
+makes it the first place in this repository where Kotlin test code depends on Java test code
+through the compiler rather than through a string. That is ordinary Gradle joint compilation and
+it is expected to work; it had simply never been exercised here, and a report that leaned on it
+without saying so would be resting on an untested property of the build.
+
+⛔ It has to be a real Java class rather than a reflective lookup, because **the compiler is half
+the finding.** §3.2 reads the `throws` clause back out of the class file, and there is no class
+file without a Java compilation.
+
 ## 3. 계측 / Measurement
 
 ### 3.1 Which exception kinds roll back

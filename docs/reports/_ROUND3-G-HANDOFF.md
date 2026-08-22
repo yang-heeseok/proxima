@@ -3,12 +3,8 @@
 > **Slice**: G · **Branch**: `round3/basics` · **Base**: `99d558b` on `round3/recency`
 > **Written**: 2026-08-22, as the work happened rather than after it.
 
-> ⚠️ **STATUS: NUMBERS PENDING.** The orchestrator granted slice D a 75–90 minute exclusive
-> load window at 15:06. Every instrument below is written, committed and reviewable; **none has
-> been executed**, because executing it means nine Testcontainers PostgreSQL containers on the
-> eight cores D's latency arms need. Sections that carry a number say
-> `PENDING — window held for D` and will be filled from a run, not from expectation.
-> ⛔ **No number in this document is an estimate.** Where a figure is absent it is absent.
+> ⚠️ **One number is still outstanding and it is named as such in §3**: the slice-level test count
+> on the **final** tree. Every trap number is measured and final. ⛔ Nothing here is an estimate.
 
 ---
 
@@ -16,30 +12,33 @@
 
 | Trap | Verdict |
 | --- | --- |
-| **G1** — an entity's identity changes the moment it is persisted | `PENDING` — expected **NOT-REPRODUCED** against application code |
-| **G2** — a transaction does not roll back on every exception | `PENDING` — expected **REPRODUCED** |
-| **G3** — an `ORDER BY` with no tie-break loses rows across pages | `PENDING` — expected **NOT-REPRODUCED** against application code |
-| **G4** — `Optional`: two ways to handle absence, different costs | `PENDING` — expected **NOT-REPRODUCED** against application code |
+| **G1** — an entity's identity changes the moment it is persisted | **REPRODUCED** on an instrument; **NOT-REPRODUCED** against application code — *and the split is not where I expected it*, see below |
+| **G2** — a transaction does not roll back on every exception | **REPRODUCED**, red `94fe9ee`, green `022675b` |
+| **G3** — an `ORDER BY` with no tie-break loses rows across pages | **REPRODUCED** on an instrument; **NOT-REPRODUCED** against application code |
+| **G4** — `Optional`: two ways to handle absence, with different costs | **REPRODUCED** on an instrument; **NOT-REPRODUCED** against application code |
 
-⛔ **The word "expected" is doing real work in that table and is not a hedge to be tidied
-away.** A verdict in this repository is a measurement, and these have not been measured yet.
-The reasoning behind each expectation is in §2 and §3, and any of them may be wrong — the
-instruments are deliberately built to report a refuted prediction rather than die on it.
+⭐ **G1's verdict moved during the slice and that is the slice's best finding.** I expected
+"structurally shut": `BaseEntity` compares by `id`, hashes constant per type, and an ArchUnit rule
+refuses the `data class` shape. The hash half **is** shut — measured. The other half is not.
 
-**Three of four are expected to come back NOT-REPRODUCED, and that is a finding rather than a
-thin slice.** Round one had three of nine traps already shut and those were not the weak
-reports. What closed these three is not luck:
+> **`Hibernate.getClass` initialises the proxy it unwraps, and `BaseEntity.equals` calls it on
+> both operands.** So the equality this repository *chose* issues a statement per uninitialised
+> proxy handed to it. Nothing in the tree said so, and I asserted the opposite before measuring it.
 
-- **G1** is shut by `BaseEntity`, which already compares by `id`, hashes constant per type, and
-  unwraps proxies with `Hibernate.getClass` — *and* by `ENTITIES_ARE_NOT_DATA_CLASSES`, an
-  ArchUnit rule that has been watched refusing a planted `data class` entity.
-- **G3** is shut by the sweep in §2: **there is no reachable paged ordering on a non-unique key
-  in `api/src/main`.**
-- **G4** is shut by absence: `main` contains no `orElse(...)` with an argument at all. The only
-  `Optional` consumers are two `orElseThrow()` calls, which take no argument to evaluate early.
+That is a finding about **shipped code**, reached by writing an exact assertion that turned out to
+be wrong. `R39` §1 and §3.2.
 
-**G2 is the one that is open**, and `docs/roadmap.md:99` says so in the tree's own words:
-*"the swallowed exception / rollback-only case is **not done at all**"*.
+**Three of four traps have no red commit against application code, and that is a finding rather
+than a thin slice.** What closes each is named and measured, not assumed:
+
+- **G1** — `BaseEntity` + `ENTITIES_ARE_NOT_DATA_CLASSES`, the latter watched refusing a plant.
+- **G3** — the §2 sweep: **no reachable paged ordering on a non-unique key in `api/src/main`.**
+- **G4** — absence: `main` holds **two** `Optional` consumers, both the no-argument
+  `orElseThrow()`. There is no `orElse(…)` at all, and the reason is the language rather than
+  vigilance — Kotlin's elvis right-hand side is not an argument.
+
+**G2 is the one that was open**, and `docs/roadmap.md:99` says so in the tree's own words: *"the
+swallowed exception / rollback-only case is **not done at all**."*
 
 ---
 
@@ -59,74 +58,56 @@ db/migration/V*.sql           ceiling  V5
 | --- | --- | --- | --- |
 | Reports | `R39`–`R42` | **`R39`–`R42`** | free on this base — the ceiling is `R45` but `R29`–`R42` is an unused gap, because slice H took its share from above |
 | ADR | `ADR-020` | **`ADR-020`** | free — `ADR-018`–`ADR-020` unused |
+| `open.md` | not assigned | **`OPEN-13`** | ceiling was `OPEN-12`; §7 explains why the row is here rather than in the ledger |
 | Migrations | none permitted | **none taken** | ceiling stays `V5`; `db/migration` is untouched |
 
 ⭐ **No shift was needed and none was made.** G is numbered *below* the base it descends from,
-which is deliberate: H took `R43`–`R45` from above the gap so that G's originally assigned range
-stayed free. Nothing collides. ⛔ I did not "tidy" the range upward to sit above `R45`; doing so
-would have consumed four numbers nobody assigned me and left a second gap.
+deliberately: H took `R43`–`R45` from above the gap so G's assigned range stayed free. ⛔ I did not
+tidy the range upward — that would consume four numbers nobody assigned me and leave a second gap.
 
-### Commits so far
+### Commits
 
 | Trap | Commit | What it is |
 | --- | --- | --- |
 | G1 | `260dcc2` | instrument — five entity shapes, three equality implementations |
-| G2 | `94fe9ee` | **red** — the shipped batch path, called from a caller that has a transaction |
+| G2 | **`94fe9ee`** | **red** — the shipped batch path from a transactional caller. **Watched failing** |
 | G3 · G4 | `85943b0` | instruments — the tie-break walk, `44.3`'s plan question, the eager fallback |
+| G1 | `ae2b2da` | the refuted prediction, attributed per operation; G3's mechanism probe |
+| G2 | **`022675b`** | **green** — `AttemptRecorder.record` is `REQUIRES_NEW` |
+| — | `0f70d7f` `9046476` `dec730e` `9d98670` `f694bbb` `cce6bcd` `7f6c6e9` `9691a6a` `136142f` `9647758` `6edba90` `4bfa268` | documents |
 
-`PENDING` — green commits and the four reports follow the measurement window.
+**The red was observed, not merely written to fail.** Verbatim from `94fe9ee`:
 
-⛔ **`94fe9ee` is labelled red and has not yet been watched fail.** It is written to fail and
-the mechanism is understood, but "written to fail" is not "observed failing", and this document
-will not call it a reproduction until a run says so.
+```
+4 valid recordings were attempted and 0 survived. [...] Raised: UnexpectedRollbackException
+  ==> expected: <4> but was: <0>
+```
 
-### G3 — the `order by` and `Pageable` sweep, re-run at `85943b0`
+### G3 — the `order by` and `Pageable` sweep, re-run at my own SHA
 
-⚠️ **Re-run rather than inherited.** §7-G supplied this table as a reading of `5ac5fd5` and told
-me not to paste it. This is my own sweep of `api/src/main` at my own SHA. It agrees with §7-G's,
-which is worth stating precisely *because* it agrees — an inherited table that happens to be
-right is still an inherited table.
+⚠️ **Re-run rather than inherited.** The pack supplied this table as a reading of `5ac5fd5` and
+told me not to paste it. It agrees with mine, which is worth stating *because* it agrees.
 
 **How the matcher was excluded.** A naive `grep -i "order by"` over `api/src/main` reports
-**8 lines**. Three of them are prose *about* ordering inside KDoc and one SQL comment — they
-execute nothing. Counting them would have inflated the population under review by 60% and is
-exactly the instrument-counting-itself failure this repository keeps meeting. Comment lines are
+**8 lines**. Three are prose *about* ordering inside KDoc and one is a SQL `--` comment — they
+execute nothing. Counting them would have inflated the population by 60%. Comment lines are
 excluded by their leading `*`, `//` or `--`, leaving **5 real orderings**:
 
 | Site | Ordering | Paged? | Sort key unique? |
 | --- | --- | --- | --- |
-| `PrerequisiteQueries.kt:64` | `order by e.prerequisite_id` | no | ✔ unique key |
-| `PrerequisiteQueries.kt:104` | `order by min(w.depth), w.prerequisite_id` | no | ✔ unique tie-break |
-| `RecommendationQueries.kt:66` | `order by i.difficulty, i.id` | `limit` only — top-`n` | ✔ unique tie-break |
-| `RecommendationQueries.kt:124` | `order by i.difficulty, i.id` | `limit` only — top-`n` | ✔ unique tie-break |
-| `RecommendationQueries.kt:158` | `order by a.attempted_at desc, a.id desc` | `limit` only — top-`n` | ✔ unique tie-break — **slice H's** |
-
-Excluded, with the reason:
-
-| Site | Why it is not in the population |
-| --- | --- |
-| `PrerequisiteQueries.kt:55` | KDoc prose about collation. Executes nothing |
-| `RecommendationQueries.kt:147` | KDoc prose about tie-breaks. Executes nothing |
-| `V2__attempt_learner_time_index.sql:19` | SQL `--` comment. Executes nothing |
-
-And the `Pageable` half:
-
-| Site | Status |
-| --- | --- |
-| `LearnerPageQueries` — 4 methods | the **only** `Pageable` in `api/src/main`. **Nothing in `main` calls any of them**; verified — the two `main` files that mention the name mention it in *prose*, as a precedent for keeping a rejected alternative runnable. Only `CollectionPagingTest` and `CollectionPagingWarningTest` call it, and they supply the sort themselves |
+| `PrerequisiteQueries.kt:64` | `order by e.prerequisite_id` | no | ✔ |
+| `PrerequisiteQueries.kt:104` | `order by min(w.depth), w.prerequisite_id` | no | ✔ |
+| `RecommendationQueries.kt:66` | `order by i.difficulty, i.id` | `limit` only | ✔ |
+| `RecommendationQueries.kt:124` | `order by i.difficulty, i.id` | `limit` only | ✔ |
+| `RecommendationQueries.kt:158` | `order by a.attempted_at desc, a.id desc` | `limit` only | ✔ — **slice H's** |
+| `LearnerPageQueries` × 4 | none in the JPQL | the only `Pageable` in `main` | **nothing in `main` calls it** — the two `main` files naming it do so in *prose* |
 
 ⭐ **Conclusion: no reachable paged ordering on a non-unique key exists in `api/src/main`.**
-So `R41` takes `R26`'s shape — no red commit against application code, an instrument that plants
-the tie, and this table as the argument for why that is honest rather than evasive. `R26`'s own
-header is the precedent: *"Red commit: none, and it is not an omission."*
 
-⭐ **`RecommendationQueries.kt:158` is a different defect from G3's, and saying so is part of
-G3.** A top-`n` read on a non-unique sort makes the **boundary row** wobble: the twentieth row is
-whichever of the tied ones the plan reached, so a band computed from it moves without the data
-moving. Paging with `LIMIT`/`OFFSET` over one makes rows **repeat and vanish**. Same cause,
-different blast radius, different remedy — and only the second is silent data loss.
-⛔ I did not re-measure `recentOutcomesByCount`; `R44` §3 paid for the specific case and slice H
-owns it. `R41` cites it and owns the general form.
+⭐ **`RecommendationQueries.kt:158` is a different defect and saying so is part of G3.** A top-`n`
+read on a non-unique sort makes the **boundary row** wobble; `LIMIT`/`OFFSET` paging makes rows
+**repeat and vanish**. Same cause, different blast radius, only one is data loss. ⛔ I did not
+re-measure `recentOutcomesByCount` — `R44` §3 owns it.
 
 ---
 
@@ -137,254 +118,195 @@ owns it. `R41` cites it and owns the general form.
 ```
 측정 환경 / Measurement environment
   Hardware       : Intel Core Ultra 7 258V, 8 cores / 8 threads, 31.5 GB RAM
-  OS             : Windows 11 Home 10.0.26200
-                   WSL2 Ubuntu 24.04
+  OS             : Windows 11 Home 10.0.26200, WSL2 Ubuntu 24.04
   Docker         : Docker Engine 29.5.3, NATIVE INSIDE WSL2 — not Docker Desktop
   JVM            : Temurin 21.0.12+8   (read from the run, not from a document)
   PostgreSQL     : Testcontainers postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767
                    934dd0a95e671f9a0fc20685 — server 16.15 on x86_64-pc-linux-musl
   Framework      : Spring Boot 4.1.0, Hibernate 7.4.1.Final, Kotlin 2.3.21
   Counters       : Hibernate Statistics.prepareStatementCount (R8's instrument);
-                   committed row counts read outside the writing transaction;
-                   java.lang.reflect Method.getExceptionTypes for the signature comparison
+                   committed row counts read OUTSIDE the writing transaction;
+                   Method.getExceptionTypes and javap -p for the signature comparison;
+                   plain EXPLAIN — never EXPLAIN ANALYZE — for every plan
   Load           : none. Every number in this slice is a count or a plan shape
-  Concurrently   : SLICES D AND E WERE ACTIVE ON THIS MACHINE. These are counts and
-                   plan shapes — logical facts about code and data — and they do not
-                   contend. The disclosure is made because the rule is about disclosure,
-                   not about susceptibility.
+  Concurrently   : SLICES D AND E WERE ACTIVE. These are counts and plan shapes —
+                   logical facts about code and data — and they do not contend. The
+                   disclosure is made because the rule is about disclosure, not
+                   about susceptibility
 ```
 
 ⚠️ **The PostgreSQL line disagrees with `docs/explanation/measurement-discipline.md` and this
-document is the correct one.** That file says *"pinned by digest since `8dec7e6`"* and then names
-`sha256:57c72fd2…`, server **16.14**. `TestcontainersConfiguration.kt:72` pins `cf78e766…`, and
-Flyway's own startup line in my baseline run reads
-`Database: jdbc:postgresql://localhost:32820/test (PostgreSQL 16.15)`.
+document is the correct one.** It was read from `TestcontainersConfiguration.kt:72` and from
+Flyway's own startup line — `Database: jdbc:postgresql://localhost:32820/test (PostgreSQL 16.15)`
+— never from that document. §8 carries the correction; ⛔ I did not edit the file.
 
-⭐ **Where the stale figure comes from is sharper than "the doc went stale".** Across all 48
-`:api:test` result files, `PostgreSQL 16.14` appears in exactly **two** — `CollationDivergenceTest`
-and `ImageTagDriftTest` — both of which deliberately start the superseded July image as a
-*comparison arm*. **The digest the document calls "the pin" exists in this tree only as the
-control the pin is measured against.** `16.15` appears in 15 files, all of them wired to
-`TestcontainersConfiguration`.
-⛔ I did not edit that document. It is shared by four branches and belongs to slice F. §8 carries
-the sentence.
+### The traps — every figure final
 
-### Baseline, before any change
+**G1 — `R39`.** Statement counts on a standalone `SessionFactory`.
 
-Taken at base `99d558b`, `./gradlew :api:test :seed:test --rerun-tasks`, **executed** — not a
-restored cache; Gradle reported 16 tasks executed and `BUILD SUCCESSFUL`.
+| | |
+| --- | ---: |
+| `data class` entity: hash moved on persist / still findable in its `HashSet` | **moved / NOT findable** |
+| `BaseEntity` shape: hash moved / still findable | **did not move / findable** |
+| `proxy.javaClass` · `proxy is EqParent` · `proxy.id` | **0 · 0 · 0** |
+| **`Hibernate.getClass(proxy)`** | **1** ⟵ refuted the prediction of 0 |
+| `proxy.label` — **the control**, must initialise | **1** |
+| one `==`, shipped shape, both operands loaded | `true`, **0** |
+| one `==`, `data class`, 2 lazy associations | `true`, **4** |
+| one `==`, `data class`, associated class without `equals` | **`false`**, **0** |
 
-| Module | Tests | Classes | Failures | Errors | Skipped |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `:api:test` | **125** | 48 | 0 | 0 | 0 |
-| `:seed:test` | **15** | 5 | 0 | 0 | 0 |
+**G2 — `R40`.** Committed rows after one write and one failure.
 
-Both modules are reported separately and neither figure is a total. `R17` exists because a count
-sat unchanged for four days, and the count once read `77 tests` when that was one module and said
-so nowhere.
+| Arm | Committed rows |
+| --- | ---: |
+| control, no failure | 1 |
+| `RuntimeException` · `Error` | **0** · **0** |
+| **checked `IOException`, Kotlin and Java alike** | **1** ⟵ the defect |
+| `rollbackFor = Exception`, both languages | **0** |
+| declared checked exceptions: Java `writeThenThrowChecked` / Kotlin `writeThenThrow` | **`[IOException]`** / **`[]`** |
+| swallowed inner failure: outer's own write survived | **0** — and `UnexpectedRollbackException` |
+| `REQUIRES_NEW` inner: outer's write survived | **1** |
+| **shipped batch, no outer transaction** | **4** of 4 valid |
+| **shipped batch, from a `@Transactional` caller** | **0** of 4 valid |
 
-**Taken while slices D and E were active.** These are counts and do not contend.
+**G3 — `R41`.** 100 rows, 4 tied groups of 25, page size 10.
 
-#### What survived, and what this figure's status actually is
+| Walk | Twice | Never |
+| --- | ---: | ---: |
+| `order by grp`, **one plan, nothing touched** | **1** | **1** |
+| `order by grp`, planner toggled between pages | 0 | 0 |
+| `order by grp, id` | 0 | 0 |
+| keyset `(grp, id) > (…)` | 0 | 0 |
 
-⚠️ **I reported this baseline as unrecoverable and that was overstated by half.** My targeted
-architecture run was `:api:test` only, so it rewrote `api/build/test-results/test/` down to four
-files — but it never touched the other module:
+⭐ **The defect appeared in the arm built as the control and not in the arm built to force it**,
+and §3.2 of `R41` measures why: the scan flips from **Index Scan at offsets 0–20 to Seq Scan at
+30–90**, in a walk that changed nothing. `OFFSET` is part of the plan.
 
-```
-api/build/test-results/test/    4 xml   <- overwritten. The 125 / 48 evidence is gone
-seed/build/test-results/test/   5 xml   <- INTACT. Re-read just now: 15 tests, 0 failures
-```
+**`ADR-014` row `44.3`, on the real table and `V2`'s real index:**
 
-⭐ **And the `:api:test` half is corroborated rather than merely remembered.** The orchestrator
-counted 48 classes / 125 tests / 0 failures from that XML independently at ~15:26, before the
-overwrite, and holds it with a timestamp. So the earlier reading has **two independent readers**
-and one surviving artefact.
+| | scan node | extra node |
+| --- | --- | --- |
+| `order by attempted_at desc` | `Index Scan Backward using ix_attempt_learner_attempted_at` | — |
+| as shipped, `+ id desc` | **the same node, same estimate `0.29..772.72`** | `Incremental Sort`, presorted on `attempted_at` |
 
-That does not promote it to this slice's number — §3 cites the later full run, per the
-orchestrator's instruction and because a figure whose evidence is half-deleted should not be the
-headline. What it changes is the **status** of the earlier reading: it is *corroborated*, not
-*unverifiable*. ⭐ **If the later run disagrees with 125 / 15, that is a finding with two prior
-independent readings to disagree with — not a doubt about whether the first reading happened.**
+⭐ **`V2`'s index still serves it.** ⚠️ Plan **shape** answered; plan **cost in time** 미측정.
+
+**G4 — `R42`.** `orElse` present: **2 statements / 1 fallback call.** `orElseGet` present:
+**1 / 0.** Kotlin elvis present: **1 / 0.** Both absent arms: **2 / 1** — the control that makes
+it laziness rather than overhead.
+
+### Slice-level test counts, and which tree each came from
+
+⚠️ **This is the one figure still owed.** Three readings exist and they are **not**
+interchangeable:
+
+| Reading | Tree | `:api:test` | `:seed:test` |
+| --- | --- | --- | --- |
+| baseline | base `99d558b`, before any commit of mine | 125 tests / 48 classes | 15 / 5 |
+| mid-slice | after the instruments, **before** `ae2b2da` and `022675b` | 138 tests / 53 classes, **2 failures** | 15 / 5 |
+| **final tree** | `4bfa268` | **PENDING — a full run is owed** | **PENDING** |
+
+⭐ **The baseline is corroborated, not merely remembered.** The orchestrator counted 48 / 125 / 0
+from the same XML independently before it was overwritten. The `:seed:test` XML survives on disk.
+
+⛔ **The mid-slice reading's 2 failures were both mine and both intended-or-informative**: the G2
+red, and the refuted `Hibernate.getClass` prediction. Neither was a flake — both were deterministic
+`AssertionFailedError`s with expected/actual values, checked for timeout and connection signatures
+before being believed.
 
 ### What may not be compared
 
-- **The baseline run's wall time was 11m54s. It is not a number, may not be cited, and appears
-  in no table with any other duration.** It was taken with D and E loading the same eight cores.
-  It is recorded here only so that nobody later finds it in a log and treats it as a measurement.
-- **No duration of any kind was taken in this slice**, and none is reported as 미측정-with-a-guess.
-  Where a question needed a duration I did not take one — see the `44.3` note below.
-
-### G1 — what one equality check costs
-
-`PENDING — window held for D.` The instrument is `EntityEqualityTest` at `260dcc2`. It produces:
-hash-before/hash-after and set membership across persist for both shapes; the agreement of
-`Hibernate.getClass`, `javaClass` and `instanceof` on one row held as a proxy and as a loaded
-instance; and the statement count of a single `==` for three shapes.
-
-### G2 — which exception kinds roll back
-
-`PENDING — window held for D.` `RollbackRuleTest` and `BatchInsideATransactionTest` at `94fe9ee`.
-
-### G3 — how many rows came back twice, and how many never
-
-`PENDING — window held for D.` `TieBreakPagingTest` at `85943b0`, 100 rows in 4 tied groups of
-25, page size 10.
-
-### G4 — what `orElse` costs when the value is present
-
-`PENDING — window held for D.` `AbsenceCostTest` at `85943b0`.
-
-### `ADR-014` row `44.3` — and why plain `EXPLAIN`
-
-`44.3` asks *"does `V2`'s index still serve it without a sort"*. That is a question about **plan
-shape** — which nodes appear — and plan shape is a logical fact about the query, the schema and
-the statistics.
-
-⭐ **`EXPLAIN` was chosen over `EXPLAIN ANALYZE` for that reason, not incidentally.**
-`EXPLAIN ANALYZE` answers the same question and *also* produces actual execution times. This
-session does not hold the timing lock, and the right response is to choose the form of the query
-that **cannot** produce a duration rather than to take one and discard it. Every figure the test
-prints is a node name or a planner estimate in cost units.
-
-⚠️ **This closes at most half of `44.3`.** The row says *"plan cost"*. Plan **shape** is answered;
-what the tie-break costs in time is **미측정** and stays open. §7 records that split rather than
-claiming the row.
+- **The baseline run's wall time was 11m54s. It is not a number, may not be cited, and appears in
+  no table with any other duration.** Taken with D and E loading the same eight cores. Recorded
+  only so nobody later finds it in a log and treats it as a measurement.
+- **No duration of any kind was taken in this slice.** Where a question needed one I did not take
+  it — `44.3`'s cost half, `REQUIRES_NEW`'s throughput, and `R42`'s statement-in-milliseconds are
+  all 미측정 rather than estimated.
+- **The connection figures in `R40` §8 are D's and E's, not mine.** They are attributed in place
+  and never combined arithmetically with anything of mine.
 
 ---
 
 ## 4. REPORTS WRITTEN
 
-`PENDING — window held for D.` Planned:
-
-| Report | Title | Trap |
+| Report | Title | §8 non-empty? |
 | --- | --- | --- |
-| `R39` | *(pending)* — what one `==` costs when the thing compared is an entity | G1 |
-| `R40` | *(pending)* — the annotation is applied, the proxy is crossed, and the row is still there | G2 |
-| `R41` | *(pending)* — the rows that came back twice and the rows that came back never | G3 |
-| `R42` | *(pending)* — the fallback that runs when it is not needed | G4 |
-| `ADR-020` | *(pending)* — decision arising from G2/G3 | — |
+| `R39` | *What one equality check costs* | ✔ 9 bullets |
+| `R40` | *The annotation is applied, the proxy is crossed, and the row is still there* | ✔ 9 bullets |
+| `R41` | *The rows that came back twice, and the rows that never came back* | ✔ 8 bullets |
+| `R42` | *The fallback that runs when it is not needed* | ✔ 7 bullets |
+| `ADR-020` | *A unit of work stays a unit of work when it is not the outermost one* | Accepted |
+| `OPEN-13` | *Must the pool report its own exhaustion before the recording path gets a transactional caller?* | Open |
 
-§8 non-emptiness will be confirmed per report when each is written. ⛔ Not claimed yet.
+**CHECK 4 verified locally**: §8 line counts 21 / 22 / 19 / 14 against a floor of 3.
 
 ---
 
 ## 5. GATES AND CI
 
-### Workflows, and whether I changed any
-
 | Workflow | Changed by me? | State |
 | --- | --- | --- |
-| `.github/workflows/build.yml` | **no** | `PENDING` — this is my completion signal |
-| `.github/workflows/docs-consistency.yml` | **no** | **expected-red at CHECK 3** — see below |
-| `.github/workflows/secret-scan.yml` | **no** | `PENDING` |
-| `.github/workflows/no-learner-data.yml` | **no** | `PENDING` |
-| `.github/workflows/load-harness.yml` | **no** | not exercised by this slice |
+| `.github/workflows/build.yml` | **no** | the completion signal — full run owed |
+| `.github/workflows/docs-consistency.yml` | **no** | **expected-red at CHECK 3** |
+| `.github/workflows/secret-scan.yml` | **no** | untouched by this slice |
+| `.github/workflows/no-learner-data.yml` | **no** | untouched by this slice |
+| `.github/workflows/load-harness.yml` | **no** | not exercised |
 
-⭐ **I changed no workflow file.** Slice H added CHECK 5 to `docs-consistency.yml`; I did not
-touch it.
+⭐ **I changed no workflow file.**
 
-### `docs consistency` is expected-red and that is the normal state for this round
+### `docs consistency` is expected-red, and it was red before I arrived
 
-CHECK 3 requires a `docs/roadmap.md` row per report and **I am forbidden to touch
-`docs/roadmap.md`.** Adding `R39`–`R42` therefore makes it red by construction. That red is
-**created by the brief and closed by slice F**. ⛔ I did not close it by editing the roadmap.
-**My completion signal is the `build` job**, per the orchestrator's round-wide ruling.
-
-⭐ **Slice F needs SEVEN roadmap rows, not four.** Measured by running CHECK 3's own loop over
-this branch:
-
-```
-R39 R40 R41 R42    mine
-R43 R44 R45        slice H's — ALREADY RED ON MY BASE, before I committed anything
-```
-
-`R43`–`R45` arrive with the base and were red at `99d558b`. **CHECK 3 was already failing when I
-started**, which is worth knowing because it means the red is not evidence about my work in
-either direction.
-
-### The other four checks were verified against my documents rather than assumed
-
-⛔ I did not want to discover a self-inflicted red inside a measurement window, and all four are
-plain shell, so I ran their logic locally against my own files while the machine was held.
-
-| Check | What it does | Result on my documents |
-| --- | --- | --- |
-| CHECK 1 — *every named artefact exists* | resolves every backticked `*.kt`/`*.java`/`*.sql`/`*.yml` token and every `…Test`/`…Rules`/`…Queries` name against tracked files and declared types | **OK** — ran its exact loop over my six documents; every token resolves |
-| CHECK 2 — *`Updated` matches the last substantive change* | compares the header date against `git log` | **OK** — every document I wrote is dated 2026-08-22 and committed 2026-08-22. ⚠️ if any of them is edited on a later date the header must move with it |
-| CHECK 4 — *§8 is non-empty* | ≥3 non-blank lines between `## 8.` and `## 9.` | **OK** — `R39` 21, `R40` 22, `R41` 19, `R42` 14. The floor is 3 |
-| CHECK 5 — *no comment denies an index a migration creates* | KDoc containing `no index`/`without an index`/`lacks an index`/`no … index` **and** a backticked table that a migration indexes | **OK, and by absence rather than by luck** — I grepped all eight of my new sources for the four denial phrases and there are **zero** matches. The indexed tables are `attempt` and `concept_edge`; nothing I wrote denies an index on either |
-
-⚠️ **CHECK 5 reads KDoc only.** 172 of this tree's 552 comment blocks are outside its corpus.
-⛔ A green CHECK 5 must not be read as "no comment in this tree is false" — including for the
-KDoc I added, which is substantial. My sources pass because they make no index claim at all, not
-because an axis verified the claims they do make.
-
-⭐ **That is `R43` §3.5's lesson arriving from the other direction, and the pair is worth keeping
-together.** There, a green was **vacuous because the input was empty** — `git ls-files` returned
-nothing inside WSL2, both harvested lists came back empty, and the check reported OK on a tree
-with two real findings in it. Here, a green is **thin because the subject is empty** — the input
-is fine, the corpus is fine, and my sources simply make no claim of the kind the axis inspects.
-
-Same shape, opposite cause, and the same required response: **say which kind of green you have.**
-`R43` answered it by asserting both inputs are non-empty before trusting the result. The
-equivalent answer here is a sentence, because there is no assertion a workflow can make about
-whether the thing it is checking for was ever going to be present.
-
-### CHECK 3 was already red at my base, so my branch's CI colour is not evidence about my work
-
-Verified by running CHECK 3's loop on both branches:
+CHECK 3 wants a `docs/roadmap.md` row per report and **I am forbidden to touch that file.**
+Measured by running CHECK 3's own loop on both branches:
 
 ```
 round3/basics    FAIL — R39 R40 R41 R42 R43 R44 R45     (seven)
 round3/recency   FAIL — R43 R44 R45                     (three, at my base 99d558b)
 ```
 
-⛔ **Review this branch by diff, not by CI colour.** `docs consistency` was failing before my
-first commit and will be failing after my last, for a reason neither commit touches.
+⛔ **Review this branch by diff, not by CI colour.** `docs consistency` was failing before my first
+commit and will be failing after my last, for a reason neither touches. **Slice F owes seven rows,
+not four.**
+
+### The other four checks were verified against my documents rather than assumed
+
+| Check | Result |
+| --- | --- |
+| CHECK 1 — every named artefact exists | **OK** — ran its exact loop over my documents; every token resolves |
+| CHECK 2 — `Updated` matches the last substantive change | **OK** — everything dated and committed 2026-08-22 |
+| CHECK 4 — §8 non-empty | **OK** — 21 / 22 / 19 / 14 against a floor of 3 |
+| CHECK 5 — no comment denies an index a migration creates | **OK, by absence rather than by luck** |
 
 ⚠️ **CHECK 5 reads KDoc only.** 172 of this tree's 552 comment blocks are outside its corpus.
-⛔ A green CHECK 5 must not be read as "no comment in this tree is false" — including for the
-KDoc I added, which is substantial.
+⛔ A green CHECK 5 must not be read as "no comment in this tree is false" — including for the KDoc
+I added, which is substantial. **My sources pass because they make no index claim at all**, which
+is not the same as an axis having verified the claims they do make.
+
+⭐ **That is `R43` §3.5's lesson from the other direction.** There, a green was **vacuous because
+the input was empty** — and that has a guard, which `R43` shipped. Here a green is **thin because
+the subject is empty**, and **no guard is possible**, because no workflow can check whether the
+thing it looks for was ever going to be present. Ledger `40.2`, class **(c)**.
 
 ### ⚠️ I scoped a regression check by package name, and the package name was an accident
 
-Recorded because it was caught by the orchestrator rather than by me, and because the reasoning
-that produced it looked sound.
+Recorded because the orchestrator caught it, not me, and because the reasoning looked sound.
 
-After the `022675b` production change I ran a targeted regression check and chose its scope like
-this: *the change is in `recording`, so run `net.gseek.proxima.recording.*`.* Sensible-sounding,
-and it had a hole.
+After `022675b` I scoped a targeted regression check as *the change is in `recording`, so run
+`net.gseek.proxima.recording.*`*. **`ConnectionHoldingGateTest` is `R4`'s gate, it exists to
+notice a connection held across a boundary, `022675b` changes how many are held at once — and it
+lives in `recommendation`, so my filter could not see it.** `QueryCountTest` lives in `perf` and
+was missed the same way.
 
-**`ConnectionHoldingGateTest` is `R4`'s gate. It exists to notice a connection held across a
-boundary. `022675b` changes how many connections are held at once. And it lives in
-`net.gseek.proxima.recommendation`, so my filter could not see it.** `QueryCountTest` lives in
-`perf` and was missed the same way.
-
-⛔ **Choosing test scope by package is choosing it by an accident of layout.** The correct unit is
-*what the change can affect*, and only then where those tests happen to live. The two are not the
-same set and nothing warns when they differ — a targeted run that misses the relevant gate is
-**green for the wrong reason**, which is the fifth instance of the shape `R39` §2.2 tabulates.
-
-**Resolved by not relying on the filter at all**: the slice's closing number is a full
-`:api:test :seed:test --rerun-tasks`, which cannot have this defect.
+⛔ **Choosing test scope by package is choosing it by an accident of layout.** The unit is *what
+the change can affect*. Resolved by not relying on the filter: the closing number is a full run.
 
 ### New tables are a test fixture, NOT a migration
 
-⭐ **An integrator reading "five new tables" will go looking for a `V6`. There is none.** The
-fixture tables come into existence two ways, both inside the test:
+⭐ **An integrator reading "new tables" will look for a `V6`. There is none.** They are created
+test-side — one `create schema` over JDBC plus `hbm2ddl` on a standalone `SessionFactory`, into
+`g_basics` and `g_paging`, both dropped in `@AfterAll`. `db/migration` is unchanged at `V1`…`V5`.
 
-1. `EntityEqualityTest` and `TieBreakPagingTest` each issue `create schema if not exists` over
-   JDBC against the container the Spring context already holds;
-2. a standalone `SessionFactory` with `hibernate.default_schema` and `hbm2ddl.auto = create`
-   maps the fixture entities into that schema.
-
-`api/src/main/resources/db/migration/` is **unchanged** — `V1`…`V5`, five files. The ceiling is
-still `V5`. `IdentifierGenerationTest` is the precedent; the only difference is that I reuse the
-existing container rather than starting a second one, because this machine is shared.
-
-**Both fixture schemas are dropped in `@AfterAll`.** Verified by reading all three consumers of
-the real schema rather than assuming:
+Verified by reading all three consumers of the real schema rather than assuming:
 
 | Test | What it reads | Can it see the fixtures? |
 | --- | --- | --- |
@@ -392,161 +314,138 @@ the real schema rather than assuming:
 | `CollationDivergenceTest` | same filter, and it starts its own containers | **no** |
 | `PopulatedMigrationTest` | enumerates no tables at all | **no** |
 
-⚠️ **If either migration test goes red during this slice, suspect these fixtures before
-suspecting the schema.** I checked, and I nearly shipped a leak: the first draft never dropped
-its schema at all.
-
 ---
 
 ## 6. WHAT I DID NOT DO
 
-⭐ **Silent reduction is the worst failure in this repository, so everything dropped is named
-here with its reason.**
+⭐ **Silent reduction is the worst failure in this repository, so everything dropped is named.**
 
-- **`ADR-014` rows `45.1` and `45.2` — declined, deliberately, and this is the record of the
-  decline.** `45.1` audits whether any other ArchUnit rule has the shape `R45` found (an
-  exclusion added for a false positive that also hid the true one); `45.2` records that
-  `TransactionBoundaryRulesSelfTest` has no default-argument fixture. Both sit next to G2 and
-  neither is G's. Taking them would repeat the H3-for-`R45` trade **without the reason that
-  justified it** — H3's budget was already spent by structural absence, and G2's is not. They
-  stay open and unclaimed.
-- **`ADR-014` row `44.3` — taken only in half.** Plan shape measured; plan *cost* in time
-  **미측정**, because it needs a duration and this session does not hold the timing lock. ⛔ Not
-  marked closed by argument.
-- **`recentOutcomesByCount` was not re-measured.** `R44` §3 owns the specific case. `R41` cites it.
-- **No collation measurement.** `R25`/`R26` closed that axis and `ADR-014` `9.1`/`D.8` with it.
-  `R41`'s sort column is an integer specifically so the report cannot drift into it.
-- **No `.study/` chapter.** §6 of the integration brief assigns round-three's Korean chapters to
-  slice F, and the brief's discipline line routes only *explanation* there. My output is
-  measurement.
-- **No production code changed so far.** `94fe9ee` reaches the defect through a caller rather
-  than by editing `AttemptRecordingService`, because editing it would manufacture the failure.
-- **No timing lock requested and no duration taken.** See §3.
-
-`PENDING` — anything further dropped after the measurement window will be added here rather than
-quietly omitted.
+- **`ADR-014` rows `45.1` and `45.2` — declined deliberately.** They audit the ArchUnit rule set
+  next to G2 and neither is G's. Taking them would repeat the H3-for-`R45` trade **without the
+  reason that justified it** — H3's budget was already spent by structural absence; G2's was not.
+  They stay open and unclaimed.
+- **`44.3` taken in half only.** Plan shape measured; plan cost in time **미측정**. ⛔ Recorded as
+  *corrected and half-answered*, not closed — `43.3`'s precedent.
+- **`recentOutcomesByCount` was not re-measured.** `R44` §3 owns the specific case.
+- **No collation measurement.** `R25`/`R26` closed that axis. `R41`'s sort column is an integer
+  specifically so the report could not drift into it.
+- **`rollbackFor` was not applied anywhere in production.** Nothing in `main` raises a checked
+  exception from a `@Transactional` method; applying it everywhere would defend against a shape
+  this codebase does not have. `R40` §5 says so rather than shipping it for tidiness.
+- **No ArchUnit rule for the checked-exception half**, because §3.2 measured that one cannot be
+  built in Kotlin. `R40` §7.
+- **No gate for `R42`.** One statement per call on a path that does not exist. `R42` §7 gives the
+  reason and §8 records it as an omission.
+- **No `.study/` chapter.** Round-three's Korean chapters are slice F's.
+- **No timing lock requested and no duration taken.**
+- **I did not fix `measurement-discipline.md`.** It is shared by four branches and is F's. §8.
 
 ---
 
 ## 7. NEW UNMEASURED
 
-`PENDING — window held for D.` Ledger ids will be derived from `R39`–`R42` (`39.x`–`42.x`);
-`43.x`, `44.x` and `45.x` are taken.
-
-Provisional entries, to be confirmed or corrected against what the run shows:
+Ledger ids derived from my own report numbers; `43.x`–`45.x` were taken.
 
 | id | claim | class | minutes | importance | note |
 | --- | --- | --- | ---: | --- | --- |
-| `40.1` | **what `REQUIRES_NEW` on `AttemptRecorder.record` costs the pool** — a second connection while the first is held, `Cm = 2` in `R2`'s formula | **a** | 45 | **H** | inert on the shipped call graph, because nothing calls `recordAll` from a transaction. **It becomes payable the moment something does**, which is the event `ADR-020` exists about |
+| `39.1` | whether a static rule can distinguish a hand-written `hashCode` computed from `id` from a safe one | **a** | 30 | M | `ENTITIES_ARE_NOT_DATA_CLASSES` refuses a **keyword**, not a defect. `R39` §7 |
+| `39.2` | whether `BaseEntity`'s type check can be satisfied **without initialising a proxy** | **a** | 45 | **H** | `Hibernate.getClass` costs 1 statement per proxy operand. Needs its own red/green pair — it changes equality for every entity. `R39` §5 |
+| `39.3` | the **incidence** of proxy-operand comparison on shipped paths | **a** | 60 | M | `R39` measured the per-comparison cost, not how often the application pays it |
+| `40.3` | whether any static analysis could see a Kotlin method's escaping checked exceptions | **a** | 40 | M | the `Exceptions` attribute is absent from the class file — `R40` §3.2. If a future Kotlin emits one, `R40` §7's reasoning expires |
 | `41.1` | what the tie-break costs `V2`'s index **in time**, as distinct from in plan shape | **a** | 40 | **H** | the unclosed half of `44.3` |
-| `39.1` | whether a static rule can distinguish a hand-written `hashCode` computed from `id` from a safe one | **a** | 30 | M | `ENTITIES_ARE_NOT_DATA_CLASSES` refuses a **keyword**, not a defect — `R39` §8 |
-| `40.2` | **a green from a check whose subject may legitimately be absent cannot be made self-verifying** | **c** | — | **H** | **closed on arrival — the entry names no unmeasured quantity.** See below |
+| `41.2` | whether the `OFFSET`-driven plan flip happens at a comparable **page depth** on a table the size of `attempt` | **a** | 45 | **H** | `R41` §3.2 observed it on 100 rows, and row count is what drives it. ⛔ `offset 30` is this table's crossover, not a threshold |
+| `40.2` | **a green from a check whose subject may legitimately be absent cannot be made self-verifying** | **c** | — | **H** | **closed on arrival — the entry names no unmeasured quantity.** `R43` §3.5's green was *vacuous* and has a guard; this one is *thin* and admits none, because no workflow can check whether its subject was ever going to be present. Filing it (a) would put a permanent property on a work list forever — `ADR-003`'s *"a deadline that cannot arrive is not a deadline"* |
 
-⭐ **`40.2` is class (c) and it took a correction to get right.** The instinct was to file it as (a)
-— *measurable here, just not done* — and that would have been wrong in a way this repository has a
-name for.
+**Not a ledger entry, and that is the point:** the pool-observability question is **`OPEN-13`**,
+because there is no number of minutes that settles it. §8 and `R19` §7.
 
-`R43` §3.5 met a green that was **wrong**: `git ls-files` returned nothing inside WSL2, both
-harvested lists came back empty, and CHECK 5 printed OK on a tree with two real findings. That is
-a defect, and it has a guard — assert both inputs are non-empty before trusting the result.
+**Ledger entries closed or corrected by this slice:**
 
-CHECK 5 on my sources is a green that is **thin**: input fine, corpus fine, and my eight new files
-simply make no index claim of the kind the axis inspects. ⛔ **There is no assertion that fixes
-that**, because no workflow can check whether the thing it looks for was ever going to be present.
-
-So there is no number of minutes that closes it. Filing it as (a) would put a **permanent property
-of the check** on a work list, where it would sit forever looking like an errand nobody got to —
-which is exactly what `ADR-003` names: *a deadline that cannot arrive is not a deadline*. It is a
-scope statement about what any such check can promise, and `ADR-014`'s own (c) is where that goes.
-
-**Ledger entries closed by this slice:** `PENDING`, plus `40.2` which is closed on arrival by
-being (c). ⛔ `44.3` will be recorded as *corrected and half-answered*, **not closed** — the
-precedent is `43.3`, which slice H corrected rather than closed when it turned out to be wrong in
-one half and right in the other.
+| id | disposition |
+| --- | --- |
+| `44.3` | ⛔ **corrected and half-answered, NOT closed.** Plan shape answered on the real table and index — `V2`'s index still serves the tie-break, with an `Incremental Sort` above it. Plan **cost in time** stays open as `41.1`. `43.3`'s precedent |
+| `40.2` | **closed on arrival**, by being class (c) |
 
 ---
 
 ## 8. FOR THE INTEGRATOR
 
-`PENDING — window held for D` for the report rows. Two sentences are ready now:
-
-**For `docs/explanation/measurement-discipline.md`** — not mine to edit, and it is wrong:
+**For `docs/explanation/measurement-discipline.md`** — not mine to edit, and wrong in three ways:
 
 > The pinned image is `postgres@sha256:cf78e766…`, **PostgreSQL 16.15 on x86_64-pc-linux-musl**.
-> The previously recorded `sha256:57c72fd2…` / 16.14 is not the pin and never was after `8dec7e6`;
-> it survives in this tree only as the comparison arm of `CollationDivergenceTest` and
+> The recorded `sha256:57c72fd2…` / 16.14 is not the pin and has not been since `8dec7e6`; it
+> survives in this tree only as the **comparison arm** of `CollationDivergenceTest` and
 > `ImageTagDriftTest`. Still musl, so `R25` and `R26` are unaffected.
 
+⭐ **And the deeper fix is a rule, not a number.** Three sessions counted that file's affected
+environment blocks and returned three different totals; the document's own figure lands on the
+subset that *already carried a digest* every time.
+
+> `measurement-discipline.md` requires an environment block for **every number**, and does **not**
+> require a count to publish **the unit it counted**. Its own count was wrong for precisely that
+> reason.
+
+⛔ **Do not fix this by writing a corrected number.** A corrected number with an unstated unit goes
+stale exactly as the first did and nothing notices — which is `R19`. That is `R8` §3.3's failure
+mode occurring in prose: an instrument blind to exactly the population it exists to find.
+
 **For `docs/roadmap.md`, `T3`'s row** — the clause reading *"the swallowed exception /
-rollback-only case is **not done at all**"* is the one `R40` addresses. It should not be marked
-done wholesale: `PENDING` on which half `R40` closes.
+rollback-only case is **not done at all**"* is closed **in the half that concerns this
+application**: `R40` reproduces it, `022675b` fixes the shipped path, `BatchInsideATransactionTest`
+gates it. ⚠️ The **checked-exception** half is measured and **not fixed** — `rollbackFor` exists and
+is applied nowhere, deliberately, because no `@Transactional` method in `main` raises one. Do not
+mark the row done wholesale.
 
-### ⭐ The rule `measurement-discipline.md` is missing — this, not the number, is what F owes
+**For `docs/roadmap.md`, new rows** — `R39`, `R40`, `R41`, `R42`, plus `R43`–`R45` inherited from
+the base. **Seven, not four.**
 
-The stale-digest defect I opened in that file turned out to have a bigger sibling. Three sessions
-counted its affected environment blocks and returned **three different totals**. What is stable
-across every method tried is **18 blocks carrying no digest**, and the document's own figure of
-**eight** lands on the *with-digest* subset every time.
-
-⛔ **Do not fix this by writing a corrected number.** A corrected number with an unstated unit
-goes stale exactly as the first one did, and nothing will notice — which is `R19`. The sentence
-to add is the rule the file does not have:
-
-> `measurement-discipline.md` requires an environment block for **every number**, and it does
-> **not** require a count to publish **the unit it counted**. Its own count was wrong for
-> precisely that reason.
-
-**Why that is the diagnosis rather than carelessness.** Three careful readers disagreed because
-*block*, *names a version*, and *affected* were never pinned. The original author's method could
-only see blocks that already carried a digest — so the instrument was blind to exactly the
-population it existed to find, and reported a number that looked like evidence. ⭐ **That is
-`R8` §3.3's failure mode occurring in prose instead of in code**, and `ADR-017`'s *"a guard that
-stops finding its input and reports OK"* is the same animal in a workflow. `R17` is the report
-about a guard that was a person; this is that defect in a document.
-
-So the fix is two things and the second is the durable one: correct the digest, **and state the
-unit**, so the next person to count gets the same answer as the last.
+**For `R0`** — the gate count changes by one: `BatchInsideATransactionTest` is a new gate that has
+been **watched refusing** (it failed at `94fe9ee` and passes at `022675b`). `R39`'s and `R41`'s
+tests are gates that have never been watched refusing anything, and should not be counted as paid.
 
 ---
 
 ## 9. SELF-CHECK
 
-⛔ Answered against the tree as it stands, with the measurement window still closed. Every answer
-will be re-confirmed after the run rather than carried forward unchanged.
-
 **a. Did any test result come from a Gradle cache rather than an execution you performed?**
-**No.** The only test result in this document is the `99d558b` baseline, and it was run with
-`--rerun-tasks`; Gradle reported *16 actionable tasks: 16 executed*. No number here comes from a
-cache, and no number here comes from a run I did not perform.
+**No.** Every run used `--rerun-tasks` and Gradle reported all tasks executed. The one number still
+outstanding is outstanding *because* I will not quote a run I did not perform.
 
 **b. Does any number here cross machines, sessions, or a long time gap?**
-**No.** Everything was taken on this machine today. ⚠️ Two figures are quoted from other reports
-and are labelled as theirs rather than re-presented as mine: `R14`'s four-of-five batch result
-(which `BatchInsideATransactionTest` **re-measures on this base** rather than importing) and
-`R44` §3's tie-break cost (cited, not re-measured). The 11m54s build wall time is quarantined in
-§3 and compared with nothing.
+**No number of mine.** ⚠️ Two figures in `R40` §8 are **other sessions'** — D's pool measurement and
+E's connection count — and they are attributed in place, on the same machine and the same day, and
+**never combined arithmetically** with anything of mine. `R14`'s four-of-five was **re-measured on
+this base** rather than imported. `R44` §3's tie-break cost is cited, not re-presented.
 
 **c. Did you loosen a threshold, a sample size, or an assertion to make something pass?**
-**No.** One assertion was deliberately written *weaker* than the finding, and the reason is the
-opposite of loosening: `TieBreakPagingTest` **reports** the duplicate/missing counts of the defect
-arm instead of asserting they are non-zero. Asserting a failure would make the test lie on a
-machine where the planner happens to be stable, and the brief explicitly allows "it would not
-shift here" as a result. The remedy arms *are* asserted exactly, at zero.
+**No, and one assertion changed in a way that needs stating.** `EntityEqualityTest` asserted the
+three proxy type checks cost **0** and measured **1**. It was corrected to the measured value —
+**still exact in both directions**, now attributed per operation, with a `label` control that must
+be 1 or the counter is blind. **The superseded prediction is written beside it in the source**, not
+only in the report. ⛔ That is a corrected prediction, not a loosened threshold: the original could
+not have reported *which* operation cost the statement, and the replacement can.
+
+One assertion is deliberately **weaker** than the finding, for the opposite reason:
+`TieBreakPagingTest` **reports** the defect arm's duplicate/missing counts instead of asserting
+they are non-zero, because asserting a failure would make the test lie on a machine where the
+planner is stable. The remedy arms are asserted exactly, at zero.
 
 **d. Is there any claim in a code comment that your work has made false?**
-`PENDING` — to be re-checked against the run. Two comments are in scope and neither is falsified
-yet: `AttemptRecordingService`'s *"holds no transaction and no `@Transactional`, deliberately"*
-remains true (I added no annotation to it), and `RecommendationQueries.kt:151`'s *"the general
-form of this defect belongs to slice G"* becomes **satisfied** rather than false once `R41` lands.
+**No, and two were made true.** `AttemptRecordingService`'s *"holds no transaction and no
+`@Transactional`, deliberately"* is still true — I added no annotation to it — and it now also
+records the **second** reason that absence was load-bearing, which was never written down.
+`RecommendationQueries.kt:151`'s *"the general form of this defect belongs to slice G"* is
+**satisfied** by `R41` rather than falsified. `AttemptRecorder`'s unit-of-work sentence was
+**unconditional and not true under a transactional caller**; `022675b` makes it true rather than
+weakening it.
 
 **e. Did you write any version number, default value, or API behaviour from memory?**
-**No, and one design decision exists specifically to avoid it.** The PostgreSQL version was read
-from my own run's Flyway output, not from `measurement-discipline.md` — which turned out to be
-wrong. Kotlin's annotation-target resolution under `-Xannotation-default-target=param-property`
-was **not** written from memory: the `data class` fixtures use explicit `@field:` targets rather
-than relying on a compiler behaviour I would have had to recall. Spring's rollback rule is not
-asserted from documentation either — `RollbackRuleTest` executes each exception kind against a
-real database and counts the committed rows.
+**No, and three things exist specifically to avoid it.** The PostgreSQL version was read from my own
+run's Flyway line, not from `measurement-discipline.md` — which turned out to be wrong. Kotlin's
+annotation-target resolution was **not** recalled: the `data class` fixtures use explicit `@field:`
+targets, and `javap` confirmed where they landed. **Spring's rollback rule is not quoted from
+documentation anywhere in `R40`** — `RollbackRuleTest` executes each exception kind against a real
+database and counts committed rows, which is why §3.1 is a table and not a citation.
 
 **f. Did any company name, job posting, CV, interview, or portfolio wording enter the tree?**
 **No.**

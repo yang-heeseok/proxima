@@ -222,21 +222,21 @@ rule 3 forbids the arithmetic and there is no ratio worth the breach.
 | --- | --- | --- | --- |
 | **`R37`** | Two rows, and an order nobody agreed on | Opposed lock order deadlocks 10 pairs of 10 at `40P01` with **one casualty each and `bothDied=0`**; `deadlock_timeout` is when the server *looks*, not when it kills, and `lock_timeout`/`statement_timeout` are both `0` so nothing else would have ended the wait — and the remedy, a lock order, is **a convention the database cannot enforce**, while the detector that saved every pair **prevents nothing** | **yes** — 11 bullets, including a judgement routed to `ADR-019` and the falsification of `R6` §8 |
 | **`R34`** | Two remedies that are correct only while there is one instance | On one instance ①, ② and ③ all keep every increment. On two, ① gives **565/557** and ② gives **500/500** with `failures=0` and nothing logged, while ③ holds **1,000**. ⭐ The finding is the *shape*: ① fails like a race and moves between runs; **② fails like a partition — exactly 500, `inMemory=[500,500]`, each instance internally perfect and confidently wrong** | **yes** — 8 bullets, led by the missing cost comparison |
-| **`R35`** | A cache in a bean, and the repair that fixes half of it | A `HashMap` on a bean loses **61 then 32** of 2,000 entries with **nothing raised**; `ConcurrentHashMap` fixes that and **not** the compound operation — `get`-then-`put` loads **8 then 2** times for one key where `computeIfAbsent` loads **1** both times. ⭐ The `after` column is stable across runs and the `before` column is not | **yes** — 9 bullets, including the retraction of its own drafted headline |
+| **`R35`** | A cache in a bean, and the repair that fixes half of it | A `HashMap` on a bean loses entries every run with **nothing raised**; `ConcurrentHashMap` fixes that and **not** the compound operation — `get`-then-`put` loads **more than once** for a single key where `computeIfAbsent` loads **exactly 1**. ⭐ Four runs, and the claim is a sentence rather than a number: **the direction reproduces and the magnitude does not** — losses of 61 / 32 / 64 / 183 and loads of 8 / 2 / *refused* / 8, with **no mean published for either** | **yes** — 12 bullets, including the retraction of its own drafted headline and its own gate's flakiness |
 | **`R36`** | A flag one thread wrote and another never saw | The brief warned this might not reproduce; **it reproduced 6 of 6**, the plain arm running the full 2×10⁹ every time while the `@Volatile` control terminated every time. The mechanism is **not** the memory system — it is C2 hoisting the read, which makes it deterministic rather than rare | **yes** — 8 bullets |
-| `R38` | *(E5)* | not written | — |
+| **`R38`** | The propagation this repository has never used, and the test that passed without it | `NESTED` is refused outright — `NestedTransactionNotSupportedException` — so E5 is `BLOCKED-BY-FRAMEWORK` as shipped, and **following the exception's own instruction did not lift it in two attempts**. ⭐ The finding is the arm that **passed while measuring nothing**: `row=100` reads identically whether a savepoint rolled back or nothing ran. `REQUIRES_NEW` holds **2** pool slots, a number `R2` and `R24` never varied | **yes** — 9 bullets, including the decision to stop |
 
-**`ADR-019`** (`395ea38`) is written and is deliberately **`Proposed`, not `Accepted`**. Its
-decision is *record the gap, write no structural rule*, on `ADR-007`'s own **unbanked**
-ground — nothing in this application takes two row locks, so a rule written now would guard
-one shape and that shape is the test's own. It cannot be Accepted until `R37` has a green
-commit, because it has been measured that the **unsorted** pair deadlocks and **not** that the
-sorted one does not, and deciding a convention is the remedy before the remedy has been
-observed to work is the same error `6.6` is being closed out of.
+**`ADR-019`** (`395ea38`, accepted at `c6cd169`) — *a lock order is a convention, nothing can be
+made to keep it, and no guard is written for a caller that does not exist*. Decision: **record
+the gap, write no structural rule**, on `ADR-007`'s own **unbanked** ground — nothing in this
+application takes two row locks, so a rule written now would guard one shape and that shape is
+the test's own. **It was filed `Proposed` and only moved to `Accepted` once `R37` went green**,
+because deciding a convention is the remedy before the remedy has been observed to work is the
+same error `6.6` was closed out of. The ADR records that the measurement **did not change the
+decision**, which is worth stating: a decision that survives its own evidence looks identical to
+one never tested against any.
 
-⚠ **`R37`'s header does not say *green* and its §6 is `미측정`.** It is the red half plus the
-mechanism and the remedy argument. It is not a finished report and says so in its own first
-lines.
+**`R37` is green** — red `a108715`, green `5501f32`, all three arms in one invocation.
 
 **One edit outside this slice's source contract, made deliberately.** `R6` §8's bullet *"one
 row, one column, one increment… which this measured nothing about"* is annotated **beside the

@@ -1,7 +1,7 @@
 # R6. Updates lost under concurrency — and a retry that makes it worse
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-22
 > **Red commit**: `8d177b5` — the state before `MasteryCounter` existed
 > **Green commit**: this one — the comparison, and the strategy the application should use
 > **Status**: `T5` measured. **The application has not been changed to use the winner**; §8
@@ -196,6 +196,21 @@ found itself in.
   pulled here.
 - **One row, one column, one increment.** Multi-row transactions introduce lock ordering and
   deadlocks, which this measured nothing about.
+  > **No longer true as of 2026-08-22. `R37` measured them, and `ADR-014` ledger entry `6.6`
+  > — which is this sentence — is closed by it.** Two transactions taking the same two rows in
+  > opposite order deadlocked **10 pairs out of 10**, `SQLSTATE 40P01`, with **exactly one
+  > casualty per pair and `bothDied=0`**: PostgreSQL detects the cycle and kills the minimum
+  > number of participants rather than letting both hang. `deadlock_timeout` is `1000ms` at
+  > `source=default` and is **not** a timeout that kills — it is when the backend stops waiting
+  > and runs the cycle check — while `lock_timeout` and `statement_timeout` are both `0`, so
+  > **nothing else on this server would ever have ended the wait.**
+  >
+  > The sentence above is left standing rather than edited, because what it got right is the
+  > part worth keeping: it named the gap precisely enough that somebody could later walk up and
+  > take the measurement. What `R37` adds that this bullet could not have guessed is that the
+  > remedy does **not** follow the shape `V3` used. Uniqueness moved into the database as a
+  > constraint; **lock order cannot move there at all** — the sorted call and the unsorted one
+  > are the same two statements, and no schema object distinguishes them.
 - **What would break the conclusion:** a write whose new value is not derivable from the old
   one. §5 states the condition; the atomic statement's advantage disappears entirely there.
 

@@ -269,6 +269,35 @@ CHECK 3 requires a `docs/roadmap.md` row per report and **I am forbidden to touc
 **created by the brief and closed by slice F**. ⛔ I did not close it by editing the roadmap.
 **My completion signal is the `build` job**, per the orchestrator's round-wide ruling.
 
+⭐ **Slice F needs SEVEN roadmap rows, not four.** Measured by running CHECK 3's own loop over
+this branch:
+
+```
+R39 R40 R41 R42    mine
+R43 R44 R45        slice H's — ALREADY RED ON MY BASE, before I committed anything
+```
+
+`R43`–`R45` arrive with the base and were red at `99d558b`. **CHECK 3 was already failing when I
+started**, which is worth knowing because it means the red is not evidence about my work in
+either direction.
+
+### The other four checks were verified against my documents rather than assumed
+
+⛔ I did not want to discover a self-inflicted red inside a measurement window, and all four are
+plain shell, so I ran their logic locally against my own files while the machine was held.
+
+| Check | What it does | Result on my documents |
+| --- | --- | --- |
+| CHECK 1 — *every named artefact exists* | resolves every backticked `*.kt`/`*.java`/`*.sql`/`*.yml` token and every `…Test`/`…Rules`/`…Queries` name against tracked files and declared types | **OK** — ran its exact loop over my six documents; every token resolves |
+| CHECK 2 — *`Updated` matches the last substantive change* | compares the header date against `git log` | **OK** — every document I wrote is dated 2026-08-22 and committed 2026-08-22. ⚠️ if any of them is edited on a later date the header must move with it |
+| CHECK 4 — *§8 is non-empty* | ≥3 non-blank lines between `## 8.` and `## 9.` | **OK** — `R39` 21, `R40` 22, `R41` 19, `R42` 14. The floor is 3 |
+| CHECK 5 — *no comment denies an index a migration creates* | KDoc containing `no index`/`without an index`/`lacks an index`/`no … index` **and** a backticked table that a migration indexes | **OK, and by absence rather than by luck** — I grepped all eight of my new sources for the four denial phrases and there are **zero** matches. The indexed tables are `attempt` and `concept_edge`; nothing I wrote denies an index on either |
+
+⚠️ **CHECK 5 reads KDoc only.** 172 of this tree's 552 comment blocks are outside its corpus.
+⛔ A green CHECK 5 must not be read as "no comment in this tree is false" — including for the
+KDoc I added, which is substantial. My sources pass because they make no index claim at all, not
+because an axis verified the claims they do make.
+
 ⚠️ **CHECK 5 reads KDoc only.** 172 of this tree's 552 comment blocks are outside its corpus.
 ⛔ A green CHECK 5 must not be read as "no comment in this tree is false" — including for the
 KDoc I added, which is substantial.

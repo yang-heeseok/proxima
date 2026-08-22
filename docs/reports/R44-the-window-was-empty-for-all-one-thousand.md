@@ -6,7 +6,8 @@
 > implemented was not a defect — it was a documented deviation with a stated reason. `R43` is
 > the report about that reason having expired. What this report measures is the choice the
 > deviation was hiding, and the state the choice arrives in.
-> **Green commit**: `PENDING` — step 4 implemented, `ADR-021`'s definition, one extra statement
+> **Green commit**: `ebcc99c` — step 4 implemented, `ADR-021`'s definition, one extra statement
+> ⚠️ **This field read `PENDING` until 2026-08-23, and it could not have read anything else when it was written.** `ebcc99c` is the commit that implements step 4 **and adds this report**, so the SHA did not exist while the sentence naming it was being typed. **A report that cites its own commit has a field its author cannot fill**, and the only ways to fill it are an amend or a follow-up commit. Neither happened, and the placeholder merged. Filled here by slice `F` from `git log --diff-filter=A`, which is where it was recoverable all along.
 > **The defect this report does find has no green.** On the shipped dataset the implemented step 4
 > is **inert**, and `ADR-021` says of that, in its own words rather than mine:
 >

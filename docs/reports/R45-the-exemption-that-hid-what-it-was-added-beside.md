@@ -4,7 +4,8 @@
 > **Updated**: 2026-08-22
 > **Red commit**: `77022a5` — the rule as shipped since `R7`. It passes on a self-invocation it
 > is written to refuse, and the three arms in §3 are how that was established
-> **Green commit**: this one — the rule looks through the bridge instead of exempting it
+> **Green commit**: `4726416` — *"this one"* when written; the rule looks through the
+> bridge instead of exempting it. Resolved to a SHA by slice `F`, same reason as `R44`'s
 > **Found by**: `R44` §3.5. The rule caught step 4's self-invocation **once** when the same tree
 > contained **two**, and the missing one is this report
 

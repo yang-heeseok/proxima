@@ -17,8 +17,8 @@ Branch `round3/layers`, worktree `../proxima-e`, base **`77022a5`**.
 | Trap | Verdict |
 | --- | --- |
 | **E1** — three remedies at three layers, one instance then two | `PENDING` — instrument and tests committed, **not yet run** |
-| **E2** — a singleton bean holding mutable state | `PENDING` — instrument and tests committed, **not yet run** |
-| **E3** — memory visibility, a flag one thread may never see | `PENDING` — instrument and tests committed, **not yet run** |
+| **E2** — a singleton bean holding mutable state | **`REPRODUCED`** — two of its three sub-arms; the third is `NOT-REPRODUCED` and §4 names it |
+| **E3** — memory visibility, a flag one thread may never see | **`REPRODUCED`** — 0 of 6 trials observed the write, across two invocations |
 | **E4** — deadlock, two rows locked in opposite order | **`REPRODUCED`** — red and green both taken |
 | **E5** — nested transactions, `REQUIRES_NEW` against `NESTED` | `PENDING` — instrument and tests committed, **not yet run** |
 
@@ -55,8 +55,8 @@ uses them.
 | Trap | Report | State |
 | --- | --- | --- |
 | E1 | `R34` | not written yet |
-| E2 | `R35` | not written yet |
-| E3 | `R36` | not written yet |
+| E2 | **`R35`** | **written and green.** *A cache in a bean, and the repair that fixes half of it* |
+| E3 | **`R36`** | **written and green.** *A flag one thread wrote and another never saw* |
 | E4 | **`R37`** | **written and green.** §6 carries all three arms |
 | E5 | `R38` | not written yet |
 | — | **`ADR-019`** | **written, `Proposed` not `Accepted`** — *a lock order is a convention, nothing can be made to keep it, and no guard is written for a caller that does not exist*. `395ea38` |
@@ -67,8 +67,8 @@ uses them.
 | --- | --- | --- | --- |
 | **E4** | **`a108715`** | **`5501f32`** | Red: the opposed pair, asserted to complete, does not — `casualties=10 bothDied=0 bothBetweenLocks=10`, `40P01` ten times. Green: ascending order gives `casualties=0` **and `bothBetweenLocks=0`** — the interleaving is removed, not survived; retry-outside gives `casualties=0` with `retries=10 over 10 pairs`. `4 tests, 0 failures` |
 | **E1** | **`3b90db2`** | *(none yet)* | Instrument at `853cc3d`; test asserts the naive belief at one and at two instances. **Not yet run**, so `3b90db2` is a *state* and not yet an observed red |
-| **E2** | **`5d1554d`** | *(none yet)* | Instrument at `b6f4097`. **Not yet run** |
-| **E3** | **`ba52381`** | *(none yet)* | Instrument at `fe846bd`. **Not yet run** |
+| **E2** | **`5d1554d`** | **`8e526ec`** | Red: plain `HashMap` keeps **1,939 of 2,000** with `raised=0`, and `get`-then-`put` on a `ConcurrentHashMap` loads **8** times for one key. Green: `computeIfAbsent` loads **1**, and the defect is pinned as characterisation. `5 tests, 0 failures` |
+| **E3** | **`ba52381`** | **`8e526ec`** | Red: the plain flag's write is **never** observed — `0/3`, all three trials running the full 2×10⁹. Green: `@Volatile` observed `3/3`, defect characterised loosely so CI cannot flake it. `1 test, 0 failures` |
 | **E5** | **`98cbe2e`** | *(none yet)* | Instrument at `87df20e`. **Not yet run** |
 
 Full branch, oldest first:
@@ -189,8 +189,8 @@ rule 3 forbids the arithmetic and there is no ratio worth the breach.
 | --- | --- | --- | --- |
 | **`R37`** | Two rows, and an order nobody agreed on | Opposed lock order deadlocks 10 pairs of 10 at `40P01` with **one casualty each and `bothDied=0`**; `deadlock_timeout` is when the server *looks*, not when it kills, and `lock_timeout`/`statement_timeout` are both `0` so nothing else would have ended the wait — and the remedy, a lock order, is **a convention the database cannot enforce**, while the detector that saved every pair **prevents nothing** | **yes** — 11 bullets, including a judgement routed to `ADR-019` and the falsification of `R6` §8 |
 | `R34` | *(E1)* | not written | — |
-| `R35` | *(E2)* | not written | — |
-| `R36` | *(E3)* | not written | — |
+| **`R35`** | A cache in a bean, and the repair that fixes half of it | A `HashMap` on a bean loses **61 then 32** of 2,000 entries with **nothing raised**; `ConcurrentHashMap` fixes that and **not** the compound operation — `get`-then-`put` loads **8 then 2** times for one key where `computeIfAbsent` loads **1** both times. ⭐ The `after` column is stable across runs and the `before` column is not | **yes** — 9 bullets, including the retraction of its own drafted headline |
+| **`R36`** | A flag one thread wrote and another never saw | The brief warned this might not reproduce; **it reproduced 6 of 6**, the plain arm running the full 2×10⁹ every time while the `@Volatile` control terminated every time. The mechanism is **not** the memory system — it is C2 hoisting the read, which makes it deterministic rather than rare | **yes** — 8 bullets |
 | `R38` | *(E5)* | not written | — |
 
 **`ADR-019`** (`395ea38`) is written and is deliberately **`Proposed`, not `Accepted`**. Its
@@ -378,9 +378,30 @@ Under a new `### R37 — two rows, and an order nobody agreed on` heading:
 | 37.7 | only two rows, only `for update`, only `READ COMMITTED` | **a** | 180 | M | three-way cycles, FK locks, `update`-induced cycles all untouched |
 | 37.8 | nothing can enforce the lock-order convention | **c** | — | — | not a measurement; routed to `ADR-019` |
 
-**More entries will follow from `R34`–`R36` and `R38` once those have run.** They are not
-listed here because inventing ledger rows for measurements that have not happened is the
-failure mode this ledger exists to count.
+Under a new `### R35 — a cache in a bean, and the repair that fixes half of it` heading:
+
+| # | Subject | Class | Cost | Flip | Note |
+| --- | --- | --- | --- | --- | --- |
+| 35.1 | entry loss is 1,939 then 1,968; no distribution characterised | **a** | 60 | L | direction stable, magnitude not |
+| 35.2 | `loads` moved **8 → 2** between two consecutive runs; no distribution | **a** | 60 | M | two samples prove instability and characterise nothing |
+| 35.3 | no `ConcurrentModificationException` in either run — a negative result on one JVM | **a** | 45 | L | `modCount` is best-effort; a different interleaving would throw |
+| 35.4 | thread count and key count never swept | **a** | 90 | L | 8 and 2,000 are chosen numbers |
+| 35.5 | **the application's own beans were never swept for mutable fields** | **a** | 90 | **H** | this is what turns `R35` from a demonstration into a finding about `proxima`; cheapest valuable thing left in E2 |
+| 35.6 | nothing inspected the table for structural corruption short of entry loss | **a** | 60 | L | `size()` correctness not separately checked |
+
+Under a new `### R36 — a flag one thread wrote and another never saw` heading:
+
+| # | Subject | Class | Cost | Flip | Note |
+| --- | --- | --- | --- | --- | --- |
+| 36.1 | the spin bound was never varied | **a** | 45 | L | whether a smaller bound flips the verdict |
+| 36.2 | the warm-up was never varied | **a** | 60 | M | at what warm-up the hoist first appears — i.e. how fast a real background thread goes deaf |
+| 36.3 | no `-Xint` / `-XX:TieredStopAtLevel=1` control | **a** | 45 | M | §4's mechanism is a strong inference, not a measurement |
+| 36.4 | one machine, one JVM, one JIT | **b** | — | — | needs hardware this repository does not own; rule 3 forbids combining with a CI run |
+| 36.5 | no production caller spins on a plain flag | **c** | — | — | proves the class is reachable, not that it is present |
+
+**More entries will follow from `R34` and `R38` once those have run.** They are not listed here
+because inventing ledger rows for measurements that have not happened is the failure mode this
+ledger exists to count.
 
 ---
 

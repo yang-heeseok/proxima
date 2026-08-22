@@ -58,6 +58,23 @@ That is the symptom. The defect is one level up:
 > `class|object|interface` names, so that a `.md` naming a type resolves. The prose in those
 > files was never a document to any check here.
 
+**And that is not the symptom either, because this repository had already written it down.**
+`R17` §8's last bullet, 2026-08-17:
+
+> *"the checks are only as good as the corpus they scan. A document moved outside `*.md`, or a
+> claim moved out of prose into a diagram or **a code comment**, leaves the corpus entirely — and
+> code comments are where several of this repository's load-bearing claims live."*
+
+`V2` had made that a live defect on 2026-08-12 — **five days before the sentence describing it was
+written** — in a file the author of the sentence could have opened. The gap was not missed. It was
+**observed, described accurately, filed as a limitation, and left**, while two comments went on
+being false underneath it.
+
+That is the symptom, and it has a name in this repository already: it is the shape of `ADR-014`'s
+ledger, where **entry 6.6** records *"no lock ordering, no deadlocks"* as class **a** — measurable
+here, just not done. A limitation that is really an unmeasured defect reads exactly like a
+limitation until somebody measures it. `R17` §8's bullet was an entry 6.6 that nobody had numbered.
+
 ## 2. 재현 / Reproduction
 
 ```bash

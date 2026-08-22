@@ -133,17 +133,51 @@ object TransactionBoundaryRules {
  */
 private fun JavaMethod.isKotlinDefaultArgumentBridge(): Boolean = name.endsWith("\$default")
 
+/**
+ * **The exclusion above was too wide, and `R45` is the report with the three arms that show it.**
+ *
+ * Dropping every access whose origin is a `$default` bridge also drops the real defect, because
+ * a same-class caller that OMITS the default argument never touches the annotated method
+ * directly — the compiler routes it `caller -> target${'$'}default -> target`, and the only access
+ * to the annotated method has the bridge as its origin. Measured, same defect, one difference:
+ *
+ *   nextRows calls difficultyBandFor(learnerId)                 -> rule PASSED   (blind)
+ *   nextRows calls difficultyBandFor(learnerId, RECENCY_BASIS)  -> rule FAILED   (caught)
+ *
+ * **Looking through the bridge is what distinguishes them, and the receiver is why it is sound.**
+ * `${'$'}default` is a static method taking the receiver as its first argument. Called from another
+ * class the receiver is the injected **proxy**, so the forwarded call is advised and there is no
+ * defect. Called from inside the owning class the receiver is `this`, so the forwarded call is
+ * not advised and the annotation does nothing. So a bridge access is a violation exactly when
+ * the bridge itself is called from within the owning class — which is what this now checks,
+ * rather than exempting the bridge outright.
+ *
+ * The original exclusion's reason still holds and is not undone: the bridge's own call to its
+ * target is compiler plumbing and is still never reported.
+ */
 private fun notBeCalledFromWithinTheirOwnClass() =
     object : ArchCondition<JavaMethod>("not be called from within their own class") {
         override fun check(method: JavaMethod, events: ConditionEvents) {
             method.accessesToSelf
                 .filter { it.originOwner == method.owner }
-                .filterNot { (it.origin as? JavaMethod)?.isKotlinDefaultArgumentBridge() == true }
-                .forEach { access ->
+                .flatMap { access ->
+                    val origin = access.origin as? JavaMethod
+                    if (origin?.isKotlinDefaultArgumentBridge() != true) {
+                        listOf(access.origin.fullName)
+                    } else {
+                        // Look through the bridge to whoever called it. Same class -> the
+                        // receiver was `this` and the proxy was missed. Anywhere else -> the
+                        // receiver was the proxy and nothing is wrong.
+                        origin.accessesToSelf
+                            .filter { it.originOwner == method.owner }
+                            .map { "${it.origin.fullName} (through ${origin.name})" }
+                    }
+                }
+                .forEach { originName ->
                     events.add(
                         SimpleConditionEvent.violated(
                             method,
-                            "${method.fullName} is called from ${access.origin.fullName}, " +
+                            "${method.fullName} is called from $originName, " +
                                 "inside its own class, so the call does not reach the " +
                                 "proxy and @Transactional has no effect",
                         ),

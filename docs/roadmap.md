@@ -3,7 +3,7 @@
 > **Created**: 2026-08-10
 > **Updated**: 2026-08-22
 
-**Status:** **`T1`–`T9` are all done, and round two added eight reports — twenty-eight in total (`R0`–`R27`).** Round two ran as three parallel slices against one frozen contract: the prerequisite graph (`R20`–`R22`), the deployment boundary (`R23`–`R24`), and the measurement gaps this repository had already written down about itself (`R25`–`R27`). The state column
+**Status:** **`T1`–`T9` are all done, and round two added nine reports — twenty-nine in total (`R0`–`R28`).** Round two ran as three parallel slices against one frozen contract: the prerequisite graph (`R20`–`R22`), the deployment boundary (`R23`–`R24`), and the measurement gaps this repository had already written down about itself (`R25`–`R27`) — then `R28` supplied the measurement that made `OPEN-11` decidable at all. The three rows round two opened were closed the next day by `ADR-015`, `ADR-016` and `ADR-017`. The state column
 remains the truth of this document — it is updated as each item lands, not in advance.
 
 > **The sentence that stood here is withdrawn, and kept.** It read *"Every question this

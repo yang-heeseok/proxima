@@ -5,13 +5,13 @@ under load and concurrency.**
 
 > **Created**: 2026-08-10 · **Updated**: 2026-08-22
 > **Status: the nine traps on the roadmap are measured, in twelve reports — and round two
-> added eight more, `R20`–`R27`.** Spring Boot 4.1.0 on JDK 21, a schema that applies to a
+> added nine more, `R20`–`R28`.** Spring Boot 4.1.0 on JDK 21, a schema that applies to a
 > real PostgreSQL under test, a generator that produces 3,963,719 rows from a fixed seed
-> value, and **133 tests** — 119 in `:api:test` over 47 classes, 14 in `:seed:test` over 4,
-> 0 failures, 11m11s on 2026-08-21 with both modules actually executed under `--rerun-tasks`
+> value, and **139 tests** — 125 in `:api:test` over 48 classes, 14 in `:seed:test` over 4,
+> 0 failures, 9m04s on 2026-08-22 with both modules actually executed under `--rerun-tasks`
 > rather than restored from cache, because a cached Gradle result is not a run.
 > **The count now names both modules, and it did not before.** It read `77 tests — 36
-> classes`, which was `:api:test` alone and said so nowhere; that module is 119 over 47 now.
+> classes`, which was `:api:test` alone and said so nowhere; that module is 125 over 48 now.
 > **It said `70` for four days and eight test-adding commits**, which is `R17`. Three of the
 > nine turned out to be **already fixed by the framework** — those reports say so and measure
 > what is holding them shut, rather than deleting the row. See

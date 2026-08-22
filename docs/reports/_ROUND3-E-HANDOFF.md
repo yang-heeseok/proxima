@@ -103,13 +103,33 @@ ba52381  test(mastery): E3 -- the visibility trap, built as a pair so a null res
 98cbe2e  test(mastery): E5 -- REQUIRES_NEW against NESTED, and this is the small one
 ```
 
-⚠ **`3b90db2`, `5d1554d`, `ba52381` and `98cbe2e` have not been run.** Each commit message
-says so in its own body. They are the states the runs will be taken at.
+**`3b90db2`, `5d1554d`, `ba52381` and `98cbe2e` were committed before being run**, and each
+commit message says so in its own body. **All four have since been run**, and every one of them
+produced the red state its trap needed — the green SHAs are in the table above. They were
+committed unrun because a red commit is a *state*, and holding them uncommitted while the
+machine was busy would have destroyed the red/green structure the round is scored on.
 
-**They now compile.** `:api:compileTestKotlin` — `BUILD SUCCESSFUL`, exit 0, with
-`kaptGenerateStubsTestKotlin`, `kaptTestKotlin` and `compileTestKotlin` all *executed* rather
-than `UP-TO-DATE`, so the four new classes really went through the compiler. **A clean compile
-is not a run and no verdict follows from it.**
+⛔ **An earlier revision of this section said they "have not been run" and left it standing after
+they had.** Corrected here rather than edited away: a handoff written as-you-go goes stale in
+exactly this way, and it is the third such staleness found in this file by re-reading it.
+
+**Branch size, counted rather than carried:**
+
+```
+git rev-list --count 77022a5..round3/layers   = 34
+git rev-list --count main..round3/layers      = 34
+git merge-base main round3/layers             = 77022a5   (this handoff's stated base)
+git rev-list --count --merges 77022a5..HEAD   = 0
+git reflog show round3/layers                 = 35 entries: 1 branch creation + 34 commits,
+                                                 no reset, no amend, no rebase
+```
+
+⛔ **I published `35`, `36` and `37` for those three states and the tree says `32`, `33`, `34`.**
+The offset is **exactly +3 at every point**, so the increments were right and **one initial
+reading was wrong and then carried**. Nothing was made and discarded — the reflog rules that out.
+The lesson is not the number: **a count I did not re-derive stayed wrong through eight
+republications**, which is the same class as the `16.14` sweep in §6, and the correct habit is
+the one command above rather than an increment on a remembered figure.
 
 ---
 
@@ -167,6 +187,29 @@ the running context, not by grep.
 **E5 as shipped (`R38`):** `duringREQUIRES_NEW=2`, `duringNESTED=-1` — the `-1` is a refusal
 recorded rather than a connection count, because `NESTED` is refused before a connection is
 taken.
+
+### ⚠ What else was on this machine, per run — and it was not always what I said
+
+Every count above was taken while other slices worked, which is stated in each report's block
+and does not contend. **But two of my own runs had writers on the machine that nobody had
+counted**, and that is worth recording precisely because this round required every worker to
+declare it:
+
+| run | what else was running |
+| --- | --- |
+| E2/E3/E4/E5/E1 counts | slices D and G — declared in every block |
+| `R34` §3.4 **cost sweep** | **nothing** — floor verified by me immediately beforehand |
+| full suite, attempt 2 (`20:07`) | ⚠ **another worktree's Gradle daemon built twice inside my run**, at 20:13 and 20:32. Neither I nor the orchestration session knew at the time |
+| full suite, final | **nothing** — only this worktree has a process |
+
+**There are nine worktrees on this machine**, four of them from a separate line of work that is
+not part of this round. They were never counted as writers by anyone.
+
+⛔ **This is a condition, not a cause.** Attempt 2 hung and **nothing establishes that the
+overlap caused it**; the verdict on that hang stays *unexplained*, and the temptation to adopt a
+newly-discovered neighbour as the explanation is the same error as attributing a `SIGTERM` to a
+VM reboot that happened four minutes later (§6). It is recorded because a reader comparing my
+runs is entitled to know which of them had the machine to itself.
 
 **Green arm, same invocation, same two rows (`5501f32`):**
 
@@ -254,7 +297,7 @@ is not being made a fifth. **`R6` is not on this slice's forbidden list** — th
 
 | Workflow | State | Note |
 | --- | --- | --- |
-| `build.yml` | **not yet run on this branch** | This is my completion signal, per the round's policy. The tree currently contains a deliberately failing test (`DeadlockTest`, the red commit) plus four uncompiled test classes, so **it would be red now and that is the intended state mid-slice**, not a result |
+| `build.yml` | **not yet run on this branch** | It remains my completion signal, per the round's policy. ⛔ **The earlier note here described a tree that no longer exists** — it said the branch held *"a deliberately failing test plus four uncompiled test classes"*, which was true mid-slice and stopped being true at `67240c3`. **Every trap is now green and every test class compiles and has been run**; the last outstanding item is the full-suite count in §3, not a known-red test |
 | `docs-consistency.yml` | expected red, ignored | It wants a `docs/roadmap.md` row per report and I am forbidden to touch that file. Per the round's policy this is the normal state and is **not** read as a signal about this work |
 | `image-pin.yml`, `load-harness.yml`, `no-learner-data.yml`, `secret-scan.yml`, `study-consistency.yml` | untouched | no file in their scope was edited |
 

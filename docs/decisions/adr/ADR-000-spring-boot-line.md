@@ -1,7 +1,7 @@
 # ADR-000 — Which Spring Boot line
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-10
+> **Updated**: 2026-08-22
 > **Status**: **Accepted** — 2026-08-10. Closes `OPEN-1`.
 
 ## Context
@@ -96,6 +96,25 @@ this one and under a timebox for that reason.
 
 **What is now pinned.** Boot 4.1.0 and JDK 21 go into `gradle.properties` as a toolchain,
 not into a developer's `JAVA_HOME`. CI uses the same two numbers.
+
+> **Annotated 2026-08-22 rather than rewritten. The decision stands; the second clause does
+> not.** *"not into a developer's `JAVA_HOME`"* is true about **where the number is written**
+> and false about **what decides the JVM**. `jvmToolchain(21)` is a language version; no
+> `vendor` or `JvmVendorSpec` appears anywhere in this build, so **Temurin 21.0.12+8 is
+> recorded, never requested**. `./gradlew javaToolchains` lists it as `Detected by: Current
+> JVM` — that is, because of `JAVA_HOME`. The reproduction commands in `R23`–`R27` all export
+> `JAVA_HOME=~/.jdks/jdk-21.0.12+8` before running Gradle, which is the practice already
+> disagreeing with this sentence.
+>
+> **And §*Why JDK 21* above says the toolchain is *"pinned identically in `gradle.properties`
+> and in CI"*, which understates CI.** `build.yml` asks `actions/setup-java` for
+> `distribution: temurin`; the build asks for nothing. The vendor is guaranteed on CI by the
+> workflow and nowhere by the repository, so the two are not identical — CI is stricter, and
+> a local build is the loose end.
+>
+> Both clauses are left standing because how they went wrong is worth more than a tidy file.
+> `docs/explanation/measurement-discipline.md` owns the retraction and the evidence; whether
+> the build should pin a vendor is `OPEN-13`, not something this annotation decides.
 
 ## What would cause this to be revisited
 

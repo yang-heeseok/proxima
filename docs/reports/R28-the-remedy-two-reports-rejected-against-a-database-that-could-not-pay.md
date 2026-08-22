@@ -63,7 +63,10 @@ fixture. `PrerequisiteIndexTest` §*both candidates priced after a vacuum* is it
   OS             : Windows 11 Home 10.0.26200
                    WSL2 Ubuntu 24.04, kernel 6.6.87.2-microsoft-standard-WSL2, 15 GiB
   Docker         : Docker Engine 29.5.3 (API 1.54), NATIVE INSIDE WSL2 — not Docker Desktop
-  JVM            : Temurin 21.0.12+8 (JDK 21 toolchain, pinned in gradle.properties)
+  JVM            : Temurin 21.0.12+8 -- RECORDED, not pinned. This line said "pinned in
+                   gradle.properties" until 2026-08-22; that file pins language version
+                   21 only, and nothing requests Temurin or this patch. The JVM above is
+                   what ran and is unchanged. measurement-discipline.md owns the retraction
   PostgreSQL     : postgres@sha256:cf78e766… — server 16.15, alpine 3.24.1, musl 1.2.6-r2
                    INDEX DIGEST, pinned in TestcontainersConfiguration.kt as of 8dec7e6
                    default shared_buffers

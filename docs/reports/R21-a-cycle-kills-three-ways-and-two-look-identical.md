@@ -1,7 +1,7 @@
 # R21. A cycle kills three ways, and the two that reach the database look identical
 
 > **Created**: 2026-08-21
-> **Updated**: 2026-08-21
+> **Updated**: 2026-08-22
 > **Red commit**: `1fffc79` — the four arms, on a graph with three cycles in it
 > **Green commit**: `39f69ca` — the shipped read survives, and both defences are priced
 > **Migration**: `V5__concept_edge_forward_only.sql`, `4a136c0`
@@ -12,7 +12,10 @@
   OS             : Windows 11 Home 10.0.26200
                    WSL2 Ubuntu 24.04, kernel 6.6.87.2-microsoft-standard-WSL2, 15 GiB
   Docker         : Docker Engine 29.5.3, NATIVE INSIDE WSL2 — not Docker Desktop
-  JVM            : Temurin 21.0.12+8 (JDK 21 toolchain, pinned in gradle.properties)
+  JVM            : Temurin 21.0.12+8 -- RECORDED, not pinned. This line said "pinned in
+                   gradle.properties" until 2026-08-22; that file pins language version
+                   21 only, and nothing requests Temurin or this patch. The JVM above is
+                   what ran and is unchanged. measurement-discipline.md owns the retraction
   PostgreSQL     : Testcontainers postgres:16-alpine — server 16.14, default shared_buffers
   Framework      : Spring Boot 4.1.0, Hibernate 7.4.1.Final, Kotlin 2.3.21
   Dataset        : `concept_edge` at seed value 20260810, Scale.FULL — 3,000 concepts,

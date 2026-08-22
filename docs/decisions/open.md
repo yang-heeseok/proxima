@@ -20,6 +20,15 @@ silence, and it discharges the `PUB-4` row that says so.
 
 | # | Question | Why it is not decided yet | Deadline |
 | --- | --- | --- | --- |
+| `OPEN-13` | **Should the toolchain pin a vendor, so that the JVM every number here was taken on is requested rather than merely recorded?** | **There is a trade, which is why this is a row and not an errand.** `jvmToolchain(21)` pins a language version; `vendor` and `JvmVendorSpec` appear nowhere in the build, so any JDK 21 on the machine satisfies it and Gradle reports the one it found as `Detected by: Current JVM`. Adding `vendor = JvmVendorSpec.ADOPTIUM` is one line and would make `measurement-discipline.md`'s block true — **and `./gradlew javaToolchains` reports `Auto-download: Enabled`, so it would also turn "you have the wrong JDK" into a silent download**, putting a network fetch of a JVM inside a build that currently has none. Against that: **every number in this repository is compared against every other under rule 3, and nothing enforces the vendor they share.** CI already pins `distribution: temurin`, so pinning would cost CI nothing and cost a contributor on Corretto or Zulu a second JDK. **What would settle it: a decision on whether this repository wants contributors at all** — if its builds are only ever the author's and CI's, pinning is free and rule 3 gets its guarantee; if not, the auto-download behaviour has to be settled first | **None that can be named honestly, and that is deliberate.** The hazard has already arrived once — 2026-08-22, an Ubuntu 21.0.11 selected in place of the Temurin, unreported by anything — so a deadline of *"before it happens"* is spent. `ADR-003` closed `OPEN-3` on exactly that shape. This should be decided on its merits rather than parked |
+
+> **The table is not empty as of 2026-08-22.** `OPEN-13` is in it, and every paragraph below
+> that speaks of an *empty* table was written while it was — they are dated and left standing
+> rather than edited, because how this table fills and empties is the record it exists to keep.
+> **`OPEN-13` arrived the way the paragraphs below ask a row to arrive**: not from a sweep of
+> documents, but from a build resolving to the wrong JVM for an hour and nothing reporting it.
+> Like `OPEN-12`, no report contains it — it is a property of the toolchain, and only running
+> the build could have shown it.
 
 **The table was filled and emptied inside forty-eight hours, and this time the claim below is
 established rather than assumed.** `OPEN-10`, `OPEN-11` and `OPEN-12` opened on 2026-08-21 and

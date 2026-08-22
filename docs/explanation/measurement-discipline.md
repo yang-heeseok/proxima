@@ -39,7 +39,8 @@ its numbers.
   OS             : Windows 11 Home 10.0.26200
                    WSL2 Ubuntu 24.04, kernel 6.6.87.2-microsoft-standard-WSL2, 15 GiB
   Docker         : Docker Engine 29.5.3 (API 1.54), NATIVE INSIDE WSL2 — not Docker Desktop
-  JVM            : Temurin 21.0.12+8 (JDK 21 toolchain, pinned in gradle.properties)
+  JVM            : Temurin 21.0.12+8 -- RECORDED, not pinned. gradle.properties pins
+                   language version 21 and nothing else; see below
   PostgreSQL     : server 16.14, and the DIGEST below is the identifier — the tag
                    `postgres:16-alpine` named this image until 2026-08-13 and now
                    resolves to 16.15. Pinned by digest since `8dec7e6`; `OPEN-10`
@@ -109,6 +110,46 @@ have cost a reader time:
   > 12장 §6.3 is what happens when that is not said: two sessions reported different levels
   > and the integrator read them as two images.
 
+- **It said the JVM was pinned, and nothing pins it.** The line read *"Temurin 21.0.12+8
+  (JDK 21 toolchain, pinned in gradle.properties)"* until 2026-08-22. **Withdrawn: no file in
+  this build pins that JVM, or any part of it beyond the number 21.**
+
+  > **What the build actually contains**, read out of it rather than described.
+  > `gradle.properties` holds `javaToolchainVersion=21`; `api/build.gradle.kts` and
+  > `seed/build.gradle.kts` each consume it as `jvmToolchain(21)`. That is a **Java language
+  > version**. The strings `vendor` and `JvmVendorSpec` do not occur anywhere in the build,
+  > and `settings.gradle.kts` has no `toolchainManagement` block. **Temurin is not requested,
+  > and neither is `21.0.12+8`.**
+  >
+  > `./gradlew javaToolchains` on 2026-08-22 reports `Auto-detection: Enabled` and
+  > `Auto-download: Enabled`, and lists the Temurin with `Detected by: Current JVM` — it is a
+  > candidate **because it is the JVM Gradle was launched on**, not because anything selected
+  > it. So the JVM is a property of whoever is sitting in front of the machine, which is the
+  > exact opposite of what the withdrawn clause promised.
+  >
+  > **The build file was right and this document generalised it wrong.** `gradle.properties`
+  > says, in its own comment, *"The exact build in use when this was pinned is recorded in the
+  > measurement environment block, because `21` is not precise enough to reproduce a number
+  > with."* It knew. This block turned *recorded* into *pinned*, which is the same move as
+  > `R10` §3.2 — sample a little, generalise it into a stronger word.
+  >
+  > **CI is stricter than the repository.** `.github/workflows/build.yml` asks
+  > `actions/setup-java` for `distribution: temurin`, so the vendor is guaranteed *there* by
+  > the workflow and nowhere by the build. A local build and a CI build are held to different
+  > standards, and only CI's is written down.
+  >
+  > **It was observed, not deduced.** On 2026-08-22 a second JDK 21 — an Ubuntu-packaged
+  > 21.0.11 — existed on this machine for about an hour, and a Gradle run resolved to it
+  > instead of the Temurin. **Nothing in the build, the tooling or CI reported the
+  > substitution**; it is known only because the session wrote the resolved JVM path into its
+  > report. That JDK has since been removed, so the observation cannot be re-taken and no
+  > number from that run is cited anywhere. It is dated evidence that the gap is reachable,
+  > not a measurement.
+  >
+  > **What this does and does not change.** Every environment block naming `21.0.12+8` is
+  > still correct about what it ran on — five of them additionally claimed the pin, and are
+  > corrected. Whether the build *should* pin a vendor is a trade, not an errand, and is
+  > `OPEN-13` rather than a change made here.
 
 The image digest is recorded alongside the tag because `16-alpine` is a moving tag. Two
 people running `postgres:16-alpine` a month apart are not necessarily running the same

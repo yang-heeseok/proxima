@@ -110,24 +110,46 @@ class SingletonStateTest {
      *
      * The assertion is the belief that swapping the map fixed the class of problem.
      */
+    /**
+     * How long the "expensive" thing takes.
+     *
+     * ⭐ **This is not padding, and an earlier version of this test had no sleep and was
+     * flaky.** Without it the window between `get` and `put` is nanoseconds wide, so whether
+     * the other seven threads land inside it is luck — and on the full-suite run of 2026-08-22
+     * it came out `loads=1`, meaning **no thread overlapped and the arm exercised nothing.**
+     * The precondition assertion caught that rather than passing quietly, which is the whole
+     * point of it, but a gate that fires on scheduling is a gate that gets disabled.
+     *
+     * A cache exists because loading is *expensive*. Making the loader actually take time is
+     * therefore **more faithful to the defect, not less** — and it makes the overlap hold by
+     * construction, the same repair `DeadlockTest` makes with a barrier between its two locks.
+     */
+    private val loadTakes = 300L
+
     @Test
     fun `on a thread-safe map, check-then-act loads once per THREAD, not once per key`() {
         val cache = SharedScoreCache()
-        allAtOnce(threads) { cache.loadOnceCheckThenAct(1L) { cache.load(BigDecimal("0.750")) } }
+        allAtOnce(threads) {
+            cache.loadOnceCheckThenAct(1L) { Thread.sleep(loadTakes); cache.load(BigDecimal("0.750")) }
+        }
         val checkThenAct = cache.loadCount
 
         val atomic = SharedScoreCache()
-        allAtOnce(threads) { atomic.loadOnceAtomically(1L) { atomic.load(BigDecimal("0.750")) } }
+        allAtOnce(threads) {
+            atomic.loadOnceAtomically(1L) { Thread.sleep(loadTakes); atomic.load(BigDecimal("0.750")) }
+        }
         val computeIfAbsent = atomic.loadCount
 
-        println("E2 >>> check-then-act on CHM     loads=$checkThenAct  (threads=$threads, keys=1)")
-        println("E2 >>> computeIfAbsent on CHM    loads=$computeIfAbsent  (threads=$threads, keys=1)")
+        println("E2 >>> check-then-act on CHM     loads=$checkThenAct  (threads=$threads, keys=1, loader=${loadTakes}ms)")
+        println("E2 >>> computeIfAbsent on CHM    loads=$computeIfAbsent  (threads=$threads, keys=1, loader=${loadTakes}ms)")
 
         assertEquals(1, computeIfAbsent, "computeIfAbsent applies the function at most once per key")
         assertTrue(
             checkThenAct > 1,
-            "check-then-act must load more than once, or the threads did not overlap and " +
-                "this arm compared nothing: got $checkThenAct",
+            "check-then-act must load more than once, or the threads did not overlap and this " +
+                "arm compared nothing: got $checkThenAct. With a ${loadTakes}ms loader every " +
+                "thread should be inside the window; if this fires, the overlap is not holding " +
+                "by construction and the number below it means nothing",
         )
     }
 

@@ -101,9 +101,12 @@ E2 >>> iterate-while-writing     raised=0
 
 | arm | entries kept, of 2,000 | **lost** | raised |
 | --- | --- | --- | --- |
-| plain `HashMap`, single thread | 2,000 / 2,000 | 0 | 0 |
-| **plain `HashMap`, 8 threads** | **1,939** then **1,968** | **61** then **32** | **0** both |
-| `ConcurrentHashMap`, 8 threads | 2,000 / 2,000 | 0 | 0 |
+| plain `HashMap`, single thread | 2,000, every run | 0 | 0 |
+| **plain `HashMap`, 8 threads** | **1,939 / 1,968 / 1,936 / 1,817** | **61 / 32 / 64 / 183** | **0**, every run |
+| `ConcurrentHashMap`, 8 threads | 2,000, every run | 0 | 0 |
+
+Four runs. **The direction never moved and the magnitude never repeated** — 183 lost in the run
+with the slow loader against 32 in the second, a spread of nearly 6×.
 
 Every key had exactly one writer, so there is no last-writer-wins ambiguity to explain the
 gap: in run 1, 61 insertions were performed and are not there. Concurrent `put`s collide during resize
@@ -117,21 +120,36 @@ the option that reports nothing — in both runs.
 
 `ConcurrentHashMap` returns all 2,000. That is the whole of what it fixes.
 
-| arm, 8 threads on **one** key | run 1 | run 2 |
-| --- | --- | --- |
-| **`get`, then `put` — on the `ConcurrentHashMap`** | **8** | **2** |
-| `computeIfAbsent` — on the same map | **1** | **1** |
+| arm, 8 threads on **one** key | run 1 | run 2 | run 3 (full suite) | run 4 (300 ms loader) |
+| --- | --- | --- | --- | --- |
+| **`get`, then `put` — on the `ConcurrentHashMap`** | **8** | **2** | **1** | **8** |
+| `computeIfAbsent` — on the same map | **1** | **1** | **1** | **1** |
 
 ⛔ **The first run said 8. The second said 2. This report was drafted claiming 8 was "once per
 thread — the worst case, not a partial one", and that claim was not supportable from one run.
 It is retracted here rather than quietly edited out.**
 
-What survives both runs is the only thing that was ever the point: **`> 1` against `1`.** The
-compound operation loaded the value more than once both times; `computeIfAbsent` loaded it
-exactly once both times. **The magnitude is a race outcome and moved by 4× between two
-consecutive invocations on the same machine** — 8 is what happens when every thread lands
-inside the window, 2 when six of them arrive after the first `put`. Neither number is a
+What survives is the only thing that was ever the point: **`> 1` against `1`.** The magnitude is
+a race outcome and moved between every invocation — 8, then 2, then **1**. Neither number is a
 property of the code.
+
+⛔ **And run 3 came out at `1`, which means the arm exercised nothing at all.** It was taken
+inside the full 146-test suite, where 56 test classes compete for eight cores, and **no thread
+overlapped the window even once.** The `computeIfAbsent` arm returned `1` in that run too — so
+the two arms were **indistinguishable**, and the report's entire finding would have evaporated
+with both numbers reading `1` and nothing saying why.
+
+⭐ **The precondition assertion caught it and the suite went red.** `check-then-act must load
+more than once, or the threads did not overlap and this arm compared nothing` — the same shape
+`ADR-015` requires and the same direction `OPEN-12` identified as the safe one: an unraced run
+raises a false alarm rather than issuing a false clean bill.
+
+**But a gate that fires on scheduling is a gate somebody disables**, so the flakiness is fixed at
+the source rather than by loosening the assertion. The loader now takes **300 ms**. That is not
+padding: **a cache exists because loading is expensive**, so a loader that actually takes time is
+*more* faithful to the defect, and it makes the overlap hold **by construction** — the same
+repair `DeadlockTest` makes with a barrier between its two locks. Run 4 is that fix: `8` against
+`1`, and the window is no longer luck.
 
 That is `R18`'s lesson landing in a report that had already written `R18`'s lesson into its own
 §8: the hedge *"8 is the worst case and was reached, not what always happens"* was drafted
@@ -281,10 +299,22 @@ Four arms, and three of them are characterisation assertions on a defect — the
   outcome; only the *direction* is stable. Nothing here establishes a loss rate, and quoting
   `61` or `3.05 %` as a property of `HashMap` would be quoting one sample of a distribution
   nobody characterised. **How the loss scales with threads or key count is `미측정`.**
-- ⭐ **Two runs is enough to know a number is unstable and not enough to characterise it.**
-  `loads` went 8 → 2. Two samples establish that the magnitude moves; they say nothing about its
-  range, its median, or what drives it. **A distribution over many invocations is `미측정`**, and
-  this report publishes both raw values rather than a mean of two.
+- ⭐ **Four runs establish that the magnitude is unstable and still do not characterise it.**
+  `loads` went 8 → 2 → **1** → 8, the `1` being a run that exercised nothing. Entry loss went
+  61 → 32 → 64 → 183. **A distribution over many invocations is `미측정`**, and this report
+  publishes every raw value rather than a mean of four.
+- ⛔ **This report's own gate was flaky and the flakiness is fixed rather than tolerated.** Run 3
+  fired the precondition assertion inside the full suite: no thread overlapped, `loads=1`, and
+  both arms became indistinguishable. **The gate caught it — that is `ADR-015` working — but a
+  gate that fires on scheduling is a gate somebody disables**, so the loader was made to take
+  300 ms and the overlap now holds by construction. **The 300 ms is a chosen parameter, not a
+  measurement**, and whether the defect still appears with a loader faster than that is
+  `미측정` — it certainly appeared at 8 and 2 with no sleep at all.
+- ⚠ **The slow loader may have changed the entry-loss arm too.** Run 4 lost **183** of 2,000
+  against 32–64 in the earlier runs, and it is the only run with a `Thread.sleep` anywhere in
+  the class. Nothing here establishes a connection — the arms use different maps and the sleep
+  is in a different test — but **the coincidence is recorded rather than dismissed**, and it is
+  `미측정`.
 - ⭐ **The figure load could move, and which way — now observed rather than predicted.**
   `loads` is bounded above by the thread count, so a busy machine cannot push it past 8; it
   falls when threads are scheduled far enough apart that some find the value already present.

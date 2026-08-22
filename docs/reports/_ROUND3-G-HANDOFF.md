@@ -204,7 +204,7 @@ interchangeable:
 | --- | --- | --- | --- |
 | baseline | base `99d558b`, before any commit of mine | 125 tests / 48 classes | 15 / 5 |
 | mid-slice | after the instruments, **before** `ae2b2da` and `022675b` | 138 tests / 53 classes, **2 failures** | 15 / 5 |
-| **final tree** | `d9b7cb3` | **139 tests / 53 classes, 1 failure** | **15 / 5, 0 failures** |
+| **final tree** | `d9b7cb3` | **139 tests / 53 classes, 1 failure** — repaired at `fbed46b`, below | **15 / 5, 0 failures** |
 
 ⚠️ **The final-tree reading was taken after a host WSL2 VM restart at 18:38:24 KST**, on a
 roughly fifteen-minute-old VM with a cold page cache and a cold Docker daemon. It is a **count**,

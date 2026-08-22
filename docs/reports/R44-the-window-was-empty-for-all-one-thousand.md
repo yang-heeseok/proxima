@@ -177,6 +177,44 @@ entry points call; a private method has no proxy to miss.
 the same defect and went unreported. `R45` is that finding: the exemption `R7` §3.5 added to stop
 the rule flagging Kotlin's `$default` bridges was also hiding real self-invocations behind them.
 
+### 3.6 The window slides, so the same request answers differently — and this one is small
+
+A rolling window advancing past an attempt drops that attempt out. *"The same request one second
+later"* is therefore exactly: the same band over one fewer row, at the instant the oldest
+in-window attempt falls off the back.
+
+```
+learners whose band flips at the VERY NEXT boundary crossing   25 of 1000  (2.5%)
+boundary crossings over one full window rotation               38000
+of those, crossings that CHANGE the band                       3627  (9.5%)
+```
+
+**2.5% of learners are one boundary crossing away from a different band right now**, and a
+crossing arrives for each learner every 4.32 hours on this dataset. Over a full rotation of the
+window, **roughly one crossing in ten moves the band.**
+
+⚠️ **What this arithmetic can and cannot represent, stated because it limits the number.** On a
+fixed dataset a sliding window only ever *loses* rows — no new attempt can arrive to replace the
+one that fell out. So the rotation figure describes a window **draining** from 39 rows to 1, and
+the later crossings are noisier than any real window would be, because the sample is smaller than
+it would ever be in production. **The 2.5% figure does not have that problem** — it is a single
+step from 39 to 38 — and it is the one to quote. The 9.5% is an upper bound on a real system's
+rate, not an estimate of it.
+
+**Defect or specification? A specification, and `ADR-021` records it as one.** A band that
+responds to a learner's recent work is *supposed* to change as that work ages out; a band that
+never moved would be `LAST_N_ATTEMPTS`'s defect, which `ADR-021` rejected for exactly that
+reason. What would make it a defect is a caller treating the band as stable — and none does.
+
+**A midnight-anchored window would remove the wobble and make two things worse**, which is why it
+was not chosen: every learner's band would then change **at the same instant** instead of
+spreading across the day, turning a diffuse 2.5% into a synchronised recomputation for the whole
+population; and it would reintroduce *whose* midnight, which §3 of this report does not have to
+answer precisely because a rolling window has no midnight in it.
+
+**This trap is smaller than the other three in this slice, and saying so is the point.** It is one
+number, one caveat, and a decision that was already implied by `ADR-021`'s choice.
+
 ## 4. 원인 / Mechanism
 
 Two mechanisms, and they are unrelated to each other.
@@ -270,6 +308,14 @@ all 1,000 learners.** The only measured difference is §3.4's statement count.
   case the choice is usually argued about.** **미측정: what it becomes when learners actually
   differ.** Nothing in this repository can produce that number without a different generator, and
   changing the generator changes every other published figure.
+- **§3.6's 9.5% is an upper bound and must not be quoted as a rate.** A fixed dataset can only
+  express a window that drains — no attempt arrives to replace the one that fell out — so the
+  later crossings are computed over samples smaller than a live system would ever have. **Only the
+  2.5% single-step figure is a rate.** 미측정: the same measurement on a window that also gains
+  rows, which this repository has no dataset for.
+- **Nothing gates §3.6.** The wobble is recorded as a specification in `ADR-021` and no assertion
+  holds it to the 2.5%. If a future change made a third of learners flip on every crossing, this
+  report would go quietly false.
 - **What would break this conclusion.** Any change to `Generator.writeAttempts` that introduces a
   learner-dependent term in the timestamp. §7's first assertion is there to catch exactly that,
   and it is the only thing standing between this report and silently becoming false.

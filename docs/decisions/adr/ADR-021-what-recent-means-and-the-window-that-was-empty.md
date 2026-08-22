@@ -112,6 +112,22 @@ will be older than the window, and the rule will silently start recommending ite
 has already seen. Nothing in the tree fails on that day. It is written here because it is the
 same mechanism one step up, and it is 미측정 — no test asserts it and none is added by this ADR.
 
+### The band moves as the window slides, and that is a specification rather than a defect
+
+`R44` §3.6 measures it: **25 of 1,000 learners (2.5%)** are one boundary crossing away from a
+different band, and a crossing arrives for each learner every 4.32 hours on this dataset.
+
+**Recorded here as a decision because `R44` asked for one.** A band computed from recent work is
+*supposed* to change as that work ages out. A band that never moved would be exactly
+`LAST_N_ATTEMPTS`'s defect — the reading this ADR rejected because a year cannot move it. What
+would turn the wobble into a defect is a caller that treats the band as stable, and none does.
+
+**A midnight-anchored window would remove the wobble and was not chosen**, for two reasons that
+are worse than the wobble: every learner's band would change at the **same instant** rather than
+spreading across the day, converting a diffuse 2.5% into one synchronised recomputation for the
+whole population; and it would reintroduce *whose* midnight, which a rolling window does not have
+to answer at all.
+
 ### It costs one statement
 
 `QueryCountTest` is re-baselined in the commit that implements this: `nextRows` **1 → 2**,

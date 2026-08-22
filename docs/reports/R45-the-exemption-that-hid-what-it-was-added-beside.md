@@ -43,6 +43,26 @@ its own class, also through `this`. The rule said nothing about it.
 The only difference between the violation it caught and the one it missed is **whether the caller
 supplied a default argument.**
 
+**And the finding is not that the rule was wrong.** The rule is careful, it is self-tested, and
+the line that blinded it was added deliberately, for a correct reason, with that reason written
+out beside it: `R7` §3.5 measured the rule flagging every `@Transactional` method that has a
+default argument and excluded the bridges, because *"a rule that is routinely wrong is a rule
+nobody reads"*. **That sentence was true when it was written and is true now.** Nothing about
+`R7`'s judgement is being reversed here.
+
+What this report is about is what the exception cost, which nobody measured:
+
+> **A justified exception is a place defects hide.** The exclusion was correct about the case it
+> was written for and silently took a second case with it, and the two cases are indistinguishable
+> from inside the rule — both arrive as *an access whose origin is a bridge*. The exception did not
+> need to be wrong to become a blind spot. It only needed to be **wider than the reason for it**,
+> and nothing counted the difference.
+
+That is the class, and it is reusable. `R43` §3.3 narrowed a check to KDoc for an equally good
+reason and **counted what fell outside: 172 of 552 comment blocks.** `R7` did not count, and this
+is what was in the uncounted part. The difference between the two is not the quality of the
+judgement — it is whether a number was attached to it.
+
 ## 2. 재현 / Reproduction
 
 ```bash

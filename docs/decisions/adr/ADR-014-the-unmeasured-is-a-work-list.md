@@ -537,6 +537,8 @@ comment**, so a sweep of this kind could not have found `43.1`–`43.4` at all.
 | 44.6 | what the 15.8% becomes on a population with real cadence variation | b | — | — | needs a generator this repository does not have; changing it invalidates every published number |
 | 44.7 | `RecentAccuracy.bandFor`'s thresholds and `RecencyDefinitionTest`'s restatement are not related by anything | **a** | 30 | **H** | `ADR-006`'s shape **without** `ADR-006`'s gate |
 | 45.1 | whether any other ArchUnit rule here has the same shape — an exclusion added for a false positive that also hides the true one | **a** | 60 | **H** | `R45` found one. There are eight more rules |
+| 45.2 | **`TransactionBoundaryRulesSelfTest` has no default-argument fixture**, so the exact defect `R45` fixed would regress unnoticed | **a** | 25 | **H** | the self-test plants arm C, the spelling that was already caught. `R45` §7 says so and §8 named it — **and a gap recorded only in prose is a gap nobody schedules, which is what 19.6 just demonstrated** |
+| 45.3 | whether the bridge hop needs to follow more than one level — another bridge, an inline-class mangled name, a `suspend` state machine | **a** | 45 | M | nothing here is `suspend` today, so this is unexercised rather than known-good |
 
 ### Outside any §8 section
 

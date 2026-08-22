@@ -1,7 +1,7 @@
 # R17. The guard that was a person
 
 > **Created**: 2026-08-17
-> **Updated**: 2026-08-18
+> **Updated**: 2026-08-23
 > **Red commit**: `36de28f` — the tree the PO's question landed on. **Eighteen findings**, of
 > which the question found two.
 > **Green commit**: this one — the four checks, and the eighteen discharged.
@@ -319,6 +319,13 @@ one.
   comment, leaves the corpus entirely — and code comments are where several of this
   repository's load-bearing claims live (`R14` is a report about two of them contradicting
   each other three inches apart, in a file no check here reads).
+
+  > **Partly closed 2026-08-22 — `R43`.** `docs-consistency.yml` `CHECK 5` now reads KDoc and
+  > refuses a comment that denies an index a migration creates. It found **two** live false claims
+  > on the tree this bullet was written against, one of which had been false for five days when
+  > this sentence was written. **The bullet is otherwise intact**: 172 of the tree's 552 comment
+  > blocks are outside the KDoc scope, only index-existence claims are checked, and `R14`'s two
+  > contradicting comments are still in a file no check reads.
 
 ## 9. 배운 것 / What I learned
 

@@ -1,7 +1,7 @@
 # ADR-014 — The unmeasured is a work list, and it is 168 entries long
 
 > **Created**: 2026-08-21
-> **Updated**: 2026-08-22
+> **Updated**: 2026-08-23
 > **Status**: Accepted
 > **Opens**: nothing. It closes nothing either. **It counts.**
 

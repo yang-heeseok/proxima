@@ -1,7 +1,7 @@
 # R7. A uniqueness check two requests both pass
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-17
+> **Updated**: 2026-08-23
 > **Red commit**: `ad474d8` — `V1`, no unique constraint. Eight requests, eight rows
 > **Green commit**: this one — `V3__mastery_unique_learner_concept.sql`
 
@@ -119,6 +119,12 @@ through it.
 Established by measurement, not by reading — `R6` §3.3 drove exactly that method under
 concurrency and it behaved transactionally throughout. The rule now excludes `$default`
 bridges, because a rule that is routinely wrong is a rule nobody reads.
+
+> **Extended 2026-08-22 — `R45`.** The exclusion was correct and its reason still holds. It was
+> also **wider than that reason**: a same-class caller that omits the default reaches the annotated
+> method only through the bridge, so the exclusion hid it. The rule now follows the bridge to its
+> callers. `R7`'s measurement is unchanged; what was missing was a count of what the exception took
+> with it.
 
 ### 3.6 The upsert is not an alternative to the constraint
 

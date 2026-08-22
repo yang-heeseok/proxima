@@ -146,7 +146,7 @@ have cost a reader time:
   > Provisioning additionally needs a toolchain repository, and `settings.gradle.kts` configures
   > none — so the run above **failed in 4s** with *"Toolchain download repositories have not
   > been configured"* rather than fetching anything. **This document said the opposite for
-  > about fifteen minutes**, in `OPEN-13`, and that clause is withdrawn there.
+  > about fifteen minutes**, in `OPEN-14`, and that clause is withdrawn there.
   >
   > **The build file was right and this document generalised it wrong.** `gradle.properties`
   > says, in its own comment, *"The exact build in use when this was pinned is recorded in the
@@ -170,7 +170,7 @@ have cost a reader time:
   > **What this does and does not change.** Every environment block naming `21.0.12+8` is
   > still correct about what it ran on — five of them additionally claimed the pin, and are
   > corrected. Whether the build *should* pin a vendor is a trade, not an errand, and is
-  > `OPEN-13` rather than a change made here.
+  > `OPEN-14` rather than a change made here.
 
 - **It said nothing at all about the virtual machine the entire lane runs inside**, and that
   is the line above rather than a fifth mistake of the same kind. Added 2026-08-22. `Docker`

@@ -114,7 +114,7 @@ not into a developer's `JAVA_HOME`. CI uses the same two numbers.
 >
 > Both clauses are left standing because how they went wrong is worth more than a tidy file.
 > `docs/explanation/measurement-discipline.md` owns the retraction and the evidence; whether
-> the build should pin a vendor is `OPEN-13`, not something this annotation decides.
+> the build should pin a vendor is `OPEN-14`, not something this annotation decides.
 
 ## What would cause this to be revisited
 

@@ -140,6 +140,20 @@ second route.
 not read as being about races. That is a judgement rather than work and is routed to the
 integrator rather than decided here.
 
+⭐ **And it has a third, found independently and within the same hour.** Round 3's slice G hit
+this shape in `AttemptRecordingServiceTest` — an assertion on a **row** that reads identically
+whether the value was *never written*, *written and visible*, or *written and rolled back*. Three
+routes, one destination, and the test named for one of them. `R40` §6.1 carries it.
+
+Two subsystems, two sessions, no contact between them, same defect class the same afternoon —
+which is worth more than either instance, because it is evidence about how often the shape occurs
+rather than about one test. **The rule both arrived at, stated once:**
+
+> **Assert on the route, not the destination.**
+
+`R38`'s repair is that sentence applied: the row was abandoned as the observable and the
+assertion moved to what the inner call *threw*.
+
 ### 3.3 With the switch the exception message names
 
 ⚠ **미측정 in this report.** `NestedEnabledPropagationTest` exists and sets

@@ -192,15 +192,24 @@ must not inherit the block above, which describes a machine running two other sl
                    stopped shortly before that boot and started shortly after it, with
                    restartCount=0 because the Docker daemon was itself cycling — no restart
                    policy was involved. The container did not cycle; the VM did.
-  ⚠ WHY 18:38 AND : /proc/stat `btime` ON THIS HOST IS NOT A CONSTANT. It is derived as
-     NOT 18:38:28   wall-clock minus uptime, and on WSL2 those drift apart, so the reported
-                   boot creeps FORWARD while the boot itself does not move. Same boot, read
-                   three times: 1787391504 (~18:54), 1787391508 (~18:55), 1787391526
-                   (18:58:48) — 22 s of travel in five minutes. Five reads two seconds apart
-                   at 18:58:48-18:58:56 were identical, so the drift is not visible in a
-                   ten-second window and IS visible across minutes.
-                   /proc/uptime is NOT an independent check on this: it is the same quantity
-                   computed the same way, which is why it agreed.
+  ⚠ WHY 18:38 AND : /proc/stat `btime` ON THIS HOST IS NOT A CONSTANT, and it does not drift
+     NOT A SECOND   smoothly — IT STEPS. It is derived as wall-clock minus uptime, and on
+                   WSL2 those diverge, so the reported boot moves FORWARD while the boot
+                   itself does not. Same boot, same host, two independent readers:
+                     orchestration session  1787391504  ~18:54
+                     this session           1787391508  ~18:55
+                     this session           1787391526   18:58:48
+                   — 22 s of travel with no reboot. TWO SAMPLING RUNS DISAGREED, AND BOTH
+                   ARE REPORTED because neither alone is enough:
+                     orchestration session: 5 reads over ~10 s — 4 identical, THEN A +3 s
+                       STEP inside the window
+                     this session:          5 reads over 8 s at 18:58:48-56 — ALL IDENTICAL
+                   ⛔ So the lesson is NOT "sample for longer than ten seconds", which would
+                   imply a safe threshold. There is none: a step can land between any two
+                   reads. What the two samples together establish is that ANY INTERVAL
+                   DERIVED FROM btime CARRIES AN ERROR THAT IS UNBOUNDED IN PRACTICE.
+                   /proc/uptime is NOT an independent check: it is the same quantity computed
+                   the same way, which is exactly why it agreed.
   ⭐ AND THEREFORE : THE MEASURED SECTION BEGAN ROUGHLY 5.5 MINUTES AFTER A HOST VM BOOT.
                    Class start 18:43:52.644 KST — read from this run's own
                    TEST-...LayeredCostTest.xml `timestamp` attribute, and EXACT.
@@ -400,11 +409,21 @@ That last assertion is the one worth keeping. It fails if ② ever starts losing
   make it instead of inheriting it.**
 - ⛔ **The interval cannot be made precise and an earlier draft of this report claimed it to a
   tenth of a second.** `5m24.6s` was published here and is retracted. `/proc/stat btime` on this
-  host drifts forward — 22 s across five minutes of the same boot — because it is wall clock
-  minus uptime and those two diverge on WSL2. **The class start is exact and the boot is soft**,
-  so the interval inherits the softness: **a duration is only as precise as its worse endpoint.**
-  A `btime` figure quoted to the second here would have looked measured because it had a
-  decimal point, which is the specific failure this repository refuses.
+  host moves forward — 22 s across five minutes of the same boot — because it is wall clock minus
+  uptime and those two diverge on WSL2. **The class start is exact and the boot is soft**, so the
+  interval inherits the softness: **a duration is only as precise as its worse endpoint.** A
+  `btime` figure quoted to the second would have looked measured because it had a decimal point,
+  which is the specific failure this repository refuses.
+- ⭐ **The base does not drift smoothly, it steps — and that is why no sampling discipline fixes
+  it.** Two readers sampled the same instrument on the same host and got different behaviour:
+  the orchestration session saw four identical reads then **a 3 s step inside a ten-second
+  window**; this session saw **five identical reads across eight seconds**. Neither sample is
+  wrong and neither alone is enough. Together they establish that **a step can fall between any
+  two reads**, so there is no interval short enough to be safe and no interval long enough to be
+  representative — **any duration derived from `btime` carries an error unbounded in practice.**
+  A second draft of this bullet said the drift was *"invisible at a ten-second sampling
+  interval"*; that is contradicted by the other reader's sample and is corrected here rather
+  than dropped.
 - **Nothing establishes whether that reboot was a one-off.** If it is periodic, a future run of
   this class could begin inside one and **nothing in the harness would notice or say so.**
   `미측정`. A `btime` read either side of any duration-publishing run is the cheap partial fix,

@@ -17,7 +17,8 @@ import org.testcontainers.utility.DockerImageName
  * The environment block records the image twice:
  *
  * ```
- *   PostgreSQL     : postgres:16-alpine — server 16.14
+ *   PostgreSQL     : server 16.14, identified by the digest below — the tag moved on
+ *                    2026-08-13 and the build pins by digest since `8dec7e6`
  *                    sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
  * ```
  *
@@ -49,6 +50,18 @@ import org.testcontainers.utility.DockerImageName
  *
  * The gate is four lines and it belongs in `TestcontainersConfiguration.kt`, which this slice
  * may not edit. `R27` §7 says so rather than writing a gate somewhere it does not belong.
+ *
+ * > **Written 2026-08-22, and the sentence above is discharged.** The pin is in
+ * > `TestcontainersConfiguration.kt` as of `8dec7e6`, so the constant **is** the gate — the
+ * > image this suite runs cannot drift without a commit. What a constant cannot do is notice
+ * > that the *tag* has moved away from it, because that happens in someone else's registry
+ * > with no commit here; `.github/workflows/image-pin.yml` watches for that on a schedule,
+ * > which is the same reason `study-consistency.yml` has a `cron`.
+ * >
+ * > **This class stays, and it is not the gate.** It measures what two images differ in and
+ * > asserts nothing — the two arms are named `RECORDED` and `TODAY`, and `TODAY` is now the
+ * > pinned image rather than whatever the tag resolves to, which is what makes it
+ * > reproducible.
  */
 class ImageTagDriftTest {
 

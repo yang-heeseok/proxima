@@ -1,7 +1,7 @@
 # Measurement discipline
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-21
+> **Updated**: 2026-08-22
 
 **Status:** Settled before the first measurement, deliberately. Rules written after a
 number is inconvenient are not rules.
@@ -40,7 +40,9 @@ its numbers.
                    WSL2 Ubuntu 24.04, kernel 6.6.87.2-microsoft-standard-WSL2, 15 GiB
   Docker         : Docker Engine 29.5.3 (API 1.54), NATIVE INSIDE WSL2 — not Docker Desktop
   JVM            : Temurin 21.0.12+8 (JDK 21 toolchain, pinned in gradle.properties)
-  PostgreSQL     : postgres:16-alpine — server 16.14
+  PostgreSQL     : server 16.14, and the DIGEST below is the identifier — the tag
+                   `postgres:16-alpine` named this image until 2026-08-13 and now
+                   resolves to 16.15. Pinned by digest since `8dec7e6`; `OPEN-10`
                    sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
                    default shared_buffers
   Connection pool: HikariCP 7.0.2, maximum-pool-size=10, connection-timeout=30000 (defaults)
@@ -74,6 +76,39 @@ have cost a reader time:
   > space` and exits `1` with the container still up, and `-Xmx512m` at the same limit is
   > `SIGKILL`, exit `137`, no stack trace and no log line. `ContainerHeapErgonomicsTest` holds
   > both, and `R23` §3.2 carries the numbers.
+
+- **It named a tag, and the tag moved.** The block above was written on 2026-08-10 and led
+  with `postgres:16-alpine`. **That tag stopped naming this image on 2026-08-13**, when it was
+  repointed at a build of PostgreSQL 16.15 — and nothing in this tree changed, so nothing here
+  could notice. `R27` found it by asking the registry.
+
+  > **What made it a defect rather than an untidiness.** `build.yml` has no image cache, so
+  > every CI runner since that date pulled 16.15 while this machine's Docker cache still held
+  > the July image. **Local and CI were running different servers, and every block described
+  > the local one.** The digest was recorded here from the first day and *nothing in the build
+  > ever used it* — `TestcontainersConfiguration.kt` pinned the tag. That is what `8dec7e6`
+  > fixed, and `OPEN-10` is the row.
+  >
+  > **The blocks were already carrying the answer.** Every environment block that names 16.14
+  > has the digest on the next line, so none of them was ever wrong about what it ran on. What
+  > they did was **lead with the moving name**, which is the thing a reader copies. The
+  > identifier line now leads with the version and points at the digest, and the tag is
+  > written down as history.
+  >
+  > **And the scale of the correction is smaller than `R27` §5 implies.** That section speaks
+  > of *"twenty documents"*, which counts every mention of `16.14` — 44 files, once
+  > `.study` and round two's own reports are included. **Environment blocks carrying the
+  > identifier line: eight, of which two already said 16.15.** The rest of the mentions are
+  > prose *about* this finding and are correct as written. Correcting them all would have been
+  > a sweep; correcting the identifier was six lines.
+  >
+  > **A digest is two numbers on a multi-architecture image**, and this block never said which
+  > it recorded. `postgres:16-alpine` names an OCI **index**, and the index lists one manifest
+  > per platform — `cf78e766…` against `075f7ba6…` for `linux/amd64` today. The recorded July
+  > figure is an index digest and the pin is one too, so the two are comparable. `.study`
+  > 12장 §6.3 is what happens when that is not said: two sessions reported different levels
+  > and the integrator read them as two images.
+
 
 The image digest is recorded alongside the tag because `16-alpine` is a moving tag. Two
 people running `postgres:16-alpine` a month apart are not necessarily running the same

@@ -20,12 +20,21 @@ silence, and it discharges the `PUB-4` row that says so.
 
 | # | Question | Why it is not decided yet | Deadline |
 | --- | --- | --- | --- |
-| `OPEN-10` | **Does the PostgreSQL image get pinned by digest — and if it does, do the twenty documents saying `16.14` get corrected, or do their numbers get re-baselined on `16.15`?** | Opened 2026-08-21 by `R27`. **The tag moved on 2026-08-13** and nothing in the tree changed: `postgres:16-alpine` resolved to `sha256:57c72fd2…` (PostgreSQL 16.14) when the first numbers were taken and resolves to `sha256:075f7ba6…` (16.15) now. `measurement-discipline.md` records the digest and says it is *"what makes the row citable"*; `TestcontainersConfiguration.kt` pins the tag, so the digest reaches no artefact. A GitHub runner has no image cache and has pulled 16.15 since 2026-08-13, while this machine's Docker cache still holds July's image — **local and CI have been running different servers.** `R27` §5 compares four options and **recommends pinning the digest and correcting the version rather than re-baselining**, on the ground that §3.2 measured the difference as one patch release with no effect on migrations or ordering. It is a row here and not a task because the second half is a **trade nobody has made**: measurement time against document accuracy, over twenty documents, and `R18` measured a 1.27× drift band on this machine that most of a re-baseline would sit inside. It also needs an edit to a file the parallel round assigned elsewhere | **now.** The claim is false today, and `ADR-003` condemned the deadline that cannot arrive. A row whose deadline is already past should be decided rather than carried — `OPEN-6` and `ADR-006` are the precedent, one morning apart |
 
-**The table is no longer empty, and it was emptied by decisions rather than by a sweep this
-time.** `OPEN-10` is the first row opened since `R19` filled and `ADR-007`–`ADR-009` cleared
-it on 2026-08-18. It arrived the way the paragraph below asks for: out of a *남는 위험* bullet
-— `R27` §8's first — that nobody can act on without a judgement.
+**The table was filled and emptied inside forty-eight hours, and this time the claim below is
+established rather than assumed.** `OPEN-10`, `OPEN-11` and `OPEN-12` opened on 2026-08-21 and
+all three closed on 2026-08-22, by `ADR-015`, `ADR-016` and `ADR-017`. `OPEN-10` was the first
+row opened since `R19` filled and `ADR-007`–`ADR-009` cleared it on 2026-08-18, and it arrived
+the way the paragraph below asks for: out of a *남는 위험* bullet — `R27` §8's first — that
+nobody can act on without a judgement.
+
+**What makes the empty table a claim today rather than a default.** Every one of the three was
+closed with an ADR naming what would flip it, and the sweep that would fill it again has been
+run and written down: `ADR-014` classified 168 measurement gaps and left **66 marked (a) —
+measurable here and not done.** Those are **work, not judgements**, which is precisely the
+distinction `R19` built this table around. If one of the 66 turns out to need a trade rather
+than an errand, it belongs here, and `OPEN-11` is the worked example of getting that
+classification wrong in the safe direction.
 
 **Three rows opened, and only one of them came from a report.** `OPEN-11` came from `R20` §3.6
 the same way `OPEN-10` came from `R27` §8. `OPEN-12` did not: it came from **running the merged
@@ -35,8 +44,8 @@ property of the three together, and integration is the only place it could have 
 `R19` swept *남는 위험* bullets for decisions filed as risks and found three; **this is the
 first row that a sweep of the documents could not have produced at all.**
 
-> **Two of the three closed the same day they opened, and both closings found more than the
-> row asked for.**
+> **All three closed the day after they opened, and every closing found more than its row
+> asked for.**
 >
 > `ADR-015` closed `OPEN-12`. The gate that failed asserts *the losers failed loudly*, so an
 > unraced run raises a false alarm. **Three sibling arms assert `failures == 0`**, which a
@@ -48,6 +57,12 @@ first row that a sweep of the documents could not have produced at all.**
 > could have settled it. The missing arm took four minutes. **Recognising that a row is short a
 > measurement rather than short a judgement is worth doing before opening it** — this one was
 > filed as a trade and was really an errand.
+>
+> `ADR-017` closed `OPEN-10`, and the row shrank on contact. It was filed as *"twenty
+> documents against hours of re-measurement"*; the real count is **six identifier lines**,
+> because every block naming 16.14 already carried the digest beneath it and the defect was
+> leading with the moving name. The guard `R27` §5 rejected as *"red on arrival"* **starts
+> green**, because the pin came first — which that section had itself predicted.
 
 
 **An empty table here is a claim, not a default.** It says: everything undecided has been
@@ -160,3 +175,4 @@ precisely the class of defect this repository exists to collect.
 | `OPEN-2` | **How QueryDSL is generated on Kotlin** | `ADR-001` — **the community fork `io.github.openfeign.querydsl` 7.0 via `kapt`**, 2026-08-10. Timebox 30 min, used ~15. Both candidates were built and run against PostgreSQL and **both passed**; the predicted classifier friction did not occur. The fork won on maintenance, not on capability |
 | `OPEN-12` | **A regression gate that cannot tell "the defect did not occur" from "the defect was hidden"** | `ADR-015` — **every arm proves its own precondition**, 2026-08-22. `RaceOverlap.peak` measures how many calls were ever open at one instant and `assertRaced` requires two, so an unraced run now says *the harness failed* instead of *the losers did not fail*. **The arm that was flaky turned out to be the safe one**: it asserts `failures > 0` and raises a false alarm, while the other three assert `failures == 0`, which a serialised run satisfies **without exercising the remedy at all** — `R9` §7 and `R16`'s `rate >= 0.0` in three tests at once. Fixing only the one that failed would have left those untouched. The control was watched refusing: `peak` planted to return 1 always, the shape `study-consistency.yml`'s `S3` actually had, fails 2 of 5 and exits 1 |
 | `OPEN-11` | **Does the load path run `VACUUM`, and if it does not, does this repository stop offering covering indexes as a remedy?** | `ADR-016` — **the loader is not changed, and the loader was never the reason**, 2026-08-22. The row was **undecidable rather than unanswered**: `R20` §3.6 measured the covering candidate either side of a vacuum and both candidates before one, which leaves only *covering after* against *single before* — two conditions, refused by rule 3. `R28` takes the missing arm. With both vacuumed the covering index is **1.03–1.16× across four runs while the single-column arm's own spread is 11.0–40.6%**, so the effect sits inside the variance and 85% more space still buys nothing. **The first run said 1.16× at 11.0% spread — *outside* — and stopping there would have produced the opposite finding**, which is `R18`'s lesson reached with four consecutive runs instead of two an hour apart. `R3`'s and `R20`'s verdicts stand with their reasons now known to be incomplete rather than wrong |
+| `OPEN-10` | **Does the PostgreSQL image get pinned by digest — and if it does, do the documents saying `16.14` get corrected, or do their numbers get re-baselined on `16.15`?** | `ADR-017` — **pinned, corrected, not re-baselined, and the tag is watched**, 2026-08-22. `R27` §3.2 compared twelve facts across the two images and found three differences, all the same fact; alpine and musl are unchanged, which is what keeps `R25` and `R26` standing. **The correction was six identifier lines, not twenty documents** — 44 files mention `16.14`, eight carry an environment block, two of those already said 16.15, and **none was ever wrong about what it ran on**: every one carries the digest on the next line and the defect was leading with the moving name. `.github/workflows/image-pin.yml` is the guard `R27` §5 rejected as *"red on arrival"*, **and it starts green**, because the pin was taken from the tag's current value — the objection was correct when written and was spent by the pin, exactly as that section's *"pin first, then guard the pin"* predicts |

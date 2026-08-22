@@ -1,0 +1,177 @@
+# Watches the PostgreSQL image pin for the one thing a pin cannot watch for itself.
+#
+# WHY THIS EXISTS.
+#
+#   `TestcontainersConfiguration.kt` pins the image by digest as of `8dec7e6`, closing the
+#   half of `OPEN-10` that is not a judgement. A constant is a strong guard: the image this
+#   suite runs cannot change without a commit.
+#
+#   What a constant cannot do is notice that the TAG it was resolved from has moved away from
+#   it -- because that happens in somebody else's registry, with no commit here. That is
+#   exactly the failure `R27` found: `postgres:16-alpine` was repointed on 2026-08-13, every
+#   CI runner pulled 16.15 while this machine's cache held July's 16.14, and no file changed
+#   so nothing in the tree could go red.
+#
+#   `study-consistency.yml` carries a `cron` for the identical reason, and says so: "a claim
+#   about someone else's pull request goes false WITHOUT any commit here. A push-only trigger
+#   would never notice; that is the whole failure mode." An image tag is the same shape.
+#
+# WHY THIS IS NOT RED ON ARRIVAL, WHICH IS WHY IT CAN EXIST AT ALL.
+#
+#   `R27` §5 weighed this check and REJECTED it: "it is red today and would stay red, because
+#   the tag has already moved. A check nobody can make green is a check somebody disables."
+#   That was correct when written and is spent now. The pin was taken FROM the tag's current
+#   value, so the two agree today and this job starts green. `R27` §5 named the ordering
+#   itself -- "pin first, then guard the pin" -- and this is the second step.
+#
+# WHAT A FAILURE HERE MEANS, AND WHAT IT DOES NOT.
+#
+#   Red means the tag moved. It does NOT mean anything is broken: the suite still runs the
+#   pinned digest and every number in this repository is still reproducible. The decision it
+#   asks for is whether to move the pin, and that decision needs a measurement -- `R27` §3.2
+#   compared twelve facts across the two images and found three differences, all of them the
+#   same fact. So the failure message says what to do rather than only that something changed.
+#
+# WHAT THIS CANNOT DO, STATED HERE RATHER THAN DISCOVERED LATER.
+#
+#   It reads the pin out of the Kotlin source with a regular expression. If the constant is
+#   renamed or reformatted the extraction fails, and the step below treats THAT as a failure
+#   rather than skipping -- a guard that silently stops finding its own input is the shape
+#   `study-consistency.yml`'s `S3` had, where `read -d ''` failed under dash and the check
+#   reported OK over a planted violation for as long as it existed.
+#
+#   And it cannot verify the pin is the digest anyone INTENDED. It compares two strings.
+
+name: image pin
+
+on:
+  push:
+    paths:
+      - 'api/src/test/kotlin/net/gseek/proxima/TestcontainersConfiguration.kt'
+      - '.github/workflows/image-pin.yml'
+  pull_request:
+    paths:
+      - 'api/src/test/kotlin/net/gseek/proxima/TestcontainersConfiguration.kt'
+      - '.github/workflows/image-pin.yml'
+  workflow_dispatch:
+  # The point: the tag moves without any commit here.
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  pin:
+    name: the pinned digest is still what the tag resolves to
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: the environment any number from this run belongs to
+        run: |
+          set -eu
+          echo "run           : ${GITHUB_RUN_ID}, attempt ${GITHUB_RUN_ATTEMPT}"
+          echo "runner image  : ${ImageOS:-unknown} ${ImageVersion:-unknown} (${RUNNER_OS} ${RUNNER_ARCH})"
+          echo "docker        : $(docker version --format '{{.Server.Version}}')"
+
+      # Both values come out of the same file, so a rename breaks extraction rather than
+      # silently comparing a stale literal committed here.
+      - name: read the pin and the tag out of the source
+        id: read
+        run: |
+          set -eu
+          SRC=api/src/test/kotlin/net/gseek/proxima/TestcontainersConfiguration.kt
+          pinned=$(grep -oE 'postgres@sha256:[0-9a-f]{64}' "$SRC" | head -1 || true)
+          tag=$(grep -oE 'POSTGRES_TAG = "[^"]+"' "$SRC" | sed 's/.*"\(.*\)"/\1/' || true)
+          if [ -z "$pinned" ] || [ -z "$tag" ]; then
+            echo "FAIL: could not read the pin ('$pinned') or the tag ('$tag') out of $SRC."
+            echo "The constants were renamed or reformatted. This step fails rather than"
+            echo "skipping, because a guard that stops finding its input and says OK is the"
+            echo "shape study-consistency.yml's S3 had."
+            exit 1
+          fi
+          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "pinned : $pinned"
+          echo "tag    : $tag"
+
+      - name: the tag still resolves to the pin
+        run: |
+          set -eu
+          pinned='${{ steps.read.outputs.pinned }}'
+          tag='${{ steps.read.outputs.tag }}'
+          pinned_digest=${pinned#postgres@}
+
+          resolved=$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+          if [ -z "$resolved" ]; then
+            echo "FAIL: could not resolve $tag against the registry."
+            echo "This is a query failure, not a drift finding. It is reported as a failure"
+            echo "rather than as OK because a check that cannot see its subject has not"
+            echo "checked it -- but do NOT record it as the tag having moved."
+            exit 1
+          fi
+
+          echo "pinned   : $pinned_digest"
+          echo "resolved : $resolved"
+
+          if [ "$pinned_digest" = "$resolved" ]; then
+            echo "OK: $tag still resolves to the pinned digest."
+            exit 0
+          fi
+
+          echo ""
+          echo "FAIL: $tag has moved away from the pinned digest."
+          echo ""
+          echo "  pinned in TestcontainersConfiguration.kt : $pinned_digest"
+          echo "  $tag resolves to today                   : $resolved"
+          echo ""
+          echo "NOTHING IS BROKEN. The suite still runs the pinned image and every number in"
+          echo "this repository is still reproducible. What this asks for is a decision."
+          echo ""
+          echo "Before moving the pin, measure. R27 section 3.2 compared twelve facts across"
+          echo "the two images the tag has named and found three differences, all of them the"
+          echo "same fact -- the version string. ImageTagDriftTest is the instrument; point"
+          echo "its TODAY arm at the new digest and read what actually differs."
+          echo ""
+          echo "If the alpine or musl version differs, R25 and R26 are affected: those reports"
+          echo "rest on this image being musl-built, and their conclusions are about collation."
+          exit 1
+
+  self-test:
+    name: the guard refuses what it claims to refuse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      # Both halves. A check that refuses everything is as useless as one that refuses
+      # nothing, and this repository has shipped six instruments that reported into nothing --
+      # the most recent found on 2026-08-22, in study-consistency.yml's own S3.
+      - name: plant a moved pin, and require the comparison to fire
+        run: |
+          set -eu
+          real=$(grep -oE 'postgres@sha256:[0-9a-f]{64}' \
+            api/src/test/kotlin/net/gseek/proxima/TestcontainersConfiguration.kt | head -1)
+          real_digest=${real#postgres@}
+
+          resolved=$(docker buildx imagetools inspect postgres:16-alpine --format '{{.Manifest.Digest}}')
+
+          # POSITIVE half -- a digest that is not the resolved one must be refused.
+          planted="sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          if [ "$planted" = "$resolved" ]; then
+            echo "FAIL: the planted digest collided with the real one, which is impossible"
+            exit 1
+          fi
+          echo "OK: a planted digest differs from what the tag resolves to, so the comparison fires"
+
+          # NEGATIVE half -- the real pin must NOT be refused, or the guard is red on arrival
+          # and gets disabled, which is precisely why R27 section 5 rejected this check before
+          # the pin existed.
+          if [ "$real_digest" != "$resolved" ]; then
+            echo "FAIL: the committed pin does not match what the tag resolves to."
+            echo "That is either a real drift -- in which case the job above has already said"
+            echo "so with instructions -- or the pin was committed wrong. Either way this"
+            echo "self-test cannot certify the negative half today."
+            exit 1
+          fi
+          echo "OK: the committed pin matches, so the guard starts green rather than red"

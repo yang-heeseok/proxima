@@ -1,7 +1,7 @@
 # R27. The digest nothing pulls, and the tag that moved eight days ago
 
 > **Created**: 2026-08-21
-> **Updated**: 2026-08-21
+> **Updated**: 2026-08-22
 > **Red commit**: **the tree, as it stands.** There is no commit that introduced this and no
 > commit that fixed it: the tree did not change, the registry did. §2 is why that makes the
 > red state undatable and §7 is what this slice may not do about it.
@@ -43,7 +43,9 @@
 and its environment block records the database twice:
 
 ```
-  PostgreSQL     : postgres:16-alpine — server 16.14
+  PostgreSQL     : server 16.14, and the DIGEST below is the identifier — the tag
+                   `postgres:16-alpine` named this image until 2026-08-13 and now
+                   resolves to 16.15. Pinned by digest since `8dec7e6`; `OPEN-10`
                    sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
 ```
 
@@ -247,6 +249,27 @@ that is red on arrival is not a guard, it is a broken build with a lesson attach
 honest ordering is *pin first, then guard the pin.* Once the digest is in
 `TestcontainersConfiguration.kt`, the guard is free — the constant **is** the pin, and any
 drift becomes a deliberate edit.
+
+> **Done 2026-08-22 — `ADR-017`, closing `OPEN-10`. Both halves, in the order this section
+> named.** The digest is pinned in `TestcontainersConfiguration.kt` (`8dec7e6`) and
+> `.github/workflows/image-pin.yml` is the guard this section rejected — **and it starts
+> green**, because the pin was taken from the tag's current value. The objection was correct
+> when written and was spent by the pin, exactly as *"pin first, then guard the pin"* predicts.
+> The guard is scheduled rather than push-only, for this report's own reason: the tag moves
+> with no commit here.
+>
+> **Two corrections to this section's framing, from doing the work.**
+>
+> **The scale.** *"Twenty documents"* counts mentions of `16.14`, and the real figure is 44
+> files once `.study` and round two's reports are included. **Environment blocks carrying the
+> identifier line: eight, two of which already said 16.15.** The rest are prose *about* this
+> finding and are correct as written — correcting them would have been a sweep, and it was
+> never the work. What was corrected is the identifier line in six places.
+>
+> **And they were never wrong about what they ran on.** Every block naming 16.14 carries the
+> digest on the next line. The defect was that they **led with the moving name**, which is
+> what a reader copies. The line now leads with the version, points at the digest, and records
+> the tag as history — so nothing was re-baselined and nothing was falsified.
 
 ## 6. 재계측 / Re-measurement
 

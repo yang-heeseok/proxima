@@ -14,7 +14,9 @@
                    WSL2 Ubuntu 24.04, kernel 6.6.87.2-microsoft-standard-WSL2, 15 GiB
   Docker         : Docker Engine 29.5.3, NATIVE INSIDE WSL2 — not Docker Desktop
   JVM            : Temurin 21.0.12+8
-  PostgreSQL     : postgres:16-alpine — server 16.14
+  PostgreSQL     : server 16.14, and the DIGEST below is the identifier — the tag
+                   `postgres:16-alpine` named this image until 2026-08-13 and now
+                   resolves to 16.15. Pinned by digest since `8dec7e6`; `OPEN-10`
                    sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
   Framework      : Spring Boot 4.1.0, Hibernate 7.4.1.Final, Kotlin 2.3.21
   Connection pool: HikariCP 7.0.2, maximum-pool-size=10, connection-timeout=30000 (defaults)

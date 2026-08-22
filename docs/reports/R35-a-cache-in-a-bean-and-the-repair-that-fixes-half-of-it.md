@@ -105,8 +105,11 @@ E2 >>> iterate-while-writing     raised=0
 | **plain `HashMap`, 8 threads** | **1,939 / 1,968 / 1,936 / 1,817** | **61 / 32 / 64 / 183** | **0**, every run |
 | `ConcurrentHashMap`, 8 threads | 2,000, every run | 0 | 0 |
 
-Four runs. **The direction never moved and the magnitude never repeated** — 183 lost in the run
-with the slow loader against 32 in the second, a spread of nearly 6×.
+⭐ **Four runs, and the same sentence covers this arm as covers §3.2: the direction reproduces
+and the magnitude does not.** Every run lost entries; every run raised nothing. The size of the
+loss spans **32 to 183, nearly 6×**, and **no single figure for it is published** — not a mean,
+not a rate, not a percentage. A loss rate quoted from this table would be a coincidence of
+scheduling wearing the clothes of a property.
 
 Every key had exactly one writer, so there is no last-writer-wins ambiguity to explain the
 gap: in run 1, 61 insertions were performed and are not there. Concurrent `put`s collide during resize
@@ -120,24 +123,34 @@ the option that reports nothing — in both runs.
 
 `ConcurrentHashMap` returns all 2,000. That is the whole of what it fixes.
 
-| arm, 8 threads on **one** key | run 1 | run 2 | run 3 (full suite) | run 4 (300 ms loader) |
+| arm, 8 threads on **one** key | run 1 | run 2 | ⛔ run 3 | run 4 (300 ms loader) |
 | --- | --- | --- | --- | --- |
-| **`get`, then `put` — on the `ConcurrentHashMap`** | **8** | **2** | **1** | **8** |
-| `computeIfAbsent` — on the same map | **1** | **1** | **1** | **1** |
+| **`get`, then `put` — on the `ConcurrentHashMap`** | **8** | **2** | *refused* | **8** |
+| `computeIfAbsent` — on the same map | **1** | **1** | *refused* | **1** |
+
+⛔ **Run 3 is not a data point and must not be averaged with the other three.** It was taken
+inside the full 146-test suite and **no thread overlapped the window**, so both arms returned
+`1`. That is **the absence of an observation, not an observation of no difference** — the
+instrument refused, the precondition assertion said so, and the run is listed only because
+hiding a refusal would be worse than showing one.
 
 ⛔ **The first run said 8. The second said 2. This report was drafted claiming 8 was "once per
 thread — the worst case, not a partial one", and that claim was not supportable from one run.
 It is retracted here rather than quietly edited out.**
 
-What survives is the only thing that was ever the point: **`> 1` against `1`.** The magnitude is
-a race outcome and moved between every invocation — 8, then 2, then **1**. Neither number is a
-property of the code.
+⭐ **The claim this report makes is one sentence, and it is not a number:**
 
-⛔ **And run 3 came out at `1`, which means the arm exercised nothing at all.** It was taken
-inside the full 146-test suite, where 56 test classes compete for eight cores, and **no thread
-overlapped the window even once.** The `computeIfAbsent` arm returned `1` in that run too — so
-the two arms were **indistinguishable**, and the report's entire finding would have evaporated
-with both numbers reading `1` and nothing saying why.
+> **The direction reproduces and the magnitude does not.**
+
+`> 1` against `1` survives every run that measured anything. The *size* of the difference
+survives none of them — 8, then 2, then 8, across three valid runs on one machine in one
+afternoon. **No average of those is offered**, because an average across a 4× spread is a number
+that looks like a property and is a coincidence of scheduling. `R18` refused this shape once and
+`R28` refused it again; this is the third.
+
+**Run 3 is why the distinction has teeth.** In it both arms returned `1` and were
+**indistinguishable** — the report's entire finding would have evaporated into two identical
+numbers with nothing anywhere saying why.
 
 ⭐ **The precondition assertion caught it and the suite went red.** `check-then-act must load
 more than once, or the threads did not overlap and this arm compared nothing` — the same shape
@@ -299,17 +312,27 @@ Four arms, and three of them are characterisation assertions on a defect — the
   outcome; only the *direction* is stable. Nothing here establishes a loss rate, and quoting
   `61` or `3.05 %` as a property of `HashMap` would be quoting one sample of a distribution
   nobody characterised. **How the loss scales with threads or key count is `미측정`.**
-- ⭐ **Four runs establish that the magnitude is unstable and still do not characterise it.**
-  `loads` went 8 → 2 → **1** → 8, the `1` being a run that exercised nothing. Entry loss went
-  61 → 32 → 64 → 183. **A distribution over many invocations is `미측정`**, and this report
-  publishes every raw value rather than a mean of four.
+- ⭐ **The magnitude is unstable in both arms and this report characterises neither.** `loads`
+  went 8 → 2 → *refused* → 8; entry loss went 61 → 32 → 64 → 183. **A distribution over many
+  invocations is `미측정`**, and every raw value is published rather than any average of them.
+  **Three of the four runs are valid and they do not agree**, which is enough to know a mean
+  would mislead and not enough to say what the truth is.
 - ⛔ **This report's own gate was flaky and the flakiness is fixed rather than tolerated.** Run 3
   fired the precondition assertion inside the full suite: no thread overlapped, `loads=1`, and
   both arms became indistinguishable. **The gate caught it — that is `ADR-015` working — but a
   gate that fires on scheduling is a gate somebody disables**, so the loader was made to take
-  300 ms and the overlap now holds by construction. **The 300 ms is a chosen parameter, not a
-  measurement**, and whether the defect still appears with a loader faster than that is
-  `미측정` — it certainly appeared at 8 and 2 with no sleep at all.
+  300 ms. **The 300 ms is a chosen parameter, not a measurement**, and whether the defect still
+  appears with a faster loader is `미측정` — it plainly appeared at 8 and 2 with no sleep at all.
+- ⭐ **The overlap now holds BY CONSTRUCTION, and that is a narrowing as well as a
+  strengthening.** With a 300 ms loader every thread is inside the window because the window is
+  wide, not because the scheduler cooperated. **What that buys**: the arm no longer depends on
+  timing luck, so a red result means the code changed rather than that the machine was busy.
+  **What it costs, and the reader is owed this half**: this arm can no longer say anything about
+  **how often the race occurs unaided.** Runs 1 and 2 could — 8 and 2, with no sleep, are
+  evidence that the window is hit in ordinary conditions; run 3 is evidence that it sometimes is
+  not. **Run 4 is evidence of neither.** It measures the consequence of an overlap it manufactures.
+  A separate arm that does not manufacture it would be needed to answer the frequency question,
+  and there is not one. `미측정`.
 - ⚠ **The slow loader may have changed the entry-loss arm too.** Run 4 lost **183** of 2,000
   against 32–64 in the earlier runs, and it is the only run with a `Thread.sleep` anywhere in
   the class. Nothing here establishes a connection — the arms use different maps and the sleep

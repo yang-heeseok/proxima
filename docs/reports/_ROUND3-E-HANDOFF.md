@@ -375,6 +375,15 @@ E.
   close and do not match, and I am not resolving a 15-second gap by choosing which clock to
   trust.** What is established is only what it was *not*. Recorded because inventing a tidier
   cause after the fact is the same error as leaving one unexamined.
+- ⛔ **I did NOT fix the two inherited `CHECK 5` findings, deliberately.**
+  `RecommendationQueries.kt:9` and `RecommendationService.kt:69` report on this branch because
+  `round3/layers` is based on `main`, which predates slice H's correction. **H has already fixed
+  them.** A second fix here would be a merge conflict at F and an edit nobody reviewed, so both
+  files are untouched by this slice — `git status` over `recommendation/` is empty.
+
+  ⭐ **And the loop closes on itself, which is worth the integrator noticing**: the deferred
+  merge is what created these inherited findings, and `CHECK 5`'s first run against the real
+  merged tree — the very thing the deferred merge delayed — is what will close them.
 - **I have not merged, rebased or pushed.** The branch sits where it was created.
 
 ---

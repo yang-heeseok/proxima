@@ -1,7 +1,7 @@
 # R10. Authorisation, exposure, tokens
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-13
+> **Updated**: 2026-08-22
 > **Status**: **one strand of three.** This report covers *management endpoints exposed
 > wholesale*. The other two — *an endpoint that authenticates and does not authorise* and
 > *token expiry and clock skew* — landed the same day in **`R11`**. §8's first bullet was
@@ -86,11 +86,34 @@ from documentation:
 { "name": "management.endpoint.httpexchanges.access", "defaultValue": "unrestricted" }
 ```
 
-Every other endpoint defaults to `unrestricted` and appears the moment exposure widens.
-**`heapdump` alone defaults to `none`.** Reaching it takes a second, separate, deliberate
+**Thirteen of the fifteen endpoints carrying an `access` property default to `unrestricted`**
+and appear the moment exposure widens. Reaching `heapdump` takes a second, separate, deliberate
 line. (`management.endpoint.<id>.enabled` has been deprecated in favour of `access` since
 3.4.0, and `management.endpoints.access.max-permitted` — default `unrestricted` — is a global
 cap that can close everything at once.)
+
+> **This paragraph said *"`heapdump` alone defaults to `none`"*, and it was wrong on the day it
+> was written.** Reading **every** `management.endpoint.*.access` default out of the same
+> `spring-boot-actuator-4.1.0.jar`, rather than the two lines sampled above, gives **fifteen
+> such properties, of which two default to `none`: `heapdump` and `shutdown`.** The remaining
+> thirteen default to `unrestricted`. Re-read 2026-08-22 from the artefact Maven Central
+> publishes for this exact version.
+>
+> Spring Boot's own reference for this line says the same, and names both: *"By default, access
+> to all endpoints except for `shutdown` and `heapdump` is unrestricted"* — retrieved
+> 2026-08-22, page states 4.1.1.
+>
+> **The defect was in the sampling, not in the reasoning.** This section quoted two metadata
+> lines and generalised from them, and the generalisation happened to be a **count**. The
+> two-gate mechanism is unchanged and is if anything stronger: the access gate holds back two
+> endpoints rather than one. That is why the sentence is withdrawn and kept rather than
+> quietly corrected — **an argument that survives its own error still had an error in it**,
+> and this repository's product is the numbers.
+>
+> **§3.1's measurement already carried the correction.** `shutdown` is absent from the thirteen
+> ids the index returned, exactly as `heapdump` is. The evidence that two endpoints were being
+> held back was in the output of the run this report is about, and the prose counted one.
+> *Why* `shutdown` was absent was not asked here — see §8.
 
 So the roadmap's premise does not reproduce. **This is the fourth time in this repository**
 that a defect everyone knows about turned out to be closed by the framework already: `R5`'s
@@ -189,9 +212,10 @@ Two properties, in sequence, deciding two different things:
 1. **`management.endpoints.web.exposure.include`** — may this endpoint be published over HTTP?
 2. **`management.endpoint.<id>.access`** — and may it be used?
 
-Widening the first is what people do. The second is what stops `heapdump`, and only
-`heapdump`. Everything else has `unrestricted` sitting behind it, so for twelve of thirteen
-endpoints the second gate is already open and the first is the only one there is.
+Widening the first is what people do. The second is what stops `heapdump` — **and `shutdown`,
+which §3.2's withdrawn sentence missed.** Of the fifteen endpoints carrying an `access`
+property on 4.1.0, thirteen default to `unrestricted`, so for thirteen of fifteen the second
+gate is already open and the first is the only one there is. §3.2 owns that count.
 
 ## 5. 처방 / Remedy
 
@@ -200,7 +224,7 @@ written; what was missing is anything that notices if that changes.
 
 | Option | Why not |
 | --- | --- |
-| widen exposure and rely on `access` defaults | §3.2 — that default protects exactly one endpoint, and §3.3 shows twelve others still answer |
+| widen exposure and rely on `access` defaults | §3.2 — that default protects two endpoints of fifteen, and §3.1 shows the rest still answer |
 | widen exposure and put the management port behind a firewall | a real control, and not one this repository can assert anything about. Recorded as out of scope rather than assumed |
 | commit a wide-open `application.yml` as the `red` state | **rejected.** Every other trap here ships a `red` commit, and this one does not: a public repository with a wide-open actuator surface in its history is a worked example for the wrong reader, and the finding is entirely reproducible from a test property. `ADR-002` argues the schema should ship naive so defects can be measured; that argument is about a database with no users, not about a live management surface |
 | **keep the narrow list, and gate it over HTTP** | **✔** |
@@ -240,6 +264,11 @@ which assumption expired.
   narrow. A deployment sets `SPRING_APPLICATION_JSON`, an environment variable, or a config
   server value, and no test in this repository sees any of that. **The gate covers the file,
   not the running system.**
+- **Why `shutdown` was absent from §3.1's index is 미측정.** Its `access` defaults to `none`,
+  which is sufficient to explain the absence and is not the same as having established it —
+  `ShutdownEndpoint` may also be conditional on something this run never varied. §3.2's
+  withdrawn sentence is corrected on the metadata, which is a fact about the jar; the
+  behavioural half was not re-run, and no test here asserts `shutdown` returns 404.
 - **The management port is the application port.** `management.server.port` is unset, so every
   endpoint shares the application's connector and its exposure is decided entirely by these
   two properties. Whether a separate management port would be the better control is

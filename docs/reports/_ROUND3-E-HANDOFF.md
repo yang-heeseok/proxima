@@ -59,7 +59,7 @@ uses them.
 | E3 | `R36` | not written yet |
 | E4 | **`R37`** | **written**, red half complete, §6 `미측정` |
 | E5 | `R38` | not written yet |
-| — | `ADR-019` | not written yet; subject is §7's judgement call |
+| — | **`ADR-019`** | **written, `Proposed` not `Accepted`** — *a lock order is a convention, nothing can be made to keep it, and no guard is written for a caller that does not exist*. `395ea38` |
 
 ### The commits
 
@@ -163,6 +163,14 @@ rule 3 forbids the arithmetic and there is no ratio worth the breach.
 | `R35` | *(E2)* | not written | — |
 | `R36` | *(E3)* | not written | — |
 | `R38` | *(E5)* | not written | — |
+
+**`ADR-019`** (`395ea38`) is written and is deliberately **`Proposed`, not `Accepted`**. Its
+decision is *record the gap, write no structural rule*, on `ADR-007`'s own **unbanked**
+ground — nothing in this application takes two row locks, so a rule written now would guard
+one shape and that shape is the test's own. It cannot be Accepted until `R37` has a green
+commit, because it has been measured that the **unsorted** pair deadlocks and **not** that the
+sorted one does not, and deciding a convention is the remedy before the remedy has been
+observed to work is the same error `6.6` is being closed out of.
 
 ⚠ **`R37`'s header does not say *green* and its §6 is `미측정`.** It is the red half plus the
 mechanism and the remedy argument. It is not a finished report and says so in its own first

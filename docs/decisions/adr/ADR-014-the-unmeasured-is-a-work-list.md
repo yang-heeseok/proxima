@@ -1,7 +1,7 @@
 # ADR-014 — The unmeasured is a work list, and it is 168 entries long
 
 > **Created**: 2026-08-21
-> **Updated**: 2026-08-21
+> **Updated**: 2026-08-22
 > **Status**: Accepted
 > **Opens**: nothing. It closes nothing either. **It counts.**
 
@@ -128,6 +128,46 @@ print(rows, xref, dict(c), sum(c.values()))
 EOF
 # 171 3 {'a': 68, 'b': 27, 'c': 73} 168
 ```
+
+> ## ⚠ Verified and scoped, 2026-08-22 — the counts are exact and the recipe is not
+>
+> **Every figure above re-derives, and two conditions the block does not state are needed to
+> get there.** Run against `3afe305` — the commit that added this file:
+>
+> | | this file claims | re-derived | |
+> | --- | ---: | ---: | --- |
+> | §8 bullets | 154 | **154** | exact |
+> | reports | 20 | **20** | exact |
+> | corpus files | 37 | 38 | **38 − this file = 37** |
+> | `미측정` lines | 100 | 115 | **115 − this file's own 15 = 100** |
+>
+> **Both gaps are self-inclusion.** The sweep was run over the corpus *before* this file joined
+> it, which is correct — a ledger of gaps should not count its own transcription of them — and
+> the block never says so. Nor does the `cd` line survive: it names `proxima-c`, a worktree that
+> was removed when round two merged. **The numbers were never wrong; the instructions for
+> reproducing them are.**
+>
+> ## And the corpus is not the corpus any more
+>
+> This file was written in a parallel slice forked from `a417ce3`, so **it swept a tree on which
+> none of `R20`–`R27` existed.** There is no entry here from any round-two report, and `R28`
+> has since added a ninth §8 section it has never seen. Run the same block on `main` today:
+>
+> | | at `3afe305` | today | |
+> | --- | ---: | ---: | --- |
+> | corpus files | 37 | **57** | |
+> | `미측정` lines | 100 | **214** | |
+> | §8 bullets | 154 | **230** | **+76, all of it round two's own** |
+> | reports | 20 | **29** | |
+>
+> **So `(a) remaining = 66` is exact about what was classified and is not this repository's
+> backlog.** Roughly half the §8 bullets in the tree have never been through the (a)/(b)/(c)
+> question. Re-running the sweep is itself an (a)-shaped errand and nobody has done it —
+> `docs/decisions/open.md` says the same where it cites the figure.
+>
+> **How this was found.** An audit raised an arithmetic objection to `66`, **withdrew it**, and
+> the withdrawal was correct. Checking why it had been raised is what exposed a scope neither
+> party had stated. The retracted finding was worth more than most of the confirmed ones.
 
 | | count | share |
 | --- | --- | --- |

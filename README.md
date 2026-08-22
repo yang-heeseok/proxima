@@ -8,8 +8,12 @@ under load and concurrency.**
 > added nine more, `R20`–`R28`.** Spring Boot 4.1.0 on JDK 21, a schema that applies to a
 > real PostgreSQL under test, a generator that produces 3,963,719 rows from a fixed seed
 > value, and **139 tests** — 125 in `:api:test` over 48 classes, 14 in `:seed:test` over 4,
-> 0 failures, 9m04s on 2026-08-22 with both modules actually executed under `--rerun-tasks`
-> rather than restored from cache, because a cached Gradle result is not a run.
+> 0 failures, **11m45s median of three on 2026-08-22, spread 40%** — 9m04s, 11m45s, 13m44s —
+> with both modules actually executed under `--rerun-tasks` rather than restored from cache,
+> because a cached Gradle result is not a run. **This line quoted the 9m04s alone until an
+> audit asked for the run to be reproduced and got 13m44s**, which is this repository's own
+> rule 3 runs, median, spread if over 10% applied to the one number that had never been
+> held to it.
 > **The count now names both modules, and it did not before.** It read `77 tests — 36
 > classes`, which was `:api:test` alone and said so nowhere; that module is 125 over 48 now.
 > **It said `70` for four days and eight test-adding commits**, which is `R17`. Three of the

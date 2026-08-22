@@ -55,8 +55,10 @@ import org.testcontainers.utility.DockerImageName
  * > `TestcontainersConfiguration.kt` as of `8dec7e6`, so the constant **is** the gate — the
  * > image this suite runs cannot drift without a commit. What a constant cannot do is notice
  * > that the *tag* has moved away from it, because that happens in someone else's registry
- * > with no commit here; `.github/workflows/image-pin.yml` watches for that on a schedule,
- * > which is the same reason `study-consistency.yml` has a `cron`.
+ * > with no commit here. `.github/workflows/image-pin.yml` watches for that — **on a `cron`,
+ * > and also on pushes that touch the pin or the workflow**. The schedule is the half that
+ * > matters and the push trigger is not redundant: it catches a pin edited to a digest the
+ * > tag never named. `study-consistency.yml` carries a `cron` for the identical reason.
  * >
  * > **This class stays, and it is not the gate.** It measures what two images differ in and
  * > asserts nothing — the two arms are named `RECORDED` and `TODAY`, and `TODAY` is now the

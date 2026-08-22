@@ -36,6 +36,17 @@ distinction `R19` built this table around. If one of the 66 turns out to need a 
 than an errand, it belongs here, and `OPEN-11` is the worked example of getting that
 classification wrong in the safe direction.
 
+> **And 66 is not the whole of it, which this paragraph implied on 2026-08-22 and does not
+> now.** `ADR-014` was written in a parallel slice that forked from `a417ce3`, so **it swept a
+> tree on which none of `R20`–`R27` existed** — the ledger contains no entry from any round-two
+> report, and `R28` adds a ninth §8 section it has never seen either. The figure is exact about
+> what it counted and it is **not** the repository's current backlog. Re-running the sweep over
+> the round-two reports is itself an (a)-shaped errand, and nobody has done it.
+>
+> Found while checking an audit finding that was **raised and then withdrawn** — the auditor's
+> arithmetic against 66 was wrong and the retraction was correct, and looking at why sent both
+> of us to a scope nobody had stated.
+
 **Three rows opened, and only one of them came from a report.** `OPEN-11` came from `R20` §3.6
 the same way `OPEN-10` came from `R27` §8. `OPEN-12` did not: it came from **running the merged
 tree**, where a round-one gate failed once and passed twice on a tree byte-identical to the

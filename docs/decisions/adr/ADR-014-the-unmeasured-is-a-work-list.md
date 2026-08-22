@@ -191,11 +191,31 @@ per-report tables have six columns, the `D.n` table seven) and **escaped pipes h
 
 | | count | share |
 | --- | --- | ---: |
-| **(a) measurable here, just not done** | **132** | 54 % |
+| **(a) measurable here, just not done** | **133** | 54 % |
 | **(b) not measurable here** | **31** | 13 % |
 | **(c) the question does not hold** | **81** | 33 % |
-| **classified rows** | **244** | |
+| **classified rows** | **245** | |
 | unclassified rows | **0** | every row in every table carries a class |
+
+> ⭐⭐ **Two independently written parsers agree on this table, and each had its own different
+> defect.** The integrator's and the PO's were written from scratch without sight of each other and
+> returned **`(a) 132 / (b) 31 / (c) 81`** — identical on all three classes. The integrator's read
+> the `D.n` table's *Subject* column as its *Class*; the PO's counted three **ranked-highlights**
+> rows as ledger rows. **Two instruments, two different blind spots, one answer.** That is a
+> stronger verification than either count alone, and it is why these figures are published rather
+> than marked provisional. It is also `D.23`.
+>
+> ⚠️ **The agreed figure was `(a) 132` at 245-minus-one rows. Adding `D.23` — the row *about*
+> that agreement — made it `133`, and the table above says `133`.** Both states are recorded
+> rather than one overwritten: **the count a second party verified was `132`**, and the delta is
+> one row, named. A count of a table that is still being written goes stale on the next row, which
+> is `D.18` arriving one more time; the defence is not a better number but **naming the tree the
+> number belongs to.** These figures are the tree this commit produces.
+>
+> ⛔ **Round three's 88 % class-(a) share below stands on the integrator's count alone.** The PO
+> attempted an independent sub-count, its instrument returned **0 rows**, and **no number was
+> offered rather than a shaky one.** Unreproduced is the honest state and it is written here as
+> one.
 
 | where the rows are | rows | (a) | (b) | (c) |
 | --- | ---: | ---: | ---: | ---: |
@@ -614,7 +634,7 @@ comment**, so a sweep of this kind could not have found `43.1`–`43.4` at all.
 
 **Transcribed from `_ROUND3-E-HANDOFF.md` §7, not composed here.** 19 rows.
 
-> ⚠️ **No row from `R34`, `R38`.** Those reports have §8 sections and they are not empty — this slice simply filed no `미측정` entry from them. **Whether that means no (a)-class gap or a gap the sweep did not reach is 미측정, and the integrator did not invent rows to close the appearance.** A missing row is a gap a reader can see; a composed one would be a gap that reads as filled — `D.22`.
+> ⚠️ **No row from `R34`, `R38`.** Those reports have §8 sections and they are not empty — this slice simply filed no `미측정` entry from them. **Between them those three reports carry 17, 8 and 7 §8 items — **32 items that reached no ledger row.** Whether that means no (a)-class gap or a gap the sweep did not reach is 미측정, and the integrator did not invent rows to close the appearance.** ⭐ *"Three reports filed no rows"* is a fact a reader can shrug at; **32** is the size of the hole, and the size of the hole is this ledger's whole product. A missing row is a gap a reader can see; a composed one would be a gap that reads as filled — `D.22`.
 
 | # | Subject | Class | Cost | Flip | Note |
 | --- | --- | --- | --- | --- | --- |
@@ -642,7 +662,7 @@ comment**, so a sweep of this kind could not have found `43.1`–`43.4` at all.
 
 **Transcribed from `_ROUND3-G-HANDOFF.md` §7, not composed here.** 7 rows.
 
-> ⚠️ **No row from `R42`.** Those reports have §8 sections and they are not empty — this slice simply filed no `미측정` entry from them. **Whether that means no (a)-class gap or a gap the sweep did not reach is 미측정, and the integrator did not invent rows to close the appearance.** A missing row is a gap a reader can see; a composed one would be a gap that reads as filled — `D.22`.
+> ⚠️ **No row from `R42`.** Those reports have §8 sections and they are not empty — this slice simply filed no `미측정` entry from them. **Between them those three reports carry 17, 8 and 7 §8 items — **32 items that reached no ledger row.** Whether that means no (a)-class gap or a gap the sweep did not reach is 미측정, and the integrator did not invent rows to close the appearance.** ⭐ *"Three reports filed no rows"* is a fact a reader can shrug at; **32** is the size of the hole, and the size of the hole is this ledger's whole product. A missing row is a gap a reader can see; a composed one would be a gap that reads as filled — `D.22`.
 
 | # | Subject | Class | Cost | Flip | Note |
 | --- | --- | --- | --- | --- | --- |
@@ -683,6 +703,7 @@ their duplicate marked; they are not counted twice in the totals.
 | D.20 | `R36`; `_ROUND3-ORCHESTRATION.md` §3.8 | `btime` steps on this host, so every process-derived timestamp moves | c | — | — | **Measured twice, by two sessions.** `R36` found it; `F` reproduced it independently on 2026-08-22 — `1787395345` → `1787395380`, a **+35 s step**, identical across three reads inside one process. `ps -o lstart=` is `btime + starttime`, so `lstart` moved four times for a process that started once. ⛔ **Not an errand**: nothing here can stop the clock stepping. The consequence is a rule — **compare a file mtime to a file mtime**, one clock, and a step cannot move the comparison |
 | D.21 | `_ROUND3-ORCHESTRATION.md` §7.3, §7.4 | two launcher properties that cost this round five test runs, and neither is visible to any check the repository owns | **a** | 30 | M | **① `./gradlew --stop` does not stop the Kotlin compile daemons.** They run with `--daemon-autoshutdownIdleSeconds=7200` and survive it, so *"a clean floor"* was an unverified claim; one wedged daemon was inherited by a later run and cost it 22 minutes. **A tool reporting something it did not do** — `--stop` is a verdict, `0 java processes` is a measurement. **② A ~60-minute cap on the launcher** killed two full suites by client disconnection — `20:07:13`→`21:07:13` exactly, and `BUILD FAILED in 1h` *while executing* `:api:test` with results written 14 s before the cut. **A cut run produces no XML at all**, so the failure mode is an hour spent for nothing rather than a partial number. **The errand is the four-item quiet-machine check**, which found both on its first real use |
 | D.22 | `measurement-discipline.md`; `223c1fa` | **never commit a citation to a document that has not been written** | c | — | — | ⛔ **A rule, and it is here because it was broken deliberately.** `223c1fa` committed two documents citing `ADR-014` `D.17` **before `D.17` existed** — closed by the row above, in the same pass, on a fuse the author set and wrote down. **A missing note is a gap a reader can see. A citation to nothing is a gap that reads as filled**: the reader follows it, finds that the procedure "exists", and stops looking. ⭐ **This is not `R43`'s class.** `R43`'s KDoc, `.wslconfig`'s comment and `223c1fa`'s own blind spot were **true sentences nobody read**; this was a **false sentence written knowingly**, safe only because the author held the fuse. **The next author will not** |
+| D.23 | `measurement-discipline.md` §*The environment block*; this file's own tables | **property ④: an instrument that assumes the corpus has one shape when it has several** | **a** | 90 | **H** | ⛔ **Not property ③** — nothing here matches its own text. The instrument is correct about the shape it models and blind to the others, so it returns a clean-looking number over part of the population. ⭐ **It is the only one of the four whose damage is already measured**: three sessions counted this repository's environment blocks and returned three different totals, and `_ROUND3-ORCHESTRATION.md` §3.2's whole cause is that **the corpus has two block forms and the standard named one**. Named 2026-08-23 after two independently written ledger parsers, one the integrator's and one the PO's, **each failed on a different table in this one file**: this document holds **24 six-column per-report tables, one seven-column `D.n` table, and a four-column ranked-highlights table**, and each parser modelled one shape. The integrator's read the `D.n` table's *Subject* column as its *Class*; the PO's counted three ranked-highlights rows as ledger rows because their first cell is a bare integer. ⭐⭐ **They still agreed exactly on `(a) 132 / (b) 31 / (c) 81`** — two instruments, two different defects, one answer, which is a stronger verification than either count alone and is the reason those figures are published. ✅ **The errand is to enumerate the shapes**, in this file and in `measurement-discipline.md`, so a counter can be told what it is counting. ⛔ **No gate this round** |
 
 ## What the sweep found that no `미측정` marks
 
@@ -722,7 +743,7 @@ afterwards.
 | --- | --- |
 | **(a) entries closed** | **2 — `9.1` and `D.8`**, both by `R25`, exactly the two this file named |
 | **(a) entries partly closed** | **1 — `D.1`.** `R25` §3.7 read `-Xmx512m` off the Gradle test worker's command line. That is the test lane and Gradle's own default; the `bootRun` lane every load number came from is a different JVM and is still `미측정` |
-| **(a) entries remaining** | **66** — ⚠️ **as of that round.** Recounted after round three: **132**, and the recount's unit is stated above rather than assumed |
+| **(a) entries remaining** | **66** — ⚠️ **as of that round.** Recounted after round three: **133**, and the recount's unit and tree state are stated above rather than assumed |
 | entries whose class this round would change | **none** |
 | **findings that were in no ledger entry** | **1**, and it became `R27` and `OPEN-10` |
 

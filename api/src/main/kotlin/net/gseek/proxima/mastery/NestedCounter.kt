@@ -24,12 +24,26 @@ import org.springframework.transaction.annotation.Transactional
  *                  with it, because it never was anywhere else.
  * ```
  *
+ * ⚠ **THE `NESTED` HALF OF THAT TABLE DESCRIBES SPRING, NOT THIS STACK.** Measured: this
+ * application refuses `PROPAGATION_NESTED` outright, because
+ * `AbstractPlatformTransactionManager.nestedTransactionAllowed` defaults to `false` and
+ * nothing here sets it — `NestedTransactionNotSupportedException`, raised before a
+ * transaction, a connection or a savepoint exists. So *"one connection"* is what a savepoint
+ * would cost and **not** something observed here; `R38` §3.1 records the arm as `-1`, a
+ * refusal rather than a count.
+ *
+ * The `REQUIRES_NEW` line **is** measured: **2** pool slots, `R38` §3.1.
+ *
  * The connection count is the half that bites in production and the half nobody counts: a
  * `REQUIRES_NEW` called from inside a transaction occupies **two** pool slots for the duration
- * of the inner call, so a pool of `n` deadlocks at `n` concurrent callers — every outer half
- * holding a slot and every inner half queueing behind the ones already held. `R2` sized this
- * pool and `R24` put three instances against one `max_connections`; neither varied the
- * propagation, and this is the multiplier that sits underneath both.
+ * of the inner call — **measured, `R38` §3.1.** `R2` sized this pool and `R24` put three
+ * instances against one `max_connections`; neither varied the propagation, and this is the
+ * multiplier that sits underneath both.
+ *
+ * ⚠ **The consequence is argued and not measured.** *"A pool of `n` stalls at `n` concurrent
+ * callers, every outer half holding a slot and every inner half queueing behind the ones
+ * already held"* follows from the ×2 and has **not been run** — `R38` §8 carries it as
+ * `미측정`, and every arm behind that figure was single-threaded.
  */
 @Service
 class NestedCounter(

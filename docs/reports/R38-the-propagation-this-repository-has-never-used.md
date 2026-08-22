@@ -154,17 +154,37 @@ rather than about one test. **The rule both arrived at, stated once:**
 `R38`'s repair is that sentence applied: the row was abandoned as the observable and the
 assertion moved to what the inner call *threw*.
 
-### 3.3 With the switch the exception message names
+### 3.3 ⭐ Following the exception's own instruction does not lift the refusal
 
-⚠ **미측정 in this report.** `NestedEnabledPropagationTest` exists and sets
-`nestedTransactionAllowed = true` in its own application context, so that the shipped default
-stays measured by `NestedPropagationTest` in the same run. **It has not produced a result yet**
-— the first attempt was a `BeanPostProcessor` declared as a `@Bean`, which does not work and
-§4.1 explains why, and the corrected version's run was killed before it reached the test phase.
+The error names its own remedy: *"specify 'nestedTransactionAllowed' property with value
+'true'"*. **Tried twice. The refusal did not move.**
 
-**Nothing about savepoint semantics on this stack is claimed by this report.** What §5 says
-about `NESTED` is drawn from `REQUIRES_NEW`'s measured behaviour and from the refusal, not from
-an observed savepoint.
+| attempt | what was done | outcome |
+| --- | --- | --- |
+| 1 | a `BeanPostProcessor` declared as a `@Bean` in a `@TestConfiguration` | still refused — **and the cause is established**, §4.1 |
+| 2 | the flag set directly on the injected `PlatformTransactionManager` in `@BeforeEach`, with the value read back to confirm the setter took | **flag reads `true`, and `@Transactional(NESTED)` still raises the same exception** |
+
+```
+E5 >>> SWITCH SET -- outer rolls back after inner
+E5 >>>   REQUIRES_NEW  row=1  outer=IllegalStateException
+E5 >>>   NESTED        row=0  outer=org.springframework.transaction.NestedTransactionNotSupportedException
+```
+
+The `REQUIRES_NEW` arm beside it is the control: it reaches a transaction and behaves, so
+*nothing ran* cannot be confused with *nothing was attempted*.
+
+⛔ **Why the second attempt fails is `미측정`, and no candidate is written down as though it were
+an answer.** There are at least two — the annotation resolving a different manager instance than
+the one injected, or a `JpaDialect` unable to supply savepoints — and they are **distinguishable
+by measurement**, which was not taken. `E5` is the smallest of this slice's five traps and its
+brief says to say so and stop rather than manufacture a result. **This is where it stops.**
+
+**So nothing about savepoint semantics on this stack is claimed anywhere in this report.** What
+§5 says about `NESTED` is drawn from `REQUIRES_NEW`'s measured behaviour and from the refusal.
+
+What §3.3 *does* pin is narrow and worth having: **reading the exception message and applying its
+instruction in the most direct way available does not make this work.** Anyone who meets that
+message and expects a one-line fix should meet this test first.
 
 ## 4. 원인 / Mechanism
 
@@ -238,11 +258,18 @@ would then have changed.
 
 ## 8. 남는 위험 / Remaining risk
 
-- ⚠ **Savepoint behaviour on this stack is `미측정`.** §3.3 — the enabling test exists, its
-  first form was wrong for the reason §4.1 gives, and its corrected run has not produced a
-  result. **Everything §5 says about `NESTED` is reasoning from the refusal and from
-  `REQUIRES_NEW`'s measured behaviour**, not from an observed savepoint. Until that arm runs,
-  this report describes what this application does and not what the alternative does.
+- ⚠ **Savepoint behaviour on this stack is `미측정`, after two attempts to obtain it.** §3.3.
+  The first form was wrong for the reason §4.1 establishes; the second set the flag on the
+  injected manager, **verified the setter took, and was refused anyway.** Why is `미측정`, and
+  at least two candidates are distinguishable by a measurement that was not run. **Everything
+  §5 says about `NESTED` reasons from the refusal and from `REQUIRES_NEW`'s measured
+  behaviour**, not from an observed savepoint — so this report describes what this application
+  does and not what the alternative does.
+- **Stopping was a decision, not an omission.** `E5` is the smallest of this slice's five traps
+  and its brief says to say so and stop rather than manufacture a result. Two runs, roughly
+  twenty minutes, and the third would have been a debugging exercise inside a trap already known
+  to be small — with a full suite run still outstanding. **Recorded so the gap is legible as a
+  choice**, and so that whoever picks it up knows the cheap experiments have been spent.
 - **`duringREQUIRES_NEW=2` is one shape at one depth.** One outer, one inner, no concurrency.
   What the multiplier is when a `REQUIRES_NEW` calls another, or when `n` concurrent callers
   each hold two slots against a pool of `n`, is `미측정` — and that second one is the question

@@ -497,44 +497,68 @@ without them would understate what is still open.
 ## 9. SELF-CHECK
 
 **a. Did any test result come from a Gradle cache rather than an execution you performed?**
-No. The single result quoted here is from `:api:test --tests DeadlockTest --rerun-tasks`,
-which I invoked, in this session, and which printed its own output above. **No suite-wide test
-count appears anywhere in this handoff**, because I have not run `:api:test :seed:test` and
-will not quote a number for both modules until I have.
+No. Every figure comes from a `--rerun-tasks` invocation I issued in this session, and every
+number was read either from the run's console output or from that run's own XML under
+`api/build/test-results/`. **One run is explicitly discarded rather than reported** — §6's
+`bi3d1goja`, which wrote no XML at all; the stale XML beside it was 53 minutes old and was caught
+by checking file timestamps rather than contents. ⚠ **One process re-established itself across a
+host VM reboot without my issuing a second launch** (§6); I treat that run as trustworthy because
+of what is observable about it — a fresh `--rerun-tasks` invocation with a live worker — and not
+because I can account for how it started.
 
 **b. Does any number here cross machines, sessions, or a long time gap?**
-No. Every figure comes from one invocation on this machine today. **No figure here is placed
-beside a figure from `R6`, `R18`, `R24` or any other report**, and no ratio is computed across
-runs. The one comparison `R37` makes across time — `R6` §3.3's `180 → 135` and `3273 → 3425
-ms` — is **quoted as `R6`'s own result inside `R6`'s own conditions** and is not divided into
-or combined with anything measured here.
+No. Every figure is from this machine, this session, today. Where a report shows two runs
+(`R34`, `R35`, `R36`) both are from this session and are printed **side by side rather than
+averaged**. **I did not cite slice G's baseline**, because G is on `99d558b` — a different tree
+with H's step-4 change in it. `R37` quotes `R6` §3.3's `180 → 135` and `3273 → 3425 ms` **as
+`R6`'s own result inside `R6`'s own conditions**, and combines it with nothing.
 
 **c. Did you loosen a threshold, a sample size, or an assertion to make something pass?**
-No. Nothing here has been made to pass. E4's assertion is the naive belief and it is failing
-on purpose; the four uncommitted-to-verdict traps assert the naive belief too and have not
-run. **The one place a threshold was chosen is `MemoryVisibilityTest`'s spin bound**, and it
-is a *parameter* chosen to keep a hoisted-read thread from burning a core into another slice's
-window — it is documented as such in the class, it is not a measurement, and no rate derived
-from it is published.
+⭐ **Yes — three assertions are deliberately weaker than the observation that motivated them, and
+that needs stating plainly rather than defending.**
+
+| gate | observed | asserted | why |
+| --- | --- | --- | --- |
+| `MemoryVisibilityTest` | plain flag observed `0/3`, twice | `< trials` | the effect is a JIT decision; CI runs on hardware this repository does not own |
+| `SingletonStateTest` | `loads=8`, then `loads=2` | `> 1` | the magnitude moved 4× between two consecutive runs |
+| `LayeredRemedyTest` | ① `565`, then `557` | `< expected` | a race outcome; only the direction is stable |
+
+**None was loosened to turn a red test green.** In every case the defect had already been
+observed at full strength, and the weakening happened when converting that observation into a
+*characterisation gate* — where an exact assertion on a race or a JIT decision becomes a flaky
+gate, and `R16`'s `rate >= 0.0` in three tests at once is what that looks like after it rots.
+**The exact values are all published in the reports**; only the gates are loose. The opposite
+error is also present and deliberate: `computeIfAbsent` is asserted **exactly** at `1`, because
+that one is a contract rather than an outcome.
 
 **d. Is there any claim in a code comment that your work has made false?**
-Not yet, and I checked the two that were at risk. `MasteryCounter`'s KDoc says each
-`increment*` is *"one unit of work — `REQUIRES_NEW`"*, which stays true; I added `NestedCounter`
-beside it rather than changing it. `TransactionBoundaryRules`' KDoc cites *"`R6` §3.3 exercised
-such a method under concurrency"* — untouched, and still true. **`R6` §8's bullet was made
-false by this work and is annotated beside the sentence rather than left standing**, which is
-the §8 procedure, and its `Updated` date moved with it.
+⭐ **Yes, two, and both are annotated rather than deleted.**
+
+1. **`R6` §8** — *"Multi-row transactions introduce lock ordering and deadlocks, which this
+   measured nothing about."* False as of `R37`. Annotated **beside the sentence**, per
+   `_TEMPLATE.md` §8, with `R6`'s `Updated` date moved.
+2. **`NestedCounter`'s own KDoc** — its table describes `NESTED` as *"a savepoint inside the
+   first transaction. One connection."* That describes **Spring**, not this stack: measured,
+   this application refuses `PROPAGATION_NESTED` outright. Annotated in place; the
+   `REQUIRES_NEW` line beside it **is** measured at 2 slots. The same KDoc's *"a pool of `n`
+   stalls at `n` concurrent callers"* is now marked **argued and not measured** — every arm
+   behind that figure was single-threaded.
+
+`TransactionBoundaryRules`' KDoc cites `R6` §3.3 and remains true; I did not edit that file.
 
 **e. Did you write any version number, default value, or API behaviour from memory?**
-No, and this was the sharpest edge in the slice. Every `pg_settings` value in `R37` was
-**queried from the running server**, with `source` and `boot_val` printed beside it, precisely
-so `deadlock_timeout=1000ms` is not a remembered default. The image digest was **read out of
-`TestcontainersConfiguration.POSTGRES_IMAGE` in this tree**, not recalled and not copied from
-`measurement-discipline.md`, whose block names a different digest (`57c72fd2…`) and server
-`16.14`. **The server version string is written `미측정`** because I have not run `select
-version()` here — I would rather carry the gap than inherit a number. The exception class
-`PessimisticLockingFailureException` and its `Transient` supertype are likewise **observed
-output**, not recalled: I expected `DeadlockLoserDataAccessException` and was wrong.
+No, and this was the sharpest edge in the slice. Every `pg_settings` value was **queried**, with
+`source` and `boot_val` printed beside it, so `deadlock_timeout=1000ms` is not a remembered
+default. The server string came from `select version()` **in the run that reports it**. The image
+digest was read out of `TestcontainersConfiguration.POSTGRES_IMAGE` in this tree — **not** copied
+from `measurement-discipline.md`, whose block names a different digest and server `16.14`.
+`vmIdleTimeout=60000` and `autoMemoryReclaim=gradual` were read out of the Windows-side
+`.wslconfig`. **Two things I expected and got wrong**: the deadlock loser's exception is
+`PessimisticLockingFailureException`, not `DeadlockLoserDataAccessException`; and a
+`@Bean`-declared `BeanPostProcessor` does not post-process a bean built before it. Both were
+found by measurement failing, not by reading. **One thing I deliberately did not write**: why an
+uncontended monitor costs 85 ms where a CAS costs 25 ms. There is an obvious candidate and it is
+absent from `R34` because I did not measure it.
 
 **f. Did any company name, job posting, CV, interview, or portfolio wording enter the tree?**
 No.

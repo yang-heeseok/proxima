@@ -14,40 +14,47 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.AbstractPlatformTransactionManager
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
- * `E5`, once the switch that refuses `NESTED` is turned on.
+ * `E5`'s extra arm: **setting the switch the error message names does not enable savepoints
+ * here, and after two attempts this class stops trying and records that instead.**
  *
- * [NestedPropagationTest] establishes that this stack refuses `PROPAGATION_NESTED` outright:
- * `NestedTransactionNotSupportedException`, *"Transaction manager does not allow nested
- * transactions by default"*. That is the finding for the application as it ships, and it is
- * also a dead end — a refusal measures nothing about what a savepoint would have done.
+ * [NestedPropagationTest] establishes the shipped behaviour: `PROPAGATION_NESTED` is refused
+ * with `NestedTransactionNotSupportedException`, whose message says *"specify
+ * 'nestedTransactionAllowed' property with value 'true'"*. This class was written to take that
+ * instruction and measure what a savepoint actually does.
  *
- * So this class flips one boolean in **its own application context** and takes the comparison
- * the refusal was blocking. Nothing here changes the application: the switch is set by a
- * `BeanPostProcessor` declared in a `@TestConfiguration` that only this class imports, so this
- * context is separate from every other test's and `NestedPropagationTest` still measures the
- * shipped default in the same run.
+ * **It has been tried twice and the refusal did not move.**
  *
- * ⚠ **The switch is set in `@BeforeEach`, and the first attempt did not work.** It was a
- * `BeanPostProcessor` declared as a `@Bean` in [AllowNested], on the reasoning that the
- * post-processor's package has been stable across Boot majors where the customiser's has not.
- * It compiled, the context started, and the arms still failed with
- * `NestedTransactionNotSupportedException` — **a `@Bean`-declared post-processor is itself an
- * ordinary bean, and the transaction manager was already built by the time it existed.**
- * Measured rather than reasoned about: `bpn0wxpbt`, 2 of 3 arms red with the switch apparently
- * set.
+ * 1. A `BeanPostProcessor` declared as a `@Bean`. It did not work, and the reason is
+ *    established: such a post-processor is itself an ordinary bean and cannot process a
+ *    transaction manager that was built before it existed. `R38` §4.1.
+ * 2. Setting the flag directly on the injected [PlatformTransactionManager] in `@BeforeEach`,
+ *    with a `check` that the setter took. **The check passes — the flag reads `true` — and
+ *    `@Transactional(NESTED)` still raises the same exception.**
  *
- * So the flag is now set on the live bean before each test and restored after. [AllowNested]
- * stays, and its remaining job is the one it does reliably: **it makes this class's context
- * cache key different from [NestedPropagationTest]'s.** Without it the two classes would share
- * one `ApplicationContext`, and flipping the switch here would silently change what the other
- * class measures — which is the shipped default, the entire point of it.
+ * ⛔ **The mechanism for the second failure is `미측정` and no guess is recorded as one.** The
+ * obvious candidates — a different manager instance behind the annotation, or a `JpaDialect`
+ * that cannot supply savepoints — are distinguishable by measurement, and that measurement was
+ * not taken. `E5` is the smallest of this slice's five traps and its brief says to say so and
+ * stop rather than manufacture a result, so this class characterises the refusal it can observe
+ * and does not chase the one it cannot.
+ *
+ * **What it therefore pins** is narrow and genuinely useful: *following the exception's own
+ * instruction, in the most direct way available, does not make this work.* Anyone who reads
+ * that message and expects one line to fix it should meet this test first.
  */
 @SpringBootTest
 @Import(TestcontainersConfiguration::class, NestedEnabledPropagationTest.AllowNested::class)
 class NestedEnabledPropagationTest {
 
+    /**
+     * Kept for one reason only: it makes this class's context cache key differ from
+     * [NestedPropagationTest]'s. Without it the two would share one `ApplicationContext` and
+     * the flag flipped here would change what that class measures — which is the shipped
+     * default, the whole point of it.
+     */
     @TestConfiguration(proxyBeanMethods = false)
     class AllowNested {
         @Bean
@@ -64,12 +71,14 @@ class NestedEnabledPropagationTest {
     @Autowired private lateinit var transactionManager: PlatformTransactionManager
 
     private var rowId = 0L
+    private var flagAfterSetting = false
 
     @BeforeEach
-    fun enableNestedTransactions() {
+    fun enableNestedTransactionsAndRecordWhetherItTook() {
         val manager = transactionManager as AbstractPlatformTransactionManager
         manager.isNestedTransactionAllowed = true
-        check(manager.isNestedTransactionAllowed) { "the switch did not take; every arm below would measure a refusal" }
+        flagAfterSetting = manager.isNestedTransactionAllowed
+        println("E5 >>> nestedTransactionAllowed after setting it: $flagAfterSetting on ${manager::class.java.name}")
     }
 
     @AfterEach
@@ -107,18 +116,18 @@ class NestedEnabledPropagationTest {
     private fun activeConnections(): Int =
         jdbc.dataSource!!.let { (it as com.zaxxer.hikari.HikariDataSource).hikariPoolMXBean.activeConnections }
 
+    private val refusal = "org.springframework.transaction.NestedTransactionNotSupportedException"
+
     /**
-     * ⭐ **What `REQUIRES_NEW` buys, and what it costs, in one row value.**
+     * ⭐ **The flag is set, the flag reads back set, and the refusal is unchanged.**
      *
-     * The inner work commits independently under `REQUIRES_NEW` and therefore **survives** the
-     * outer rolling back. A savepoint has nowhere else to be: rolling the outer transaction back
-     * takes the inner work with it.
-     *
-     * Neither is safer. They answer different questions, and the propagation attribute on the
-     * inner method is the only place the answer is written down.
+     * The `REQUIRES_NEW` arm beside it is the control: it proves the harness reaches a
+     * transaction at all, so *"nothing ran"* cannot be confused with *"nothing was attempted"*.
      */
     @Test
-    fun `when the outer rolls back, a savepoint goes with it and a new transaction does not`() {
+    fun `setting nestedTransactionAllowed does not lift the refusal`() {
+        assertTrue(flagAfterSetting, "PRECONDITION: the setter must have taken, or this measures nothing")
+
         val requiresNew = runCatching { nested.outerFailsAfterRequiresNew(rowId) }.exceptionOrNull()
         val afterRequiresNew = countOf()
 
@@ -127,17 +136,18 @@ class NestedEnabledPropagationTest {
         val nestedFailure = runCatching { nested.outerFailsAfterNested(rowId) }.exceptionOrNull()
         val afterNested = countOf()
 
-        println("E5 >>> NESTED ENABLED -- outer rolls back after inner")
+        println("E5 >>> SWITCH SET -- outer rolls back after inner")
         println("E5 >>>   REQUIRES_NEW  row=$afterRequiresNew  outer=${requiresNew?.let { it::class.java.simpleName }}")
-        println("E5 >>>   NESTED        row=$afterNested  outer=${nestedFailure?.let { it::class.java.simpleName }}")
+        println("E5 >>>   NESTED        row=$afterNested  outer=${nestedFailure?.let { it::class.java.name }}")
 
-        assertEquals(1, afterRequiresNew, "REQUIRES_NEW committed on its own; the outer rollback cannot reach it")
-        assertEquals(0, afterNested, "a savepoint is part of the outer transaction and dies with it")
+        assertEquals(1, afterRequiresNew, "the control: REQUIRES_NEW committed on its own and survived the rollback")
+        assertEquals(0, afterNested, "nothing ran under NESTED, so nothing was written")
+        assertEquals(refusal, nestedFailure!!::class.java.name, "the refusal is unchanged with the flag set")
     }
 
-    /** An inner failure, caught. Both should leave the outer able to finish its own work. */
+    /** The same, on the path where an inner failure is caught. */
     @Test
-    fun `an inner failure is confined under both, and the savepoint arm actually ran`() {
+    fun `an inner failure under NESTED is still a refusal, not a savepoint rollback`() {
         val requiresNewInner = nested.outerSurvivesFailedRequiresNew(rowId)
         val afterRequiresNew = countOf()
 
@@ -146,39 +156,35 @@ class NestedEnabledPropagationTest {
         val nestedInner = nested.outerSurvivesFailedNested(rowId)
         val afterNested = countOf()
 
-        println("E5 >>> NESTED ENABLED -- inner fails, outer catches")
+        println("E5 >>> SWITCH SET -- inner fails, outer catches")
         println("E5 >>>   REQUIRES_NEW  row=$afterRequiresNew  innerThrew=$requiresNewInner")
         println("E5 >>>   NESTED        row=$afterNested  innerThrew=$nestedInner")
 
         assertEquals(100, afterRequiresNew, "the inner rolled back, the outer wrote 100")
-        assertEquals(100, afterNested, "the savepoint rolled back, the outer wrote 100")
+        assertEquals("java.lang.IllegalStateException", requiresNewInner, "the control failed INSIDE its unit of work")
         assertEquals(
-            "java.lang.IllegalStateException", nestedInner,
-            "the savepoint arm must fail INSIDE its unit of work. If this is a " +
-                "NestedTransactionNotSupportedException the switch did not take and the 100 " +
-                "above means nothing -- NestedPropagationTest §3.2 is what that looks like",
+            100, afterNested,
+            "the row is 100 here too -- AND MEANS NOTHING, which is R38 §3.2's whole subject",
         )
+        assertEquals(refusal, nestedInner, "what the row cannot tell you: the savepoint arm never ran")
     }
 
-    /**
-     * ⭐ **The number that bites in production and that nobody counts.**
-     *
-     * `R2` sized this pool and `R24` put three instances against one `max_connections`. Neither
-     * varied the propagation, and a `REQUIRES_NEW` called from inside a transaction is a **×2**
-     * on every slot held for the duration of the inner call — so a pool of `n` stalls at `n`
-     * concurrent callers, every outer half holding a slot and every inner half queueing behind
-     * the slots already held.
-     */
+    /** Connection counts: the `REQUIRES_NEW` number is real, the `NESTED` one does not exist. */
     @Test
-    fun `a savepoint runs on the connection the outer already holds`() {
+    fun `REQUIRES_NEW holds two pool slots and NESTED never takes one`() {
         val idle = activeConnections()
         val duringRequiresNew = nested.connectionsHeldDuringRequiresNew(rowId) { activeConnections() }
-        val duringNested = nested.connectionsHeldDuringNested(rowId) { activeConnections() }
+        val duringNested = runCatching { nested.connectionsHeldDuringNested(rowId) { activeConnections() } }
+            .fold(onSuccess = { it }, onFailure = { -1 })
 
-        println("E5 >>> NESTED ENABLED -- active pool connections")
+        println("E5 >>> SWITCH SET -- active pool connections")
         println("E5 >>>   idle=$idle  duringREQUIRES_NEW=$duringRequiresNew  duringNESTED=$duringNested")
 
         assertEquals(2, duringRequiresNew, "the outer holds one and the inner takes a second")
-        assertEquals(1, duringNested, "a savepoint needs no connection of its own")
+        assertEquals(
+            -1, duringNested,
+            "not a connection count: NESTED is refused before a connection is taken, so there " +
+                "is no savepoint figure to compare against the 2 above",
+        )
     }
 }

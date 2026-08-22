@@ -5,8 +5,11 @@ import kotlin.test.assertTrue
 import net.gseek.proxima.TestcontainersConfiguration
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -42,10 +45,34 @@ import org.springframework.jdbc.core.JdbcTemplate
  * recursive term fed through it. Both are properties of the plan and the data and survive
  * being moved to another machine. Durations are printed as a median of three, for the
  * report to quote under its own environment block.
+ *
+ * ## The method order is load-bearing, and it is guarded rather than hoped
+ *
+ * **`VACUUM` is a side effect on a shared table that cannot be undone.** It sets the
+ * visibility map, and nothing in this class puts it back — so every measurement taken *after*
+ * a vacuum is in a different condition from every measurement taken before one, and this class
+ * contains both kinds.
+ *
+ * `both candidates priced after a vacuum` is therefore `@Order(Int.MAX_VALUE)`: it runs last,
+ * after `an index only scan is not index only until a vacuum has run` has established the
+ * before-state it needs, and after the two arms that reproduce `R20` §3.6's pre-vacuum table.
+ *
+ * **This was found by breaking it.** Added without the ordering, the new arm vacuumed the
+ * table first and the before/after test failed on `Heap Fetches: 0` where it required a
+ * positive number — and its message had already named the cause it could not distinguish:
+ * *"either something vacuumed this table … or PostgreSQL has changed when it sets the
+ * visibility map."* Something did. It was the test added beside it.
+ *
+ * So the coupling is real and **the guard against getting the order wrong already existed**:
+ * that assertion fails loudly the moment anything vacuums ahead of it. That is why the order
+ * is expressed as an annotation and the danger is written down, rather than the two tests
+ * being given separate tables — a separate table would remove the coupling and also remove the
+ * only thing that reports it.
  */
 @SpringBootTest
 @Import(TestcontainersConfiguration::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class PrerequisiteIndexTest {
 
     @Autowired private lateinit var jdbc: JdbcTemplate
@@ -308,6 +335,121 @@ class PrerequisiteIndexTest {
             "after `vacuum (analyze)` the index-only scan still made $fetchesAfter heap " +
                 "fetches. The visibility map is what makes an index-only scan index-only, " +
                 "and if VACUUM no longer sets it the covering column buys nothing ever",
+        )
+    }
+
+    /**
+     * **The arm `OPEN-11` was opened for.**
+     *
+     * `R20` §3.6 priced the two candidates **before** any vacuum and then measured the
+     * covering one **either side** of a vacuum. So the only cross-candidate comparison
+     * available afterwards was *covering after* against *single before* — two different
+     * conditions, which `measurement-discipline.md` rule 3 refuses.
+     *
+     * That left the row undecidable rather than merely unanswered. The question `OPEN-11`
+     * asks is whether this repository has twice rejected a covering index against a database
+     * that could not pay for one — `R3` on `attempt`, `R20` on `concept_edge` — and **neither
+     * report could answer it**, because neither measured the alternative in the state the
+     * remedy needs.
+     *
+     * One arm closes it: both candidates, both vacuumed, same session, same fixture.
+     *
+     * **The precondition is asserted rather than assumed**, in the shape `ADR-015` settled the
+     * same morning: the two candidates must feed the *same* number of rows through
+     * `concept_edge`. They answer the same predicate, so the second column buys heap
+     * avoidance and not selectivity. If the counts diverge, one of them is not being used for
+     * the lookup at all and the comparison is between two different plans rather than two
+     * indexes.
+     */
+    @Test
+    @Order(Int.MAX_VALUE)
+    fun `both candidates priced after a vacuum, the comparison OPEN-11 was missing`() {
+        // `fetches` is null when the plan carries no `Heap Fetches:` line at all, which is the
+        // case for an Index Scan -- it always visits the heap and does not count the visits.
+        // Printing 0 for both "counted zero" and "no such field" would say the single-column
+        // arm avoided the heap, which is the opposite of what its plan does. R5's mistake in
+        // miniature: a missing measurement rendered as a measured zero.
+        data class Priced(
+            val bytes: Long,
+            val medianMs: Double,
+            val spread: Double,
+            val fetches: Int?,
+            val scans: List<String>,
+            val rows: Long,
+        )
+
+        val arms = linkedMapOf(
+            "(concept_id)" to "create index $INDEX on concept_edge (concept_id)",
+            "(concept_id, prerequisite_id)" to
+                "create index $INDEX on concept_edge (concept_id, prerequisite_id)",
+        )
+
+        val priced = LinkedHashMap<String, Priced>()
+        arms.forEach { (name, ddl) ->
+            jdbc.execute("drop index if exists $INDEX")
+            jdbc.execute(ddl)
+            jdbc.execute("analyze concept_edge")
+            jdbc.execute("vacuum (analyze) concept_edge")
+
+            val runs = (1..3).map { single(12) }.sortedBy { it.executionMs }
+            val med = runs[1]
+            priced[name] = Priced(
+                bytes = jdbc.queryForObject(
+                    "select pg_relation_size(?::regclass)", Long::class.java, INDEX,
+                )!!,
+                medianMs = med.executionMs,
+                spread = (runs[2].executionMs - runs[0].executionMs) / med.executionMs,
+                fetches = if (med.plan.contains("Heap Fetches:")) heapFetches(med.plan) else null,
+                scans = med.scans,
+                rows = med.rowsThroughConceptEdge,
+            )
+        }
+
+        jdbc.execute("drop index if exists $INDEX")
+        jdbc.execute("analyze concept_edge")
+
+        println("OPEN-11 >>> after `vacuum (analyze) concept_edge`, depth 12, median of 3")
+        println("OPEN-11 >>> candidate                       bytes   exec ms   spread   heap fetches   rows fed   scan")
+        priced.forEach { (name, p) ->
+            println(
+                "OPEN-11 >>> %-28s %8d   %7.3f   %5.1f%%   %12s   %8d   %s"
+                    .format(
+                        name, p.bytes, p.medianMs, p.spread * 100,
+                        p.fetches?.toString() ?: "n/a", p.rows, p.scans.distinct().joinToString("+"),
+                    ),
+            )
+        }
+        val single = priced["(concept_id)"]!!
+        val covering = priced["(concept_id, prerequisite_id)"]!!
+        val ratio = single.medianMs / covering.medianMs
+        val worstSpread = maxOf(single.spread, covering.spread)
+        println(
+            "OPEN-11 >>> covering is %.2fx the single column; worst spread %.1f%% — %s"
+                .format(ratio, worstSpread * 100, if ((ratio - 1.0) > worstSpread) "outside" else "INSIDE the noise"),
+        )
+        println(
+            "OPEN-11 >>> and it costs %.0f%% more space".format(
+                (covering.bytes.toDouble() / single.bytes - 1.0) * 100,
+            ),
+        )
+
+        assertEquals(
+            single.rows, covering.rows,
+            "the two candidates fed different numbers of rows through concept_edge after a " +
+                "vacuum, so they are not answering the same predicate and this is not a " +
+                "comparison between two indexes. The second column buys heap avoidance, not " +
+                "selectivity",
+        )
+        assertTrue(
+            covering.fetches == 0,
+            "the covering candidate reported ${covering.fetches} heap fetches after " +
+                "`vacuum (analyze)`, so it is not index-only and the arm is measuring " +
+                "something other than what OPEN-11 asks about",
+        )
+        assertTrue(
+            covering.bytes > single.bytes,
+            "the covering index is not larger than the single-column one, which cannot be " +
+                "true of an index with an extra column and means the wrong relation was sized",
         )
     }
 

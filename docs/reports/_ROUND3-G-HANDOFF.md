@@ -393,12 +393,32 @@ Provisional entries, to be confirmed or corrected against what the run shows:
 
 | id | claim | class | minutes | importance | note |
 | --- | --- | --- | ---: | --- | --- |
-| `40.1` | **what `REQUIRES_NEW` on `AttemptRecorder.record` would cost the pool** — it takes a second connection while the first is held, which is `Cm = 2` in `R2`'s formula | a | 45 | **H** | the remedy `R40` prices but does not ship; needs load, therefore the timing lock |
-| `41.1` | what the tie-break costs `V2`'s index **in time**, as distinct from in plan shape | a | 40 | **H** | the unclosed half of `44.3` |
+| `40.1` | **what `REQUIRES_NEW` on `AttemptRecorder.record` costs the pool** — a second connection while the first is held, `Cm = 2` in `R2`'s formula | **a** | 45 | **H** | inert on the shipped call graph, because nothing calls `recordAll` from a transaction. **It becomes payable the moment something does**, which is the event `ADR-020` exists about |
+| `41.1` | what the tie-break costs `V2`'s index **in time**, as distinct from in plan shape | **a** | 40 | **H** | the unclosed half of `44.3` |
+| `39.1` | whether a static rule can distinguish a hand-written `hashCode` computed from `id` from a safe one | **a** | 30 | M | `ENTITIES_ARE_NOT_DATA_CLASSES` refuses a **keyword**, not a defect — `R39` §8 |
+| `40.2` | **a green from a check whose subject may legitimately be absent cannot be made self-verifying** | **c** | — | **H** | **closed on arrival — the entry names no unmeasured quantity.** See below |
 
-**Ledger entries closed by this slice:** `PENDING`. ⛔ `44.3` will be recorded as *corrected and
-half-answered*, not closed — the precedent is `43.3`, which slice H corrected rather than closed
-when it turned out to be wrong in one half and right in the other.
+⭐ **`40.2` is class (c) and it took a correction to get right.** The instinct was to file it as (a)
+— *measurable here, just not done* — and that would have been wrong in a way this repository has a
+name for.
+
+`R43` §3.5 met a green that was **wrong**: `git ls-files` returned nothing inside WSL2, both
+harvested lists came back empty, and CHECK 5 printed OK on a tree with two real findings. That is
+a defect, and it has a guard — assert both inputs are non-empty before trusting the result.
+
+CHECK 5 on my sources is a green that is **thin**: input fine, corpus fine, and my eight new files
+simply make no index claim of the kind the axis inspects. ⛔ **There is no assertion that fixes
+that**, because no workflow can check whether the thing it looks for was ever going to be present.
+
+So there is no number of minutes that closes it. Filing it as (a) would put a **permanent property
+of the check** on a work list, where it would sit forever looking like an errand nobody got to —
+which is exactly what `ADR-003` names: *a deadline that cannot arrive is not a deadline*. It is a
+scope statement about what any such check can promise, and `ADR-014`'s own (c) is where that goes.
+
+**Ledger entries closed by this slice:** `PENDING`, plus `40.2` which is closed on arrival by
+being (c). ⛔ `44.3` will be recorded as *corrected and half-answered*, **not closed** — the
+precedent is `43.3`, which slice H corrected rather than closed when it turned out to be wrong in
+one half and right in the other.
 
 ---
 

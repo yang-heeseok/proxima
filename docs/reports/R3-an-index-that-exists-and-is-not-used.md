@@ -1,7 +1,7 @@
 # R3. An index that exists and is not used
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-14
+> **Updated**: 2026-08-22
 > **Red commit**: `cceec6a` — `V1`, no index on `attempt`
 > **Green commit**: this one — `V2__attempt_learner_time_index.sql`
 

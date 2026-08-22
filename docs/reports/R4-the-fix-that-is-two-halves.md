@@ -1,7 +1,7 @@
 # R4. A connection pool exhausted by a default — the fix is two halves, and one alone does nothing
 
 > **Created**: 2026-08-12
-> **Updated**: 2026-08-18
+> **Updated**: 2026-08-22
 > **Red commit**: `cceec6a` — the default configuration
 > **Green commit**: this one — `open-in-view: false` **and** `strategy=projection`
 > **Supersedes**: `R2`, which established the mechanism and could not choose a remedy. `R2`

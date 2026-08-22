@@ -1,7 +1,7 @@
 # R2. A connection pool exhausted by a default — and why this is not concluded
 
 > **Created**: 2026-08-11
-> **Updated**: 2026-08-18
+> **Updated**: 2026-08-22
 > **Red commit**: `cceec6a` — the state in which the mechanism was observed
 > **Green commit**: **none. This report does not have one.**
 > **Status**: **Superseded by `R4`**, which concluded `T1` after `T4` shipped the index.

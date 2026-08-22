@@ -121,11 +121,24 @@ have cost a reader time:
   > and `settings.gradle.kts` has no `toolchainManagement` block. **Temurin is not requested,
   > and neither is `21.0.12+8`.**
   >
-  > `./gradlew javaToolchains` on 2026-08-22 reports `Auto-detection: Enabled` and
-  > `Auto-download: Enabled`, and lists the Temurin with `Detected by: Current JVM` — it is a
-  > candidate **because it is the JVM Gradle was launched on**, not because anything selected
+  > **And Gradle says it in its own words rather than by the absence of a keyword.** Asking for
+  > a toolchain nothing local satisfies — `./gradlew -PjavaToolchainVersion=17 :api:compileKotlin`,
+  > 2026-08-22 — prints the resolved spec verbatim: *"Cannot find a Java installation on your
+  > machine (Linux 6.6.87.2-microsoft-standard-WSL2 amd64) matching: `{languageVersion=17,
+  > vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}`."*
+  > **`vendor=any vendor` is the finding**, stated by the tool.
+  >
+  > `./gradlew javaToolchains` the same day lists the Temurin with `Detected by: Current JVM` —
+  > a candidate **because it is the JVM Gradle was launched on**, not because anything selected
   > it. So the JVM is a property of whoever is sitting in front of the machine, which is the
   > exact opposite of what the withdrawn clause promised.
+  >
+  > **That report also says `Auto-download: Enabled`, and it does not mean what it looks like.**
+  > It reflects `org.gradle.java.installations.auto-download`, whose default is `true`.
+  > Provisioning additionally needs a toolchain repository, and `settings.gradle.kts` configures
+  > none — so the run above **failed in 4s** with *"Toolchain download repositories have not
+  > been configured"* rather than fetching anything. **This document said the opposite for
+  > about fifteen minutes**, in `OPEN-13`, and that clause is withdrawn there.
   >
   > **The build file was right and this document generalised it wrong.** `gradle.properties`
   > says, in its own comment, *"The exact build in use when this was pinned is recorded in the

@@ -103,12 +103,26 @@ class BatchInsideATransactionTest {
      * What is asserted is the property the application says it has, stated as `R14` states it:
      * a rejected recording does not discard the valid ones recorded beside it.
      *
-     * ⚠️ **This assertion is expected to FAIL on the red commit, and that failure is the
-     * measurement.** The mechanism is `RollbackRuleTest`'s third case reached through shipped
-     * code: `AttemptRecorder.record` is `REQUIRED`, so inside a caller's transaction it joins
-     * rather than isolating; the invalid recording's interceptor marks the shared transaction
-     * rollback-only; `recordAll` catches the rejection and reports it as one outcome among
-     * five, exactly as designed; and then the caller's commit refuses.
+     * ⚠️ **This assertion FAILED on the red commit `94fe9ee`, and that failure is the
+     * measurement.** Verbatim:
+     *
+     * ```
+     * 4 valid recordings were attempted and 0 survived. [...] Raised: UnexpectedRollbackException
+     *   ==> expected: <4> but was: <0>
+     * ```
+     *
+     * The mechanism is `RollbackRuleTest`'s third case reached through shipped code:
+     * `AttemptRecorder.record` was `REQUIRED`, so inside a caller's transaction it joined
+     * rather than isolating; the invalid recording's interceptor marked the shared transaction
+     * rollback-only; `recordAll` caught the rejection and reported it as one outcome among
+     * five, exactly as designed; and then the caller's commit refused.
+     *
+     * ⭐ **It passes on the green commit**, where `AttemptRecorder.record` is `REQUIRES_NEW`
+     * and the unit of work is one recording regardless of the caller. `ADR-020`.
+     *
+     * **This is now the gate.** Reverting that propagation turns this red with the number in
+     * the message, rather than leaving a batch path that silently loses everything the first
+     * time a transactional caller is written.
      *
      * The caller receives `UnexpectedRollbackException`. The list of per-item outcomes that
      * `R14` was written to provide **is computed and then thrown away with the transaction**,

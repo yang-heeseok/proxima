@@ -10,6 +10,7 @@ import net.gseek.proxima.domain.Mastery
 import net.gseek.proxima.domain.MasteryRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 
@@ -74,7 +75,41 @@ class AttemptRecorder(
     private val masteryUpdate: String,
 ) {
 
-    @Transactional
+    /**
+     * **`REQUIRES_NEW`, and it is what makes the unit-of-work claim above true rather than
+     * merely intended.** `ADR-020`.
+     *
+     * This class has said since `T3` that the unit of work is one recording, *"because attempts
+     * are independent events, and one learner's invalid submission is not a reason to discard
+     * the valid ones recorded beside it."* **That sentence is unconditional and, under
+     * `REQUIRED`, the behaviour was not.**
+     *
+     * `REQUIRED` means *join the caller's transaction if there is one.* There was no such caller
+     * — `RecordingController.record` carries no `@Transactional` — so the promise held by
+     * accident. The moment one exists, `record` stops being a unit of work and becomes a
+     * fragment of the caller's: a rejected recording marks the shared transaction rollback-only,
+     * `AttemptRecordingService.recordAll` catches the rejection and computes its per-item
+     * outcomes exactly as designed, and then the caller's commit throws them away along with
+     * every recording that succeeded.
+     *
+     * **Measured, `R40` §3.4: four valid recordings of five, and 0 rows survived.** The caller
+     * received `UnexpectedRollbackException` and no outcome list at all.
+     *
+     * ## What this costs, stated rather than glossed
+     *
+     * - **A second connection while the caller's is held** — `Cm = 2` in `R2`'s pool formula.
+     *   **미측정**; it needs load. `ADR-014` `40.1`.
+     * - **The caller can no longer abandon the batch by rolling back.** What succeeded is
+     *   committed. That is a real loss of capability, and it is the same trade `R14` already
+     *   made *between* recordings, extended to the boundary with the caller.
+     *
+     * ⚠️ **The first cost is zero on the shipped call graph and that is not the same as
+     * risk-free.** With no outer transaction, `REQUIRED` and `REQUIRES_NEW` are the same code
+     * path, the same one connection, the same commit — so nothing that exists today pays for
+     * this. It becomes payable the moment a transactional caller appears, which is precisely
+     * the event this annotation is here for.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun record(learnerId: Long, recording: Recording) {
         val learner = learners.getReferenceById(learnerId)
         val item = items.getReferenceById(recording.itemId)

@@ -39,6 +39,24 @@ sealed interface RecordingOutcome {
  * bean, so the call crosses the proxy and the boundary exists. See [AttemptRecorder] for
  * why the fix is a separate bean rather than a self-injection.
  *
+ * ## A second property was riding on that same absence, and it was never written down
+ *
+ * The paragraph above gives `R1`'s reason — *where a boundary belongs*. There was a second,
+ * unstated one: the `per-item-outcomes` loop below **catches** a rejection and continues, and
+ * that is only safe while no transaction spans the batch.
+ *
+ * **The absence of an annotation on this class was never what made it safe**, because the
+ * annotation can also arrive on a *caller*. Any `@Transactional` service that calls
+ * [recordAll] — an ordinary thing to write — used to turn every rejection into total loss:
+ * the inner recording marked the shared transaction rollback-only, this loop caught the
+ * exception and built its outcome list, and the caller's commit discarded the list and every
+ * recording in it. `R40` §3.4 measured it at **four valid recordings, zero rows**.
+ *
+ * ⭐ **That is fixed on [AttemptRecorder.record] rather than here**, by `REQUIRES_NEW`, so the
+ * unit of work is one recording regardless of who calls it. `ADR-020` records the decision and
+ * what it gives up. This class is unchanged; the sentence is here because the property it
+ * depended on was invisible.
+ *
  * The loop below is identical to the one that was broken at `21e7162`. **That is the point
  * of the fix:** the call site did not have to learn an unusual syntax to become correct —
  * the boundary moved to where the unit of work actually is.

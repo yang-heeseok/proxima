@@ -345,7 +345,7 @@ assertion from `null` to `0.000` and wrote that the old one *"was never evidence
 atomicity"*. The new `null` is not a return to the old state — it is a third state that happens
 to print the same way, which is the strongest possible restatement of `R12`'s point.
 
-⚠️ **This is a consequence of the remedy, not a test defect.** `ADR-020` gave up *"the caller can
+✅ **Repaired at the commit below, and the repair is the finding.** `ADR-020` gave up *"the caller can
 abandon the batch by rolling back"*; this is that same trade seen from a test's vantage point,
 and it is recorded here rather than resolved by quietly editing the assertion.
 
@@ -369,16 +369,19 @@ why.**
 
 ## 8. 남는 위험 / Remaining risk
 
-- ⭐ **`AttemptRecordingServiceTest` is RED on the final tree and it is left red deliberately.**
-  §6.1 has the analysis. The assertion it fails is `expected: <0.000> but was: <null>`, and the
-  right repair is **not** to flip the literal back: this `null` has a different cause from the
-  pre-`R12` `null`, and a test that prints the same value for three different mechanisms is
-  exactly what `R12` wrote that class to demonstrate. ⛔ **Editing the assertion without
-  rewriting the KDoc that names the causes would destroy the point of the test.** The proposed
-  repair — assert `null`, name all three causes, keep pointing at
-  `AttemptRecordingAtomicityTest` as the test that holds the property — is written down here
-  rather than applied, because three reports depend on that class and the change deserves its own
-  verification rather than being folded into someone else's last commit.
+- ⭐ **`AttemptRecordingServiceTest` fired on the final tree, and the repair changed what it
+  asserts on rather than what it expects.** §6.1 has the analysis. Asserting `null` with a KDoc
+  naming three causes would have **documented** the ambiguity without removing it — a fourth
+  mechanism producing `null` would pass silently and the KDoc would stay true and useless. The
+  test now asserts on **what `record` reported**: a `Rejected` outcome carrying the guard's
+  exception proves the recording was *attempted and refused*, which is what separates this run
+  from *never attempted* and from *written and rolled back*. The row is still asserted, as a
+  consequence rather than as the evidence.
+  ⭐ **Slice E made the same move in a different subsystem on the same afternoon** — `R38` found
+  `assertEquals(100, afterNested)` green because `NESTED` was refused and the inner work never
+  ran, so the row read `100` whether a savepoint rolled back or nothing happened at all; its fix
+  was to assert on what the inner call threw. **When an observable is reachable by several
+  routes, assert on the route, not the destination.** Neither slice could see the other.
 - ⭐ **THE REMEDY DOUBLES CONNECTION DEMAND ON THE RECORDING PATH, AND THE PRICE IS MEASURED
   RATHER THAN SPECULATED — BY TWO OTHER SLICES, NEITHER OF WHICH COULD SEE THIS LINE.**
   Slice E measured `REQUIRES_NEW` holding **2 connections** for the duration of the inner call,

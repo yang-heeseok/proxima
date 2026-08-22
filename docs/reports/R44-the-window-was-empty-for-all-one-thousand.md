@@ -8,6 +8,7 @@
 > deviation was hiding, and the state the choice arrives in.
 > **Green commit**: `ebcc99c` — step 4 implemented, `ADR-021`'s definition, one extra statement
 > ⚠️ **This field read `PENDING` until 2026-08-23, and it could not have read anything else when it was written.** `ebcc99c` is the commit that implements step 4 **and adds this report**, so the SHA did not exist while the sentence naming it was being typed. **A report that cites its own commit has a field its author cannot fill**, and the only ways to fill it are an amend or a follow-up commit. Neither happened, and the placeholder merged. Filled here by slice `F` from `git log --diff-filter=A`, which is where it was recoverable all along.
+> ⛔ **`PENDING` was not carelessness and the next author should not be told it was.** It was the only true value available at write time. **The field is structurally unfillable by the person filling it** — the contract asks for a SHA that the act of writing the sentence helps create. Either the template stops asking a report to cite the commit that contains it, or every such report needs a follow-up commit whose only job is to fill the field. **This one took the second route, a day late and by a different hand.** `ADR-014` `D.24` is the row, and this is its unsatisfiable case: a requirement right about its literal predicate and impossible to meet in practice.
 > **The defect this report does find has no green.** On the shipped dataset the implemented step 4
 > is **inert**, and `ADR-021` says of that, in its own words rather than mine:
 >

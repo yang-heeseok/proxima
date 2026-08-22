@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * `E2` — a singleton bean holding mutable state.
@@ -64,7 +65,7 @@ class SingletonStateTest {
      * here and no ambiguity about the expected size: it is one entry per key.
      */
     @Test
-    fun `the plain HashMap keeps every entry under concurrency`() {
+    fun `the plain HashMap loses entries under concurrency, and raises nothing`() {
         val cache = SharedScoreCache()
         val results = allAtOnce(threads) { t ->
             repeat(keysPerThread) { k -> cache.putPlain((t * keysPerThread + k).toLong(), BigDecimal("0.500")) }
@@ -75,7 +76,17 @@ class SingletonStateTest {
             println("E2 >>>   verbatim: ${it::class.java.name}: ${it.message}")
         }
 
-        assertEquals(expectedEntries, cache.plainSize, "every key was written by exactly one thread")
+        assertTrue(
+            cache.plainSize < expectedEntries,
+            "every key was written by exactly one thread, so a map that kept them all would " +
+                "have $expectedEntries; got ${cache.plainSize}. If this passes, the writes " +
+                "did not overlap and the test proved nothing",
+        )
+        assertEquals(
+            0, raised,
+            "AND NOTHING RAISED -- that is the finding, not an aside. The entries are simply " +
+                "not there, and the only way to know is to have counted what should have been",
+        )
     }
 
     /** The repair everyone reaches for, on the same shape. */
@@ -100,7 +111,7 @@ class SingletonStateTest {
      * The assertion is the belief that swapping the map fixed the class of problem.
      */
     @Test
-    fun `on a thread-safe map, check-then-act still loads once per key`() {
+    fun `on a thread-safe map, check-then-act loads once per THREAD, not once per key`() {
         val cache = SharedScoreCache()
         allAtOnce(threads) { cache.loadOnceCheckThenAct(1L) { cache.load(BigDecimal("0.750")) } }
         val checkThenAct = cache.loadCount
@@ -113,7 +124,11 @@ class SingletonStateTest {
         println("E2 >>> computeIfAbsent on CHM    loads=$computeIfAbsent  (threads=$threads, keys=1)")
 
         assertEquals(1, computeIfAbsent, "computeIfAbsent applies the function at most once per key")
-        assertEquals(1, checkThenAct, "the map is thread-safe, so the cache loads once")
+        assertTrue(
+            checkThenAct > 1,
+            "check-then-act must load more than once, or the threads did not overlap and " +
+                "this arm compared nothing: got $checkThenAct",
+        )
     }
 
     /**
@@ -124,7 +139,7 @@ class SingletonStateTest {
      * of `E2` where the defect announces itself.
      */
     @Test
-    fun `iterating the plain map while it is written is safe`() {
+    fun `iterating the plain map while it is written did NOT raise here`() {
         val cache = SharedScoreCache()
         repeat(1_000) { cache.putPlain(it.toLong(), BigDecimal("0.500")) }
 
@@ -143,6 +158,12 @@ class SingletonStateTest {
         println("E2 >>> iterate-while-writing     raised=${raised.size}")
         raised.firstOrNull()?.let { println("E2 >>>   verbatim: ${it::class.java.name}: ${it.message}") }
 
-        assertEquals(0, raised.size, "reading a map nobody removes from cannot fail")
+        assertEquals(
+            0, raised.size,
+            "NOT REPRODUCED, and pinned as such. A ConcurrentModificationException would have " +
+                "been the one place in E2 where the defect announced itself; it did not fire. " +
+                "This assertion characterises that silence -- it is NOT a claim that iterating " +
+                "a racing HashMap is safe. See R35 §8",
+        )
     }
 }

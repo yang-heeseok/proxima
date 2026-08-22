@@ -4,6 +4,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * `E3` — a flag one thread writes and another may never read.
@@ -84,7 +85,7 @@ class MemoryVisibilityTest {
     }
 
     @Test
-    fun `a plain flag written by one thread is seen by another`() {
+    fun `a plain flag is NOT seen, and the same flag with one keyword is`() {
         val control = (1..trials).map { trial(volatileArm = true) }
         val plain = (1..trials).map { trial(volatileArm = false) }
 
@@ -98,11 +99,18 @@ class MemoryVisibilityTest {
                 "be observed. If this line is what is red, the harness is broken and the " +
                 "plain arm's verdict must not be read at all",
         )
-        assertEquals(
-            trials, plain.count { it.observed },
-            "a write to a plain field was not observed within $bound iterations. NOT OBSERVED " +
-                "IS NOT THE SAME AS DOES NOT HAPPEN, and the reverse is also true: this " +
-                "assertion failing means the JMM permitted something and this machine took it",
+        assertTrue(
+            plain.count { it.observed } < trials,
+            "at least one trial must FAIL to observe the plain write. This is a " +
+                "characterisation assertion on a defect, the shape LostUpdateTest's first arm " +
+                "uses: if a plain write became reliably visible here, R36's conclusion would " +
+                "describe a world that no longer exists and this repository would want to know",
         )
+
+        // Deliberately `< trials` and not `== 0`. On THIS machine it was 0 of 3, three times
+        // over -- but the effect is a JIT decision, and a bound that is decisive here may not
+        // be on CI's hardware. An exact assertion would convert a real finding into a flaky
+        // gate, which R16's `rate >= 0.0` shows is the failure that survives longest.
+        println("E3 >>> verdict: plain observed ${plain.count { it.observed }}/$trials, control ${control.count { it.observed }}/$trials")
     }
 }

@@ -185,6 +185,28 @@ so nowhere.
 
 **Taken while slices D and E were active.** These are counts and do not contend.
 
+#### What survived, and what this figure's status actually is
+
+⚠️ **I reported this baseline as unrecoverable and that was overstated by half.** My targeted
+architecture run was `:api:test` only, so it rewrote `api/build/test-results/test/` down to four
+files — but it never touched the other module:
+
+```
+api/build/test-results/test/    4 xml   <- overwritten. The 125 / 48 evidence is gone
+seed/build/test-results/test/   5 xml   <- INTACT. Re-read just now: 15 tests, 0 failures
+```
+
+⭐ **And the `:api:test` half is corroborated rather than merely remembered.** The orchestrator
+counted 48 classes / 125 tests / 0 failures from that XML independently at ~15:26, before the
+overwrite, and holds it with a timestamp. So the earlier reading has **two independent readers**
+and one surviving artefact.
+
+That does not promote it to this slice's number — §3 cites the later full run, per the
+orchestrator's instruction and because a figure whose evidence is half-deleted should not be the
+headline. What it changes is the **status** of the earlier reading: it is *corroborated*, not
+*unverifiable*. ⭐ **If the later run disagrees with 125 / 15, that is a finding with two prior
+independent readings to disagree with — not a doubt about whether the first reading happened.**
+
 ### What may not be compared
 
 - **The baseline run's wall time was 11m54s. It is not a number, may not be cited, and appears
@@ -437,27 +459,31 @@ one half and right in the other.
 rollback-only case is **not done at all**"* is the one `R40` addresses. It should not be marked
 done wholesale: `PENDING` on which half `R40` closes.
 
-### ⭐ A finding about the correction itself, which F needs more than it needs the number
+### ⭐ The rule `measurement-discipline.md` is missing — this, not the number, is what F owes
 
-The stale-digest defect I opened in `measurement-discipline.md` grew when three sessions counted
-the affected environment blocks and got **three different totals**. What is stable across all
-three methods is **18 blocks carrying no digest**, and the document's own figure of **eight**
-lands on the *with-digest* subset under every method.
+The stale-digest defect I opened in that file turned out to have a bigger sibling. Three sessions
+counted its affected environment blocks and returned **three different totals**. What is stable
+across every method tried is **18 blocks carrying no digest**, and the document's own figure of
+**eight** lands on the *with-digest* subset every time.
 
-⛔ **The lesson is not "the document was wrong by fifteen".** It is that **a count is not a
-finding until its unit is stated tightly enough to be reproducible.** Three careful people
-counting "environment blocks that name 16.14" disagreed because *block*, *names*, and *affected*
-were never pinned — and the document's original author made the same mistake in the same place,
-producing a count that could only see the population that already carried a digest.
+⛔ **Do not fix this by writing a corrected number.** A corrected number with an unstated unit
+goes stale exactly as the first one did, and nothing will notice — which is `R19`. The sentence
+to add is the rule the file does not have:
 
-⭐ **That is `R8` §3.3's failure mode occurring in prose rather than in code**: an instrument
-blind to exactly the population it exists to find, reporting a number that looks like evidence.
-`R17` is the report about a guard that was a person; this is the same defect in a document.
+> `measurement-discipline.md` requires an environment block for **every number**, and it does
+> **not** require a count to publish **the unit it counted**. Its own count was wrong for
+> precisely that reason.
 
-**So when F fixes that file, the fix is not only the digest.** It is stating the unit — *what
-counts as a block, what counts as naming a version, and whether a block without a digest is in
-scope* — so the next person to count gets the same answer. A corrected number with an unstated
-unit will go stale the same way and nothing will notice, which is the whole subject of `R19`.
+**Why that is the diagnosis rather than carelessness.** Three careful readers disagreed because
+*block*, *names a version*, and *affected* were never pinned. The original author's method could
+only see blocks that already carried a digest — so the instrument was blind to exactly the
+population it existed to find, and reported a number that looked like evidence. ⭐ **That is
+`R8` §3.3's failure mode occurring in prose instead of in code**, and `ADR-017`'s *"a guard that
+stops finding its input and reports OK"* is the same animal in a workflow. `R17` is the report
+about a guard that was a person; this is that defect in a document.
+
+So the fix is two things and the second is the durable one: correct the digest, **and state the
+unit**, so the next person to count gets the same answer as the last.
 
 ---
 

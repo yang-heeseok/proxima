@@ -101,6 +101,29 @@ fixtures. It does not show the rule would catch a real `data class` entity in
 stops *it* from passing on an empty import. Both are green here, which is why the pair is quoted
 rather than just the first.
 
+⭐ **This is not an isolated caution. The same shape came up four times in this slice, and
+naming it once is cheaper than re-deriving it four times.**
+
+**The unit, stated — because a count whose unit is unstated is the very defect this list is
+about:** *an occasion during slice G on which a green result would have been read as establishing
+more than it does, and something had to be added or checked to make it mean what it appeared to
+mean.* By that unit there are four:
+
+| # | The green | What it did not establish | What was added |
+| --- | --- | --- | --- |
+| 1 | CHECK 5 passes on my eight new sources | that the KDoc I wrote is true | nothing can be added — my sources make **no index claim at all**, so the green is *thin*. `R43` §3.5's green was *vacuous* (empty input, which has a guard). Ledger `40.2`, class **(c)** |
+| 2 | `TransactionBoundaryRulesTest` passes with two `data class` entities in the tree | that the rule still works | the **self-test**, plus its `planted.size >= 5` non-vacuity assertion |
+| 3 | `:api:compileTestKotlin` BUILD SUCCESSFUL | that `plugin.jpa` synthesised the no-arg constructor — its absence fails at **run time**, not compile time | `javap` on the class file — §2.3 |
+| 4 | `AbsenceCostTest` would have shown `orElse` costing nothing | that `orElse` is cheap | the fallback moved onto the **repository**, because Hibernate's counter cannot see a `JdbcTemplate` query — `R42` §3.2 |
+
+**Rows 1 and 2 differ in whether the gap is mechanisable**, which is the distinction `40.2`
+records: row 2 was fixed by adding a second check, and row 1 admits no such fix.
+
+⛔ **The shared lesson is not "be careful".** It is that **a passing check reports the conjunction
+of "the property holds" and "the check could have seen it fail", and only one of those is
+usually what the reader wants.** `R8` §3.3 and `ADR-017`'s *"a guard that stops finding its input
+and reports OK"* are this repository's two earlier encounters with it.
+
 The same placement is what keeps them out of Spring Boot's entity scan. Commit `8e5843a` put four
 fixture entities under `net.gseek.proxima` and **34 of 52 tests failed across six classes, none
 of them the one that caused it.** `PersistenceUnitGateTest` is what notices now.

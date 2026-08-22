@@ -288,11 +288,17 @@ which assumption expired.
   narrow. A deployment sets `SPRING_APPLICATION_JSON`, an environment variable, or a config
   server value, and no test in this repository sees any of that. **The gate covers the file,
   not the running system.**
-- **Why `shutdown` was absent from §3.1's index is 미측정.** Its `access` defaults to `none`,
-  which is sufficient to explain the absence and is not the same as having established it —
-  `ShutdownEndpoint` may also be conditional on something this run never varied. §3.2's
-  withdrawn sentence is corrected on the metadata, which is a fact about the jar; the
-  behavioural half was not re-run, and no test here asserts `shutdown` returns 404.
+- **`shutdown`'s 404 is asserted now, and it establishes less than `heapdump`'s does.** This
+  bullet ended *"and no test here asserts `shutdown` returns 404"* when it was written earlier
+  on 2026-08-22; `ManagementSurfaceTest` asserts both 404s since later the same day, so that
+  clause is withdrawn. **Why the 404 happens is still 미측정, and the asymmetry is the point.**
+  `heapdump`'s 404 is proven to be *access* and not *absence*, because `HeapDumpContentTest`
+  opens it and gets 200. Nothing does the equivalent for `shutdown`, so its 404 is equally
+  consistent with the endpoint not existing in this context at all — and an assertion that
+  cannot tell those apart is the shape `ADR-015` is about. Boot's reference says an
+  inaccessible endpoint is *"removed entirely from the application context"*, which explains
+  the 404 and is not the same as having measured it here. Distinguishing them costs one more
+  Spring context and was not paid.
 - **The management port is the application port.** `management.server.port` is unset, so every
   endpoint shares the application's connector and its exposure is decided entirely by these
   two properties. Whether a separate management port would be the better control is

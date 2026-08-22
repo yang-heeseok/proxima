@@ -49,9 +49,8 @@ import org.springframework.context.annotation.Import
  * > repository said two different things about itself. That gap is `R43`'s subject one axis
  * > over: CHECK 5 does read comments, but only for index denial, so nothing here could see it.
  *
- * **This class asserts the `heapdump` 404**, which makes it a trip-wire as much as a
- * measurement: if a future Boot changes that default, this goes red and says so. `shutdown`'s
- * 404 is not asserted here — `R10` §8 carries that as a 미측정.
+ * **This class asserts both 404s**, which makes it a trip-wire as much as a measurement: if a
+ * future Boot changes either default, this goes red and says so.
  *
  * ## The `red` state is a property, not a commit
  *
@@ -136,7 +135,7 @@ class ManagementSurfaceTest {
             .sorted()
             .toList()
 
-        val notable = listOf("heapdump", "threaddump", "env", "configprops", "loggers", "mappings", "beans")
+        val notable = listOf("heapdump", "shutdown", "threaddump", "env", "configprops", "loggers", "mappings", "beans")
         val rows = notable.map { id ->
             val r = get("/actuator/$id")
             id to r.statusCode()
@@ -168,16 +167,28 @@ class ManagementSurfaceTest {
 
         measureWhetherLoggersIsWritable()
 
-        val heapdump = rows.toMap().getValue("heapdump")
-        assertEquals(
-            404,
-            heapdump,
-            "the heapdump endpoint answered $heapdump with only the EXPOSURE widened. It is " +
-                "supposed to need `management.endpoint.heapdump.access` as well, which is " +
-                "one of exactly two access defaults that are `none` on Spring Boot 4.1.0 -- " +
-                "the other thirteen of fifteen are `unrestricted`. If that default has " +
-                "changed, T9's first strand changes with it -- see docs/reports/R10 §3.2 " +
-                "and HeapDumpContentTest",
-        )
+        // BOTH endpoints whose access defaults to `none`, asserted together.
+        //
+        // Only `heapdump` was asserted here until 2026-08-22, and the KDoc above called it
+        // the only one. `shutdown` is the second, and it was absent from the id list this
+        // very test prints -- so the evidence was already in this test's own output and the
+        // assertion beside it counted one. R10 §8 records what this 404 does NOT establish:
+        // HeapDumpContentTest proves heapdump's 404 is access rather than absence by opening
+        // it, and nothing here does the same for shutdown.
+        listOf("heapdump", "shutdown").forEach { id ->
+            val code = rows.toMap().getValue(id)
+            assertEquals(
+                404,
+                code,
+                "the $id endpoint answered $code with only the EXPOSURE widened. It is " +
+                    "supposed to need `management.endpoint.$id.access` as well, which is one " +
+                    "of exactly two access defaults that are `none` on Spring Boot 4.1.0 -- " +
+                    "the other thirteen of fifteen are `unrestricted`. Boot removes an " +
+                    "inaccessible endpoint from the application context entirely, which is " +
+                    "why this is 404 rather than 403. If that default has changed, T9's " +
+                    "first strand changes with it -- see docs/reports/R10 §3.2 and " +
+                    "HeapDumpContentTest",
+            )
+        }
     }
 }

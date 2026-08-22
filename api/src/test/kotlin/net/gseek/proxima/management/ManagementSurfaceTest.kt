@@ -23,24 +23,40 @@ import org.springframework.context.annotation.Import
  * the second clause does not follow from the first. **Exposure and access are two separate
  * gates and `include: "*"` opens only one of them.**
  *
- * From the framework's own `spring-configuration-metadata.json`, not from documentation:
+ * From the framework's own `spring-configuration-metadata.json`, not from documentation —
+ * and from **all fifteen** endpoints that carry an `access` property, not from a sample of two:
  *
  * ```
  * management.endpoint.heapdump.access       defaultValue: none
- * management.endpoint.httpexchanges.access  defaultValue: unrestricted
+ * management.endpoint.shutdown.access       defaultValue: none
+ * the other thirteen                        defaultValue: unrestricted
  * ```
  *
- * Every other endpoint defaults to `unrestricted` and appears the moment exposure is
- * widened. `heapdump` alone defaults to `none` and stays 404. Opening it takes a second,
- * separate, deliberate line — which is what [HeapDumpContentTest] supplies, in its own
- * context, so that what the second line is protecting can be measured rather than asserted.
+ * Thirteen of those fifteen default to `unrestricted` and appear the moment exposure is
+ * widened. **`heapdump` and `shutdown` default to `none` and stay 404.** Opening `heapdump`
+ * takes a second, separate, deliberate line — which is what [HeapDumpContentTest] supplies, in
+ * its own context, so that what the second line is protecting can be measured rather than
+ * asserted.
  *
- * **This class asserts that 404**, which makes it a trip-wire as much as a measurement: if a
- * future Boot changes that default, this goes red and says so.
+ * > **This KDoc said *"`heapdump` alone defaults to `none`"* until 2026-08-22, and it was wrong
+ * > from the day it was written.** `R10` §3.2 withdrew the same sentence on that day, after
+ * > reading every `management.endpoint.*.access` default out of the jar rather than the two
+ * > lines sampled above: fifteen properties, of which **two** default to `none`. Spring Boot's
+ * > own reference for this line names both — *"By default, access to all endpoints except for
+ * > `shutdown` and `heapdump` is unrestricted"*.
+ * >
+ * > **The report was corrected and this comment was not**, so for part of 2026-08-22 the
+ * > repository said two different things about itself. That gap is `R43`'s subject one axis
+ * > over: CHECK 5 does read comments, but only for index denial, so nothing here could see it.
+ *
+ * **This class asserts the `heapdump` 404**, which makes it a trip-wire as much as a
+ * measurement: if a future Boot changes that default, this goes red and says so. `shutdown`'s
+ * 404 is not asserted here — `R10` §8 carries that as a 미측정.
  *
  * ## The `red` state is a property, not a commit
  *
- * `application.yml` already restricts the surface to four ids. Reverting it to wide-open and
+ * `application.yml` already restricts the surface to three ids — four when this was written,
+ * until `8762453` dropped `prometheus` the same evening. Reverting it to wide-open and
  * pushing that would put a live defect in the history of a public repository for the sake of
  * a strand whose whole content is *what wide-open exposes*. `ManagementSurfaceGateTest` is
  * the `green` half and asserts the shipped surface stays narrow.
@@ -126,9 +142,15 @@ class ManagementSurfaceTest {
             id to r.statusCode()
         }
 
-        // application.yml exposes `prometheus`. Whether this build has such an endpoint is a
-        // separate question from whether it is exposed, and it is asked here rather than
-        // assumed from the fact that micrometer-registry-prometheus is on the classpath.
+        // `prometheus` is probed because whether this build HAS such an endpoint is a separate
+        // question from whether it is exposed, and it is asked here rather than assumed from
+        // the fact that micrometer-registry-prometheus is on the classpath.
+        //
+        // This comment opened "application.yml exposes `prometheus`" until 2026-08-22, and
+        // that stopped being true on 2026-08-13 at 20:40 -- 8762453 dropped the id from the
+        // exposure list BECAUSE this probe returned 404 with the surface wide open, so the
+        // line had never done anything. R10 §3.6. The probe outlived the sentence that
+        // justified it by nine days, still returning the finding that removed it.
         val prometheus = get("/actuator/prometheus").statusCode()
 
         println()
@@ -151,10 +173,11 @@ class ManagementSurfaceTest {
             404,
             heapdump,
             "the heapdump endpoint answered $heapdump with only the EXPOSURE widened. It is " +
-                "supposed to need `management.endpoint.heapdump.access` as well, which " +
-                "defaults to `none` on Spring Boot 4.1.0 while every other endpoint defaults " +
-                "to `unrestricted`. If that default has changed, T9's first strand changes " +
-                "with it -- see docs/reports/R10 and HeapDumpContentTest",
+                "supposed to need `management.endpoint.heapdump.access` as well, which is " +
+                "one of exactly two access defaults that are `none` on Spring Boot 4.1.0 -- " +
+                "the other thirteen of fifteen are `unrestricted`. If that default has " +
+                "changed, T9's first strand changes with it -- see docs/reports/R10 §3.2 " +
+                "and HeapDumpContentTest",
         )
     }
 }

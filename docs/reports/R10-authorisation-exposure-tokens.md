@@ -115,6 +115,18 @@ cap that can close everything at once.)
 > held back was in the output of the run this report is about, and the prose counted one.
 > *Why* `shutdown` was absent was not asked here — see §8.
 
+> **Two thirteens, and they are not the same thirteen.** The count in the paragraph above is
+> *the endpoints whose `access` defaults to `unrestricted` in the jar*. §3.1's thirteen is *the
+> ids the index returned on the run*. They overlap in **nine members of thirteen**: the jar's
+> thirteen adds `auditevents`, `httpexchanges`, `logfile` and `startup`, and the index's
+> thirteen adds `conditions`, `flyway`, `health` and `metrics`. **They are equal by
+> coincidence**, and nothing derives one from the other.
+>
+> That coincidence has already cost something once — §4's count and the comment in
+> `application.yml` both moved a number between populations without one — so every count in
+> this report now names its population in the sentence carrying it, and **§3.1 owns the
+> measured list.** A site that needs it points here rather than restating it.
+
 So the roadmap's premise does not reproduce. **This is the fourth time in this repository**
 that a defect everyone knows about turned out to be closed by the framework already: `R5`'s
 in-memory pagination, `R9`'s embedded-database substitution, `R3`'s stale statistics, and now
@@ -150,7 +162,7 @@ not the subject and was not controlled; both are quoted rather than the tidier o
 
 ### 3.4 One of these is not a view
 
-The other twelve endpoints answer questions. `loggers` takes instructions:
+The other twelve of §3.1's thirteen answer questions. `loggers` takes instructions:
 
 ```
 POST /actuator/loggers/net.gseek.proxima.t9probe   -> 204
@@ -197,13 +209,24 @@ hit. §9.
 | `metrics` | 200 |
 | **`prometheus`** | **404** |
 
-`application.yml` exposes `prometheus`. **This build has no such endpoint** — it is 404 even
-with `include: "*"` in §3.1, so it is absent rather than closed. `micrometer-registry-prometheus`
-is on the runtime classpath and the endpoint still does not exist, which means the exposure
-list has been naming something imaginary since it was written.
+`application.yml` exposed `prometheus` when this was measured. **This build has no such
+endpoint** — it is 404 even with `include: "*"` in §3.1, so it is absent rather than closed.
+`micrometer-registry-prometheus` is on the runtime classpath and the endpoint still does not
+exist, which means the exposure list had been naming something imaginary since it was written.
 
 Harmless, and worth knowing: a configuration line that has never done anything is a line
 nobody has ever checked.
+
+> **This paragraph was in the present tense, and it went false the same evening — because of
+> itself.** It read *"`application.yml` exposes `prometheus`"*. `8762453` dropped the id at
+> 20:40 on 2026-08-13, **one hour and forty-five minutes after `1523600` committed this
+> report**, and dropped it *on the strength of this measurement*. The exposure list has been
+> three ids ever since.
+>
+> **A finding that removes the thing it describes leaves its own report describing a tree that
+> no longer exists.** Nothing in this repository reads a report's tense — `docs-consistency.yml`
+> CHECK 2 compares dates, and this file's date was correct throughout. Corrected 2026-08-22,
+> nine days late, and found by counting rather than by any check.
 
 ## 4. 원인 / Mechanism
 
@@ -219,8 +242,9 @@ gate is already open and the first is the only one there is. §3.2 owns that cou
 
 ## 5. 처방 / Remedy
 
-Nothing to remedy in the application. `application.yml` has listed four ids since it was
-written; what was missing is anything that notices if that changes.
+Nothing to remedy in the application. `application.yml` listed four ids when this was written
+and has listed **three** since `8762453` the same evening — §3.6; what was missing is anything
+that notices when that changes.
 
 | Option | Why not |
 | --- | --- |

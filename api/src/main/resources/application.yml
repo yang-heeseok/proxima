@@ -60,11 +60,22 @@ spring:
 #   wide-open surface at all -- a public repository carrying one in its history is a worked
 #   example for the wrong reader, and the finding reproduces from a test property.
 #
-#   Measured with the surface opened to "*": twelve of thirteen endpoints answer, including
-#   `env`, `configprops`, `beans`, `mappings`, `threaddump`, and `loggers` -- which is not a
-#   view but a control surface (POST -> 204, level null -> TRACE). `heapdump` stays 404
-#   because exposure and access are separate gates and its access defaults to `none`; opened,
-#   it returns 156 MB containing the datasource password that `env` masks.
+#   Measured with the surface opened to "*": the index returned THIRTEEN ids. R10 §3.1 owns
+#   that list and the statuses beside it -- this comment points at it rather than restating a
+#   number it cannot keep current. Among them are `env`, `configprops`, `beans`, `mappings`,
+#   `threaddump` and `loggers` -- and `loggers` is not a view but a control surface
+#   (POST -> 204, level null -> TRACE). `heapdump` stays 404 because exposure and access are
+#   separate gates and its access defaults to `none`; opened, it returns 156 MB containing the
+#   datasource password that `env` masks. `shutdown` is the OTHER endpoint whose access
+#   defaults to `none` on this version -- two of fifteen, R10 §3.2.
+#
+#   THIS COMMENT SAID "twelve of thirteen endpoints answer" UNTIL 2026-08-22, and no run ever
+#   measured that. R10 §3.1 lists thirteen ids and probed six of them at 200; `heapdump` is not
+#   among the thirteen, so the sentence was not "thirteen minus heapdump" either. The twelve
+#   came from R10 §3.4 -- "the other twelve ... answer QUESTIONS", meaning the thirteen minus
+#   `loggers`, which takes instructions instead. Both categories answer. A view-versus-control
+#   split was copied out as an answer-versus-no-answer count, and this comment then listed
+#   `loggers` INSIDE the twelve it had been excluded from, which is the tell.
 #
 #   `prometheus` was in this list and is gone. It was measured at 404 even with exposure set
 #   to "*", so this build has no such endpoint and the line had never done anything. R10 §3.6.

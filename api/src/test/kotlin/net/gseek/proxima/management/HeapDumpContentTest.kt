@@ -84,8 +84,15 @@ class DistinctiveCredentialPostgres {
  * `T9`, first strand, second half — **what the second switch is protecting.**
  *
  * [ManagementSurfaceTest] measured that `management.endpoints.web.exposure.include: "*"` is
- * not enough to reach `/actuator/heapdump`: access defaults to `none` for that endpoint alone.
+ * not enough to reach `/actuator/heapdump`: access defaults to `none` for it.
  * So the obvious conclusion is that the heap dump is not really a hazard on this version.
+ *
+ * > **This said *"for that endpoint alone"* until 2026-08-22, and it was wrong.** Two of the
+ * > fifteen endpoints carrying an `access` property default to `none` — `heapdump` and
+ * > `shutdown`. `R10` §3.2 owns that count and the evidence for it; this is a citation, not a
+ * > second telling. The word carried no weight here — this class is about what opening
+ * > `heapdump` exposes, and that is unchanged — which is exactly why it survived the
+ * > correction that reached the report.
  *
  * **That conclusion is worth exactly one measurement, and this is it.** The endpoint is opened
  * here the way a person would open it — one property — and then the dump is searched for the

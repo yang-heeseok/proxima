@@ -73,7 +73,7 @@ class ManagementSurfaceGateTest {
         assertTrue(
             open.isEmpty(),
             "these management endpoints answered on the shipped configuration: $open. " +
-                "application.yml is supposed to list four ids and nothing else. " +
+                "application.yml is supposed to list three ids and nothing else. " +
                 "docs/reports/R10 measured what a wide-open surface exposes -- including a " +
                 "heap dump containing the datasource password in plain bytes",
         )
@@ -91,25 +91,41 @@ class ManagementSurfaceGateTest {
         assertEquals(
             200,
             status("/actuator/health"),
-            "health is one of the four ids application.yml exposes. If it does not answer, " +
+            "health is one of the three ids application.yml exposes. If it does not answer, " +
                 "the surface is not narrow -- it is absent, and the gate beside this test " +
                 "is passing over nothing",
         )
     }
 
     /**
-     * `application.yml` exposes `prometheus`. Whether this build *has* that endpoint is a
-     * different question, asked rather than assumed.
+     * What the exposure list names, against what actually answers.
      *
      * Recorded rather than asserted: an exposure list naming an endpoint that does not exist
      * is harmless, and finding out is the point.
+     *
+     * > **This said *"`application.yml` exposes `prometheus`"* and the list below named four
+     * > ids. That was true when this class was written — `1523600`, 18:55 on 2026-08-13 — and
+     * > false one hour and forty-five minutes later**, when `8762453` dropped `prometheus`
+     * > from the exposure list. It was dropped because [ManagementSurfaceTest] — the sibling
+     * > that runs with the surface wide open — measured it at 404 even there, so the line had
+     * > never done anything. `R10` §3.6 and the
+     * > `WHAT THIS LIST IS, MEASURED` comment in `application.yml` both record the removal;
+     * > this class went on describing the tree that existed before it.
+     * >
+     * > **The test that produced the finding was the last thing to learn it**, and it stayed
+     * > that way for nine days. `prometheus` is still probed below — now as a former member of
+     * > the list rather than a current one, which is the only reading under which its 404 still
+     * > means something.
      */
     @Test
     fun `what the exposure list names and what actually answers`() {
-        val exposed = listOf("health", "info", "metrics", "prometheus")
+        val exposed = listOf("health", "info", "metrics")
+        val formerlyExposed = listOf("prometheus")
         println()
         println("T9-SHIPPED >>> application.yml exposes: ${exposed.joinToString(", ")}")
         exposed.forEach { println("    %-12s %d".format(it, status("/actuator/$it"))) }
+        println("           >>> removed from the list in 8762453, probed anyway:")
+        formerlyExposed.forEach { println("    %-12s %d".format(it, status("/actuator/$it"))) }
         println()
     }
 }

@@ -1,7 +1,7 @@
 # Roadmap
 
 > **Created**: 2026-08-10
-> **Updated**: 2026-08-22
+> **Updated**: 2026-08-23
 
 **Status:** **`T1`–`T9` are all done. Round three added seventeen reports — forty-six in total (`R0`–`R45`), counted once on the merged tree rather than added up from four handoffs.** Round two ran as three parallel slices against one frozen contract: the prerequisite graph (`R20`–`R22`), the deployment boundary (`R23`–`R24`), and the measurement gaps this repository had already written down about itself (`R25`–`R27`) — then `R28` supplied the measurement that made `OPEN-11` decidable at all. The three rows round two opened were closed the next day by `ADR-015`, `ADR-016` and `ADR-017`. The state column
 remains the truth of this document — it is updated as each item lands, not in advance.

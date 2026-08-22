@@ -1,7 +1,7 @@
 # R45. The exemption that hid the defect it was added beside
 
 > **Created**: 2026-08-22
-> **Updated**: 2026-08-22
+> **Updated**: 2026-08-23
 > **Red commit**: `77022a5` — the rule as shipped since `R7`. It passes on a self-invocation it
 > is written to refuse, and the three arms in §3 are how that was established
 > **Green commit**: `4726416` — *"this one"* when written; the rule looks through the

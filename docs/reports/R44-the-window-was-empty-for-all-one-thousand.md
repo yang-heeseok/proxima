@@ -1,7 +1,7 @@
 # R44. Step 4, implemented, and the window was empty for all one thousand
 
 > **Created**: 2026-08-22
-> **Updated**: 2026-08-22
+> **Updated**: 2026-08-23
 > **Red commit**: **none for the implementation, and the header says why.** Step 4 not being
 > implemented was not a defect — it was a documented deviation with a stated reason. `R43` is
 > the report about that reason having expired. What this report measures is the choice the

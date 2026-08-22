@@ -8,10 +8,14 @@ import org.springframework.stereotype.Component
 /**
  * **The fourth pool: the one nobody created.**
  *
- * A repository-wide search on 2026-08-22 found **zero** uses of `parallelStream()` in
- * `api/src/main` and `seed/src/main`, so this is planted rather than found — the trap only
- * exists once somebody writes the call, and the value of writing it here is that the shape
- * *"a slice titled three pools turned out to have five"* is what `R32` reports.
+ * A search on 2026-08-22, **before this file existed**, found **zero** uses of `parallelStream()`
+ * in `api/src/main` and `seed/src/main`. So the trap is planted rather than found — it only exists
+ * once somebody writes the call, and the value of writing it here is that the shape *"a slice
+ * titled three pools turned out to have five"* is what `R32` reports.
+ *
+ * ⚠️ **The count is now one, and it is this file.** Stated in the present tense rather than left
+ * as a sentence that was true when it was written and false the moment it was saved — which is the
+ * failure `R27` is about, and which this round has now collected four times.
  *
  * `parallelStream()` does not create a pool. It submits to `ForkJoinPool.commonPool()`, which
  * is **one pool per JVM**, shared by every caller in the process — including any library that

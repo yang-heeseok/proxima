@@ -75,12 +75,30 @@ after measuring the alternative.
 **What A costs, stated rather than glossed.** Two things, and the second is the one that will
 surprise someone:
 
-1. **A second connection is held.** `R2` sized the pool; this doubles `Cm` for the recording
-   path. 미측정 — it needs load, and therefore the timing lock. Ledger `40.1`.
+1. **A second connection is held — but only when there is a first one to hold it beside.**
+   `R2` sized the pool and this doubles `Cm` for the recording path. 미측정 — it needs load, and
+   therefore the timing lock. Ledger `40.1`.
 2. **The recordings are no longer rollback-able by the caller.** Under `REQUIRED` a caller could
    abandon the whole batch by rolling back. Under `REQUIRES_NEW` it cannot: what succeeded is
    committed. That is the *same* trade `R14` already made between recordings, extended to the
    boundary with the caller — and it is a real loss of capability, not a free win.
+
+⭐ **The cost in (1) is zero today, and that is why this can ship before the pool is measured.**
+
+`REQUIRES_NEW` differs from `REQUIRED` **only when a transaction is already in progress.** With
+no outer transaction, `REQUIRED` starts a new one and `REQUIRES_NEW` starts a new one; they are
+the same code path, the same single connection, the same commit.
+
+Nothing in `api/src/main` calls `recordAll` from inside a transaction — `RecordingController.record`
+carries no `@Transactional`, verified by reading it. So on the shipped call graph **this change
+alters nothing at all**, and the whole of its effect is on call graphs that do not exist yet.
+
+That is an unusually comfortable position and it is worth naming precisely rather than
+celebrating: **it means this decision buys a future property at a present cost of zero, and it
+also means the shipped configuration will not exercise the new arm, so the pool cost stays
+미측정 until something does.** The change is not risk-free — it is *currently inert*, which is a
+different thing and decays the moment a transactional caller appears. `40.1` is what stops that
+from being discovered under load.
 
 ## Both arms stay in the binary
 

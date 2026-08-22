@@ -1,7 +1,7 @@
 # R0. The scorecard — what the AI draft did with each trap it was writing about
 
 > **Created**: 2026-08-13
-> **Updated**: 2026-08-22
+> **Updated**: 2026-08-23
 > **Position**: last, and numbered first. It could not be written until `T1`–`T9` were done,
 > and it is the first thing worth reading afterwards.
 > **Red commit / Green commit**: none. This report measures the other eleven; it changes no
@@ -244,6 +244,165 @@ other, and this is the first time in this repository that the two were measured 
 same defect.** The interpreter is now `bash`, and both halves were re-checked — the clean tree
 passes, the planted violation is refused.
 
+### Round three — seventeen reports, and five defects in the machinery that produced them
+
+⛔ **This round has two products and a scorecard that reports one of them is the same defect as a
+check that is right about its literal predicate.** The first is seventeen reports. The second is
+**five contract-level defects in this repository's own apparatus**, and none of them was found by
+a sweep.
+
+| | |
+| --- | --- |
+| reports | **17** — `R29`–`R45`, four parallel slices |
+| decisions | `ADR-018`–`ADR-021` |
+| ledger rows added | **67** report rows + **11** new `D.n` rows, to **249** classified |
+| merge conflicts across 85 commits and four branches | **1**, and it was on the trunk rather than between the branches |
+| **defects found in the machinery itself** | **5** |
+
+#### Per slice — and two cells this report cannot fill
+
+Round two's table has the columns `slice | reports | self-inflicted traps recorded | caught by`.
+Round three can fill **two of four rows**, and why is itself one of the five defects above.
+
+| slice | reports | self-inflicted traps recorded | caught by |
+| --- | --- | --- | --- |
+| **D** — the five pools | `R29` `R30` `R31` `R32` `R33` | **6** | a quiet-guard reporting a false positive on **every call** before any run counted; the same guard never checking the system under test was still there; ⭐ **a vacuous measurement reported as a zero** — 6,000 requests that were all `{"error":"missing-token"}` because `xargs` stripped the quotes, so the application answered 401 without touching JDBC and *"0 pinned events"* measured nothing; two arms agreeing because both shared one monitor; a number true once and carried forward; ⭐ **a parser that could not match a leading minus and so failed in the direction that confirmed its author's hypothesis** |
+| **H** — the recency window | `R43` `R44` `R45` | **4** | a check that reproduced `R17` §5's discarded prose check at 1 site in 3; a guard that fired on a true sentence one backtick from where it was silent; a service that reintroduced `R1`'s self-invocation on the first attempt — **caught by an existing gate**; and a green that was vacuous because `git ls-files` returned nothing, **caught by suspicion rather than by any instrument** |
+| **E** — the layers | `R34`–`R38` | ⚠️ **not supplied** | E published **four** instrument bugs of its own and **five** stale claims found by re-reading its own handoff, but filed no count under this heading |
+| **G** — the basics | `R39`–`R42` | ⚠️ **not supplied** | — |
+| **F** — this pass | — | **7** | §6 of `_ROUND3-ORCHESTRATION.md` lists them; three are counts that were never derived, two are instruments matching their own text |
+
+⛔ **The two blank cells are not an oversight by E or G. They are `D.25`.** §8 of the slice
+contract asks for *the exact sentences for the integrator* and **nothing reads §8** — no gate, no
+template check, no field a worker leaves visibly empty. D supplied this row because D chose to;
+H's is here because H was this session's own slice. **A contract clause nothing reads is not a
+contract clause**, and the evidence is that the same clause under-delivered in two slices, two
+different ways, and neither was caught until this table was being filled.
+
+⚠️ **So round two's seventeen and round three's thirteen-plus-two-unknown are not comparable**,
+and this report will not put them side by side.
+
+#### The five, and where each was standing when it broke
+
+| | the requirement | satisfiable without being met, by | found |
+| --- | --- | --- | --- |
+| `D.24` | `CHECK 3` — *every report has a roadmap row* | a substring anywhere in the file | writing the roadmap |
+| `D.25` | §8 — *the exact sentences for the integrator* | four report titles | trying to use §8's output |
+| — | a report's *Green commit* field | ⛔ **nothing.** The SHA does not exist when the sentence naming it is written | filling it |
+| `D.21` | `./gradlew --stop` — *stop the daemons* | it returns success for Kotlin daemons it does not stop | clearing a floor between runs |
+| `D.26` | a failing script's exit code | the next command in the chain discards it | a commit message that described a tree that did not exist |
+
+**Four of the five surfaced during slice `F`, the integration pass**; the fifth surfaced in slice
+`E` while clearing a machine between attempts. ⭐⭐ **Not one was found by looking for it.** Every
+instrument this round built on purpose is a sweep — nine traps, four slices, five gates, one
+ledger audit — and `F` was designed to merge, not to detect. `ADR-014` `D.27` is the row, filed as
+a judgement so nobody turns it into an errand.
+
+⭐ **All five are `R17` §5, and none of them is prose.** `R17` §5 filed the property as a
+limitation of **keyword checks over documents**. A CI check, a slice contract, a form field, a CLI
+flag and a shell chain say it is a property of **specifications**, and prose was where it happened
+to be noticed first. `R17` keeps the finding.
+
+#### What repaired, and why the growing ledger is not the failure
+
+**The ledger grew all day. The debt did not.** Four repairs landed inside the pass that found the
+thing they repair:
+
+- slice `E`'s 300 ms loader, which made an overlap hold **by construction** after a precondition
+  assertion refused a run that had exercised nothing;
+- the four-item floor check, whose **AFTER** read caught its own `./gradlew --stop` failing;
+- the freshness boundary moved from a process start time to a **file mtime**, after `btime` was
+  measured stepping `+35 s` on this host;
+- `dea05a5`, the first commit here to **re-read the file from disk and assert before `git` was
+  allowed to run** — the direct remedy for `D.26`, applied in the commit that filed it.
+
+⭐ **A growing ledger is not a failure. A growing ledger with a flat repair rate would have been.**
+
+#### The one rule that caught something it was not written for
+
+`measurement-discipline.md`'s canonical environment block printed **the image digest its own pin
+had replaced**, under the words *"Pinned by digest since `8dec7e6`"*. It was wrong for as long as
+the pin existed.
+
+**No report inherited it.** Of the round's seventeen, **eleven name a digest and every one names
+`cf78e766`; six name none and all six argue the absence; zero carry the superseded value.** Four
+workers, independently, read the version off the running container instead of copying the block.
+
+> **Absolute rule 9** — *never write a version from memory; check the current release and write
+> what you checked.*
+
+⭐⭐ **It was written for the case where a document cannot be trusted. That case arrived without
+anyone noticing, and the redundancy was the control.** First time in this repository a rule has
+caught something it was not written for.
+
+⛔ **And the same day says why that does not generalise.** Within one hour, the orchestrator
+recorded a worker's non-independent cross-check as an error and then **made the identical error**,
+comparing two readings that shared `btime`. Knowing the failure did not prevent it.
+
+| | what the rule asks of a reader | held? |
+| --- | --- | --- |
+| **rule 9** — *check the version, write what you checked* | **do a thing**, every time, the same way | ✅ four for four, with no gate |
+| *a cross-check must not share a derivation with what it checks* | **notice you are in a situation** | ⛔ failed on its own author inside an hour |
+
+⭐ **A written rule holds as a habit when it names an action, and fails as a control when it names
+a category the reader has to notice they are in.** That is what this repository's gates are
+evidence *about* — not that people are careless, but **which rules can be left to people** — and
+the two examples sit one day apart in the same round.
+
+#### Slice E's five, in its own words
+
+**Transcribed from `_ROUND3-E-HANDOFF.md` §8, not summarised.** E is the only slice that supplied scoring text for its own reports.
+
+`R37` closes `ADR-014` ledger entry `6.6` — *"no lock ordering, no deadlocks"* — **by measuring
+both halves, in one invocation.** Deadlocks: 10 pairs, 10 detections, `40P01`, one casualty
+each, `bothDied=0`. Lock ordering: `casualties=0` under ascending order, and `bothBetweenLocks`
+**10 → 0**, which is the stronger claim — the ordered pair cannot interleave at all, so the
+remedy removes the race instead of surviving it. Seven new entries replace it, which is what a
+closure that was really paid for looks like.
+
+`R34` measured the premise it was handed instead of building on it, and the premise did not
+survive. The brief said `synchronized` and CAS are *"far cheaper"* than a database statement on
+one instance; **`synchronized` is the most expensive arm in the table**, because a monitor does
+not remove a round trip, it serialises around two. The one arm that is dramatically cheaper is
+cheaper **for exactly the reason that makes it wrong** — the work never left the process — so
+the saving and the defect are a single property. The brief also asked where CAS and locking
+invert and called that the headline; swept 1 to 32 threads on 8 cores, **they never inverted**,
+and the absence is reported rather than a sweep extended until a crossing appeared.
+
+`R35` retracted its own headline in its own body. It was drafted from one run claiming a
+compound operation loads *"once per thread"*; the second run returned a different number and the
+fifth widened the spread to a factor of 18. **What survives all five runs is a sentence and not
+a figure — the direction reproduces and the magnitude does not** — so no mean is published. Its
+gate then failed inside the full suite, correctly, because no thread overlapped and the arm had
+measured nothing; the repair was to make the overlap hold **by construction** rather than to
+loosen the assertion, and the report states what that narrowing costs as well as what it buys.
+
+`R36` was expected not to reproduce and reproduced 6 of 6. The expectation was sound and aimed
+one layer below the effect: the defect is **not** the memory system but the JIT hoisting a read,
+which makes it a compiler decision rather than a race. **The consequence inverts the usual
+advice — a visibility defect of this shape does not get rarer the longer a process runs, it gets
+more certain.** The report publishes no duration at all; bounding the spin is what turned the
+verdict into a boolean.
+
+`R38` is this round's second independent instance of a test that **passes while measuring
+nothing**, found in the same hour as slice G's and in a subsystem with nothing in common with
+it. One such report is evidence about one test; two, by sessions with no contact, is evidence
+about how often the shape occurs. The rule both arrived at — **assert on the route, not the
+destination** — has now been reached from a race, a propagation attribute, an ArchUnit exclusion
+and a sibling-arm control, which is why races are the instance and not the definition.
+
+#### The template is a suspect and is not convicted
+
+Round three's ledger rows are **88 % class (a)** against 40 % for rounds one and two. Four workers
+writing §8 against a template that demands a cost in minutes produce **errands, not judgements**.
+⛔ **Whether that is the ledger improving or the slices declining harder questions is `미측정`, and
+this report does not resolve it.** An unresolved question about the round's own instrument is a
+better thing to publish than a flattering reading of it. ⚠️ The 88 % also stands on **one count**:
+a second party attempted an independent sub-count, its instrument returned zero rows, and no
+number was offered rather than a shaky one.
+
+---
+
 ## 4. 무엇이 잡았는가 / What actually caught things
 
 Counting every recorded failure in this repository, not only the nine rows above:
@@ -262,6 +421,17 @@ Two things stand out.
 
 **Measurement caught most of it, and measurement is the cheapest thing here.** Not the
 architecture, not the review, not the types.
+
+> **Round three moves this to two, and only by one.** `BatchInsideATransactionTest` is a new gate
+> that **has been watched refusing** — it failed at `94fe9ee` and passes at `022675b`. Slice G
+> supplied that correction itself, and supplied the limit with it: **`R39`'s and `R41`'s tests are
+> gates that have never refused anything and must not be counted as paid.**
+>
+> ⛔ **Slice D asked for the same restraint in the opposite direction**, unprompted: *"none of my
+> five new test classes has ever refused an edit. They assert the present state so that a future
+> one trips them; that is a promise, not a payment."* ⭐ **Two slices, independently, argued
+> against counting their own work as evidence.** The number is **2**, and the count of gates went
+> up by far more than that again.
 
 **Exactly one regression gate ever refused this author's work.** Nine test classes in this
 repository exist to refuse a future edit rather than to measure anything —

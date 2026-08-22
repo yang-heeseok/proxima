@@ -3,22 +3,33 @@
 **An API that chooses a learner's next problem — and a record of how it actually breaks
 under load and concurrency.**
 
-> **Created**: 2026-08-10 · **Updated**: 2026-08-22
-> **Status: the nine traps on the roadmap are measured, in twelve reports — and round two
-> added nine more, `R20`–`R28`.** Spring Boot 4.1.0 on JDK 21, a schema that applies to a
-> real PostgreSQL under test, a generator that produces 3,963,719 rows from a fixed seed
-> value, and **139 tests** — 125 in `:api:test` over 48 classes, 14 in `:seed:test` over 4,
-> 0 failures, **11m45s median of three on 2026-08-22, spread 40%** — 9m04s, 11m45s, 13m44s —
-> with both modules actually executed under `--rerun-tasks` rather than restored from cache,
-> because a cached Gradle result is not a run. **This line quoted the 9m04s alone until an
-> audit asked for the run to be reproduced and got 13m44s**, which is this repository's own
-> rule 3 runs, median, spread if over 10% applied to the one number that had never been
-> held to it.
-> **The count now names both modules, and it did not before.** It read `77 tests — 36
-> classes`, which was `:api:test` alone and said so nowhere; that module is 125 over 48 now.
-> **It said `70` for four days and eight test-adding commits**, which is `R17`. Three of the
-> nine turned out to be **already fixed by the framework** — those reports say so and measure
-> what is holding them shut, rather than deleting the row. See
+> **Created**: 2026-08-10 · **Updated**: 2026-08-23
+> **Status: the nine traps on the roadmap are measured, in twelve reports — round two added
+> nine more, `R20`–`R28`, and round three added seventeen, `R29`–`R45`.** Spring Boot 4.1.0 on
+> JDK 21, a schema that applies to a real PostgreSQL under test, a generator that produces
+> 3,963,719 rows from a fixed seed value, and **192 tests over 72 classes — 177 in `:api:test`
+> over 67 classes and 15 in `:seed:test` over 5, 0 failures, 0 errors, 0 skipped** — with both
+> modules actually executed under `--rerun-tasks` rather than restored from cache, because a
+> cached Gradle result is not a run.
+>
+> **The counts above were taken on the merged tree on 2026-08-23**, `BUILD SUCCESSFUL`, and read
+> out of 72 JUnit XML files every one of which is newer than a marker planted before the run —
+> zero stale files, and no file carrying a `<failure>` or `<error>` tag. Two commits landed while
+> it ran and **both were documentation only**: `git diff` between the launch SHA and the finish
+> SHA reports **zero files** under `api/`, `seed/`, the Gradle scripts or `.github/`, so the code
+> under test is identical at both.
+>
+> ⚠️ **No duration is quoted for this tree, and the omission is deliberate.** This was **one run**,
+> 44m 3s, and this repository's own rule is three runs with a median and a spread. One run is not
+> a median, and a single figure here would be the thing `R18` and `R35` both refused. **미측정.**
+> The previous line quoted **11m45s median of three, spread 40%** — that figure is correct and
+> belongs to a **139-test tree**, not to this one.
+>
+> **The count names both modules, and it did not always.** It read `77 tests — 36 classes`, which
+> was `:api:test` alone and said so nowhere; **it said `70` for four days and eight test-adding
+> commits**, which is `R17`. Three of the nine traps turned out to be **already fixed by the
+> framework** — those reports say so and measure what is holding them shut, rather than deleting
+> the row. See
 > `docs/explanation/measurement-discipline.md` for what makes any number below citable.
 
 ---
@@ -30,6 +41,12 @@ the reports carry the environment each number was taken in.*
 
 | What | Before | After | Report |
 | --- | --- | --- | --- |
+| Two transactions, two rows, opposite lock order — *2026-08-22* | **10 of 10 pairs deadlock, `40P01`, one casualty each** — and `lock_timeout` and `statement_timeout` are both `0`, so nothing but the detector would have ended the wait | **0 of 10, with `bothBetweenLocks` 10 → 0** — an imposed lock order removes the interleaving rather than surviving it. The remedy is **a convention the database cannot enforce** | [`R37`](docs/reports/R37-two-rows-and-an-order-nobody-agreed-on.md) |
+| A counter incremented 1,000 times, at one instance and then two — *2026-08-22* | **`synchronized` and CAS both keep every increment** — and on a second instance keep **565** and **500**, with `failures=0` and nothing logged anywhere | **only the database remedy holds 1,000** — and CAS is wrong *identically*, `inMemory=[500, 500]`, every instance internally consistent and confidently wrong | [`R34`](docs/reports/R34-two-remedies-that-are-correct-only-while-there-is-one-instance.md) |
+| A cache field on a Spring singleton, 8 threads, 2,000 keys — *2026-08-22* | **entries lost in every run with nothing raised**, and `get`-then-`put` on a `ConcurrentHashMap` loading once per arriving thread | **2,000 of 2,000 kept and the loader run exactly once**, with `computeIfAbsent` — the map was never the axis; the compound operation was | [`R35`](docs/reports/R35-a-cache-in-a-bean-and-the-repair-that-fixes-half-of-it.md) |
+| A shutdown flag written by one thread, read by another — *2026-08-22* | **0 of 6 trials ever observed the write**; the loop ran its full bound every time | **6 of 6 with one keyword** — and the cause is the JIT hoisting the read, not the memory system, so it is **deterministic rather than rare** | [`R36`](docs/reports/R36-a-flag-one-thread-wrote-and-another-never-saw.md) |
+| `@Transactional(NESTED)` beside `REQUIRES_NEW` — *2026-08-22* | **refused outright**, and a test asserting savepoint behaviour **passed anyway**, because the row reads the same whether a savepoint rolled back or nothing ran | **the assertion moved off the row and onto what the inner call threw** — and `REQUIRES_NEW` is measured holding **2** pool slots, a multiplier two earlier pool reports never varied | [`R38`](docs/reports/R38-the-propagation-this-repository-has-never-used.md) |
+| 200 web-server workers against a pool of 10, at 200 concurrent users — *2026-08-22* | **roughly 100 workers blocked waiting for a connection**, with a **0.00 % error rate**, every request answering `200`, and **nothing in the log** — zero WARN and zero ERROR across 54 lines | **the queue is still there and is now visible**: sizing the worker pool down to match the connection pool costs **5.07× less throughput** and makes every pool gauge read healthy while it does it. ⚠️ *Composed by the integrator from `R29` and slice D's §8.3, which supplied the content and asked that the wording not be taken as a location.* | [`R29`](docs/reports/R29-the-queue-forms-where-nobody-was-looking.md) |
 | A covering index, both arms vacuumed at last — *2026-08-22* | **priced against two different conditions**, so the question could not be answered | **1.03–1.16× across four runs, inside an 11–41% spread** — 85% more space buys nothing | [`R28`](docs/reports/R28-the-remedy-two-reports-rejected-against-a-database-that-could-not-pay.md) |
 | A depth-6 prerequisite closure — statements per read — *2026-08-21* | 138 | **1, at any depth** | [`R20`](docs/reports/R20-the-graph-was-read-one-level-deep.md) |
 | The same closure at depth 12 — rows fed through `concept_edge` — *2026-08-21* | 98,937 | **5,424**, and 10.526 ms → 3.506 ms | [`R20`](docs/reports/R20-the-graph-was-read-one-level-deep.md) |

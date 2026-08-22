@@ -44,11 +44,16 @@ its numbers.
   Docker         : Docker Engine 29.5.3 (API 1.54), NATIVE INSIDE WSL2 — not Docker Desktop
   JVM            : Temurin 21.0.12+8 -- RECORDED, not pinned. gradle.properties pins
                    language version 21 and nothing else; see below
-  PostgreSQL     : server 16.14, and the DIGEST below is the identifier — the tag
-                   `postgres:16-alpine` named this image until 2026-08-13 and now
-                   resolves to 16.15. Pinned by digest since `8dec7e6`; `OPEN-10`
-                   sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+  PostgreSQL     : server 16.15, identified by the DIGEST below rather than by a tag.
+                   Pinned in TestcontainersConfiguration.kt since `8dec7e6`; `OPEN-10`
+                   sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
                    default shared_buffers
+                   SUPERSEDED, kept because older numbers were taken on it: 16.14 /
+                   sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777,
+                   which the tag `postgres:16-alpine` named until 2026-08-13. It is NOT
+                   the pin. It survives in this tree as the comparison arm of
+                   CollationDivergenceTest and ImageTagDriftTest. Both figures are
+                   INDEX digests, so they are comparable with each other
   Connection pool: HikariCP 7.0.2, maximum-pool-size=10, connection-timeout=30000 (defaults)
   Dataset        : seed value 20260810 — see domain-model.md for row counts
   Load           : k6, 30s warm-up DISCARDED, 3min measurement window
@@ -203,9 +208,61 @@ have cost a reader time:
   > in would be inventing it. Blocks from here on carry the line; earlier blocks are silent,
   > and this paragraph is why.
 
+
+- **It printed the superseded digest under the words *"Pinned by digest since `8dec7e6`"*, and
+  `8dec7e6` pinned a different one.** Corrected 2026-08-22, found by slice `D` and answered by
+  slice `G`. The block read `server 16.14` … *"Pinned by digest since `8dec7e6`"* …
+  `sha256:57c72fd2…`. **`8dec7e6` pins `sha256:cf78e766…`**, and so does
+  `TestcontainersConfiguration.kt` today. `57c72fd2…` is not wrong as a digest — **it is the
+  image this pin replaced**, retained in the tree as `CollationDivergenceTest`'s `MUSL_DIGEST`
+  and `ImageTagDriftTest`'s `RECORDED` arm. What was false was the **pairing**.
+
+  > ⭐ **And the corpus is clean, which is the part that must not be overstated.** Of the round's
+  > seventeen reports, **eleven name a digest and every one names `cf78e766…`; six name none and
+  > all six argue the absence; zero carry `57c72fd2…`.** The error sat in the document that every
+  > report header is copied from, and **no report inherited it.**
+  >
+  > **What stopped it was absolute rule 9** — *never write a version from memory; check the
+  > current release and write what you checked.* Four workers, independently, read the version and
+  > digest off the running container instead of copying this block. **The rule was written for the
+  > case where a document cannot be trusted. That case arrived without anyone noticing, and the
+  > redundancy was the control.**
+  >
+  > **This is the argument for the rule, and it is also its limit.** Rule 9 held because it names
+  > an **action** taken every time a version is written. A rule that instead asks a reader to
+  > *notice they are in a situation* does not hold that way — see `R0`.
+
 The image digest is recorded alongside the tag because `16-alpine` is a moving tag. Two
 people running `postgres:16-alpine` a month apart are not necessarily running the same
 server, and the digest is what makes the row citable.
+
+### When a report has no hardware to declare, the block is replaced rather than filled
+
+Added 2026-08-22. **This form has been in use since `R17` and this document had never named it**,
+which is what made every count of "environment blocks" in this repository ambiguous — three
+sessions counted the same property of the same tree and returned three different totals.
+
+A report whose numbers are **not durations** — a gate measured against itself, a corpus counted, a
+schema read — has no hardware, no pool and no dataset that participated in its figures. Filling the
+block above would state hardware **none of those numbers came from**, which is worse than omitting
+it: it looks checkable and is not. Such a report carries this instead:
+
+```
+증거 / What the evidence here is
+  Not durations. <one line saying why the hardware block would be wrong here>
+
+  Instrument   : the exact command or artefact, and how it was obtained
+  Corpus       : what was counted, with its size
+  Repetitions  : deterministic over a fixed tree — one run per state
+  NOT measured : what this report does not establish, pointing at its own §8
+```
+
+**Both forms are environment blocks and a count of them must say which it counted.** As of
+2026-08-22, on `main`: **25 reports carry `측정 환경`, 2 carry `증거`** (`R17`, `R19`), and **2
+carry neither** (`R0`, `R27`). ⚠️ **A count of *files containing the heading string* is a different
+population** — it includes this document, `_TEMPLATE.md`, the round-two handoffs and `ADR-003`,
+none of which is a report's own block, **and it moves when a document merely mentions the subject.**
+State the unit or the number means nothing.
 
 ### When the run is inside a container, the block grows three lines
 

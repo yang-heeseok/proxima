@@ -82,8 +82,24 @@ This is the arrangement `proxima.planted` already uses, and `TransactionBoundary
 states the same belt-and-braces reasoning for it — unreachable "first" because of the package and
 "second" because they are test sources.
 
-**Confirmed by running `TransactionBoundaryRulesTest` and watching it stay green, not by reading
-the importer again.** PENDING — the run.
+**Confirmed by running the rules, not by reading the importer again.** `2223e7d`,
+`./gradlew :api:test --tests "net.gseek.proxima.arch.*"` — bytecode only, no database:
+
+| Class | Tests | Failures |
+| --- | ---: | ---: |
+| `TransactionBoundaryRulesTest` — the five rules against production code | **5** | **0** |
+| `TransactionBoundaryRulesSelfTest` — the same rule objects against planted violations | **6** | **0** |
+| `AuthorisationRulesTest` / `AuthorisationRulesSelfTest` | 2 / 2 | 0 |
+
+So `ENTITIES_ARE_NOT_DATA_CLASSES` still passes on production code **while two `@Entity`
+`data class`es exist in this tree**, and still refuses the planted one. Both halves green is the
+claim; either alone would not be.
+
+⚠️ **What this does and does not establish.** It shows the production rule cannot see my
+fixtures. It does not show the rule would catch a real `data class` entity in
+`net.gseek.proxima` — that is the self-test's job, and its `planted.size >= 5` assertion is what
+stops *it* from passing on an empty import. Both are green here, which is why the pair is quoted
+rather than just the first.
 
 The same placement is what keeps them out of Spring Boot's entity scan. Commit `8e5843a` put four
 fixture entities under `net.gseek.proxima` and **34 of 52 tests failed across six classes, none

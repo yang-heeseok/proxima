@@ -437,6 +437,28 @@ one half and right in the other.
 rollback-only case is **not done at all**"* is the one `R40` addresses. It should not be marked
 done wholesale: `PENDING` on which half `R40` closes.
 
+### ⭐ A finding about the correction itself, which F needs more than it needs the number
+
+The stale-digest defect I opened in `measurement-discipline.md` grew when three sessions counted
+the affected environment blocks and got **three different totals**. What is stable across all
+three methods is **18 blocks carrying no digest**, and the document's own figure of **eight**
+lands on the *with-digest* subset under every method.
+
+⛔ **The lesson is not "the document was wrong by fifteen".** It is that **a count is not a
+finding until its unit is stated tightly enough to be reproducible.** Three careful people
+counting "environment blocks that name 16.14" disagreed because *block*, *names*, and *affected*
+were never pinned — and the document's original author made the same mistake in the same place,
+producing a count that could only see the population that already carried a digest.
+
+⭐ **That is `R8` §3.3's failure mode occurring in prose rather than in code**: an instrument
+blind to exactly the population it exists to find, reporting a number that looks like evidence.
+`R17` is the report about a guard that was a person; this is the same defect in a document.
+
+**So when F fixes that file, the fix is not only the digest.** It is stating the unit — *what
+counts as a block, what counts as naming a version, and whether a block without a digest is in
+scope* — so the next person to count gets the same answer. A corrected number with an unstated
+unit will go stale the same way and nothing will notice, which is the whole subject of `R19`.
+
 ---
 
 ## 9. SELF-CHECK

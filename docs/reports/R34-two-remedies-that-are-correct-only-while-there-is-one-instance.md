@@ -47,6 +47,12 @@ Nothing failed. `failures=0` on every arm. No exception, no rejected write, no c
 log line. **The remedy did not stop working. It stopped applying**, and nothing anywhere is
 required to notice the difference.
 
+⭐ And the arm that survives this best is the most expensive one. §3.4 measures the trap's own
+premise and finds it false — ① is the *slowest* thing in the table, not a cheap one — while the
+single arm that is dramatically cheaper is cheaper for precisely the reason it is broken:
+
+> **The work never left the process. That is the saving and the defect in one property.**
+
 ## 2. 재현 / Reproduction
 
 ```bash
@@ -181,12 +187,21 @@ must not inherit the block above, which describes a machine running two other sl
                    `./gradlew --stop` -> "No Gradle daemons are running"
                    pgrep java = 0, pgrep -f 'gradle|kotlin|k6' = 0
                    docker ps  = 1 container (buildkit, idle), 8 cores, at 18:37:34 KST
-  ⚠ PERTURBATION : one container on this host STOPPED AND RESTARTED at 18:37:49-18:38:35 KST,
-                   restartCount=0, CAUSE UNESTABLISHED. It was not a restart policy.
-                   The measured class started 18:43:52.644 KST — read from this run's own
-                   TEST-...LayeredCostTest.xml `timestamp` attribute, NOT reconstructed —
-                   so the arms began 5m17s after the cycle closed and DO NOT overlap it.
-                   Recorded because a correlation nobody can explain is not one to dismiss.
+  ⚠ HOST REBOOT  : THE WSL2 VM RESTARTED AT 18:38:28 KST. Established, not inferred:
+                   /proc/stat btime = 1787391508, read on this host by this session, and
+                   cross-checked against /proc/uptime (1031 s at 18:55:40 KST -> 18:38:29).
+                   A container on the host stopped 39 s BEFORE that boot and started 7 s
+                   AFTER it, and restartCount=0 because the Docker daemon was itself
+                   cycling — no restart policy was ever involved. The container did not
+                   cycle; the whole virtual machine did.
+  ⭐ AND THEREFORE : THE MEASURED SECTION BEGAN 5m24.6s AFTER A HOST VM BOOT.
+                   Class start 18:43:52.644 KST, read from this run's own
+                   TEST-...LayeredCostTest.xml `timestamp` attribute rather than
+                   reconstructed. Being clear of the container cycle is NOT the same as
+                   being clear of the reboot that caused it, and only the first was checked
+                   at the time. Stated as a condition of the numbers rather than argued
+                   away: warm-up discarded, median of 3, full range and spread printed for
+                   every figure, and no arm here touches disk or the network.
   Repetitions    : 3, median reported, FULL RANGE AND SPREAD PRINTED FOR EVERY FIGURE
   Warm-up        : one discarded run per arm per thread count
   WHAT ELSE WAS RUNNING ON THIS MACHINE: nothing. That is what the floor check establishes
@@ -365,11 +380,18 @@ That last assertion is the one worth keeping. It fails if ② ever starts losing
 - **The 2 ms in-memory figure sits at the timer's resolution** (range 1–2 ms). **No ratio is
   computed from it anywhere in this report**, and the comparison is stated as *1,000 round trips
   against none* rather than as a multiple.
-- ⚠ **A container on this host stopped and restarted at 18:37:49–18:38:35 with `restartCount=0`
-  and no established cause.** The measured class started 18:43:52.644 by its own XML timestamp,
-  so no arm overlaps it — but **if that cycle is periodic rather than a one-off, a future run of
-  this class could land inside one and nothing in the harness would notice.** Unestablished, and
-  recorded rather than dismissed.
+- ⚠ **The measured section ran on a virtual machine that had booted 5m24.6s earlier**, and that
+  is a condition of every figure in §3.4 rather than a footnote. The host WSL2 VM restarted at
+  18:38:28 KST (`/proc/stat btime`, read here); the container stop that first drew attention was
+  a symptom of that reboot, not an independent event. **Checking that the arms cleared the
+  container cycle did not establish that they cleared the reboot, and only the first check was
+  made at the time.** For an in-memory sweep with no disk or network in it, with warm-up
+  discarded and medians of three, the effect is expected to be small — **but that is a judgement,
+  and the condition is stated so a reader can make it instead of inheriting it.**
+- **Nothing establishes whether that reboot was a one-off.** If it is periodic, a future run of
+  this class could begin inside one and **nothing in the harness would notice or say so.**
+  `미측정`, and it is the cheapest thing left to check here — one `btime` read before and after
+  any run that publishes a duration would do it.
 - **`565` and `557` are two samples of a race.** Only `< 1000` is stable, and the gate asserts
   only that. **`500` did not move**, which supports §3.2's mechanism — but **two runs establish
   that a number is stable across two runs and nothing more.** A third could differ; the

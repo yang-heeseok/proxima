@@ -121,10 +121,24 @@ assert **what the inner call threw**, which `NestedCounter` now returns:
 
 ⭐ **This is `ADR-015`'s vacuous pass in a test with no concurrency anywhere in it.** That ADR
 was written about races — `RaceOverlap.peak` exists because a barrier proves nothing about a
-critical section — and every example in it is a scheduling problem. This one is a configuration
-default. **The shape is not a property of concurrency; it is a property of any test whose
-observable is reachable by two different routes**, and only one of them is the route the test
-is named for.
+critical section — and every example in it is a scheduling problem. There is not one thread in
+this report.
+
+So the shape generalises past the thing `ADR-015` was written for, and this is the statement of
+it worth keeping:
+
+> **A vacuous pass is a property of any test whose observable is reachable by two routes when
+> the test is named for only one of them.**
+
+Concurrency is one way to get a second route and it is not the only one. Here the second route
+is a configuration default: `row = 100` is reached by *a savepoint rolled back cleanly* and by
+*the propagation was refused and nothing ran*, and the test was named for the first. `R9` §7's
+`rate >= 0.0` and `R16`'s three tests are the same failure with a third and fourth kind of
+second route.
+
+**`ADR-015` may owe a second worked example**, one with no scheduling in it, so that the rule is
+not read as being about races. That is a judgement rather than work and is routed to the
+integrator rather than decided here.
 
 ### 3.3 With the switch the exception message names
 
@@ -231,8 +245,11 @@ would then have changed.
 - **What would break the conclusion:** a caller that needs an inner failure to be recoverable
   *and* the inner work discarded when the outer fails. §5 names it. There is no such caller
   today and the decision expires the day there is.
-- **Whether any bullet here needs a judgement rather than only work.** No. §5's choice is a
-  non-decision — keep a default that nothing uses — and does not need an `open.md` row.
+- **Whether any bullet here needs a judgement rather than only work.** §5's choice is a
+  non-decision — keep a default that nothing uses — and needs no `open.md` row. **But §3.2 does
+  raise one**: whether `ADR-015` should carry a second worked example with no concurrency in it,
+  so its rule is not read as being about races. That is a judgement, it belongs to whoever owns
+  that ADR, and it is not decided here.
 
 ## 9. 배운 것 / What I learned
 

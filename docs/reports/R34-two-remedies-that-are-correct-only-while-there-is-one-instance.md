@@ -26,9 +26,9 @@
                    other worktrees. Three Gradle daemons.
                    EVERY FIGURE IN §3 IS ARITHMETIC — a count of increments that survived.
                    None is a duration and none contends.
-  ⛔ COST         : 미측정. NOT IN THIS REPORT. See §5 and §8 — the cost comparison and the
-                   contention level at which CAS and locking invert are the two numbers this
-                   report does not have, and they need an exclusive machine.
+  ⛔ COST         : the correctness figures above were taken under load. THE COST FIGURES IN
+                   §3.4 WERE NOT — they have their own environment block and their own floor,
+                   because they are the only durations slice E publishes.
 ```
 
 > Rules for every number below: `docs/explanation/measurement-discipline.md`.

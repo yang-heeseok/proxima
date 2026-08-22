@@ -178,6 +178,42 @@ EOF
 | cross-references listed but not re-classified | 3 | `D.12` → `16.8`, `D.13` → `4.9`, `D.14` → `3.1` |
 | rows in the tables | **171** | |
 
+> ⚠️ **Superseded 2026-08-22 by round three, and left standing rather than edited.** The
+> figures above are the sweep as it was taken, on a tree that predates `R28`–`R45`. **They are
+> correct about that tree and wrong about this one**, and overwriting them would delete the only
+> record of how far one sweep reached. `R19` §3.4 is the report about that distinction.
+
+#### Recounted 2026-08-22, after slice F consolidated three slices' §7 rows
+
+**Unit: one row in this file's tables carrying a class of `a`, `b` or `c`** — read from the
+tables themselves rather than carried forward, with the two table shapes distinguished (the
+per-report tables have six columns, the `D.n` table seven) and **escaped pipes honoured**.
+
+| | count | share |
+| --- | --- | ---: |
+| **(a) measurable here, just not done** | **132** | 54 % |
+| **(b) not measurable here** | **31** | 13 % |
+| **(c) the question does not hold** | **81** | 33 % |
+| **classified rows** | **244** | |
+| unclassified rows | **0** | every row in every table carries a class |
+
+| where the rows are | rows | (a) | (b) | (c) |
+| --- | ---: | ---: | ---: | ---: |
+| rounds one and two, per-report | 155 | 62 | 22 | 71 |
+| **round three, per-report** | **67** | **59** | **3** | **5** |
+| outside any §8 section, `D.1`–`D.22` | 22 | 11 | 6 | 5 |
+
+⭐ **Round three's rows are 88 % class (a) against 40 % for rounds one and two**, and that is a
+fact about the slices rather than about the subject matter: **four workers writing their own §8
+against a template that demands a cost in minutes produce errands, not judgements.** Whether that
+is the ledger getting better or the slices declining harder questions is **미측정**.
+
+⚠️ **Three arithmetic errors were made producing this table and all three were in the counter,
+not the tree.** It read the `D.n` table's *Subject* column as its *Class* column because that table
+has one column more; it split on every `|` including the escaped ones inside `D.17`'s shell
+snippet, which briefly made that row look malformed; and only the third attempt returned zero
+unclassified rows. **The counter is inside the corpus it counts** — `D.19`.
+
 The 19 gap-naming occurrences outside a §8 section collapse to 16 lettered entries — three
 occurrences of *"the token filter's cost"* (`R15` §1, `R16` §1, `R16` §5) are one question, and
 `R2` §5 and `R4` §5 carry one question between them. Of those 16, `D.12` is tabled inside `R16`'s
@@ -531,7 +567,7 @@ comment**, so a sweep of this kind could not have found `43.1`–`43.4` at all.
 | 43.4 | whether the 172-block non-KDoc exclusion should be permanent | c | — | — | **a judgement, not work** — widening re-admits `R17` §5's false positive. Belongs in `open.md` |
 | 44.1 | **the date step 3's 30-day window stops excluding anything on the shipped seed — arithmetic on a measured maximum says ~2026-09-09, and it has never been observed** | **a** | 20 | **H** | **a dated prediction that nothing in the tree fails on.** `Generator.BASE_INSTANT` is fixed and the window is wall-clock, so the rule will start recommending items every learner has already attempted, silently. `R44` §8 |
 | 44.2 | whether the 15.8% band divergence is identical against the loaded database rather than the generator's output | **a** | 45 | M | every `R44` number is pre-database |
-| 44.3 | plan cost of `recentOutcomesByCount`'s `attempted_at desc, id desc` tie-break — does `V2`'s index still serve it without a sort | **a** | 40 | **H** | the comparison was **refused** rather than approximated |
+| 44.3 | plan cost of `recentOutcomesByCount`'s `attempted_at desc, id desc` tie-break — does `V2`'s index still serve it without a sort | **a** | 40 | **H** | the comparison was **refused** rather than approximated ⬛ **Corrected 2026-08-22 by slice G, not closed — `43.3`'s precedent.** The **plan shape** is answered on the real table and the real index: `V2`'s index still serves the tie-break, with an `Incremental Sort` above it. The **cost in time** stays open and is now `41.1`. ⭐ **The row that answers half of another row is why this ledger numbers corrections instead of deleting them** — a closed row would have taken the open half with it. |
 | 44.4 | how often the sliding window changes a band from one second to the next | **a** | 30 | **H** | H4. Instrument exists |
 | 44.5 | cost of a per-learner time-zone column, and the aggregation error from not having one | **a** | 120 | M | H3. Needs a migration from `V6` |
 | 44.6 | what the 15.8% becomes on a population with real cadence variation | b | — | — | needs a generator this repository does not have; changing it invalidates every published number |
@@ -539,6 +575,84 @@ comment**, so a sweep of this kind could not have found `43.1`–`43.4` at all.
 | 45.1 | whether any other ArchUnit rule here has the same shape — an exclusion added for a false positive that also hides the true one | **a** | 60 | **H** | `R45` found one. There are eight more rules |
 | 45.2 | **`TransactionBoundaryRulesSelfTest` has no default-argument fixture**, so the exact defect `R45` fixed would regress unnoticed | **a** | 25 | **H** | the self-test plants arm C, the spelling that was already caught. `R45` §7 says so and §8 named it — **and a gap recorded only in prose is a gap nobody schedules, which is what 19.6 just demonstrated** |
 | 45.3 | whether the bridge hop needs to follow more than one level — another bridge, an inline-class mangled name, a `suspend` state machine | **a** | 45 | M | nothing here is `suspend` today, so this is unexercised rather than known-good |
+
+### `R29`–`R33` — round three, slice D
+
+**Transcribed from `_ROUND3-D-HANDOFF.md` §7, not composed here.** 27 rows.
+
+| # | Subject | Class | Cost | Flip | Note |
+| --- | --- | --- | --- | --- | --- |
+| 29.1 | the knee: every arm is at 200 VU | **a** | 180 | M | duplicates ledger entry 2 from a fourth direction. **The drift band here is 1.83×**, wider than at `R18`'s 1.27×, so this machine may not be able to answer it |
+| 29.2 | what `server.tomcat.mbeanregistry.enabled` costs | **a** | 45 | M | it ships in the green commit on an unmeasured cost. One arm with it `false` and pool occupancy taken from `pg_stat_activity` instead |
+| 29.3 | no across-run steady-state check exists | **a** | 60 | **H** | `R29` §3.3: three runs each passed the within-run gate and the arm slid 1.83×. `R18` fixed the within-run check and nobody added the other. `OPEN-D2` |
+| 29.4 | `recommendations.js`'s failure banner names the wrong half | **a** | 15 | L | verdict correct, sentence inverted. `R29` §3.1. `OPEN-D3` |
+| 29.5 | `workers × instances` has no ceiling to break against | **a** | 90 | M | `R24` established `pool × instances`; nothing bounds worker threads across a fleet, so there is no arithmetic to gate |
+| 29.6 | the arms straddle PostgreSQL 16.14 → 16.15 and the pair is uncalibrated | **a** | 120 | M | `R27` compared 16.14-musl against 16.15-**glibc**, a different pair. Until somebody runs one arm on each image, **no number of this slice's may sit beside `R2`, `R4`, `R16` or `R18`** |
+| 30.1 | no task has ever gone through the **real** `applicationTaskExecutor` | **a** | 60 | M | the mechanism is measured on an executor the test built. The real bean's three numbers are asserted and its behaviour is not |
+| 30.2 | `RejectedExecutionHandler` behaviour is unmeasured | **a** | 90 | **H** | ⭐ `CallerRunsPolicy` on a bounded queue would run async work **on the request thread**, deleting the `@Async` boundary with no annotation changing — and making the transaction cross *intermittently*. `R30` §8 and `R31` §8 found this from opposite sides without measuring it |
+| 30.3 | whether Boot's `core-size` follows `availableProcessors` in a container | **a** | 45 | L | `R23` found the heap doing so; nothing checked this |
+| 31.1 | §5.1's "a transaction cannot cross" is a construction proof, not a measurement | c | — | — | no arm tried to defeat it |
+| 31.2 | partial failure across several async writes | **a** | 90 | M | one async call and one row were measured. A real feature has several, some committed and some not |
+| 31.3 | `@Async` under load, against pool 3's unbounded queue | **a** | 120 | M | the boundary was crossed by a test, never by 200 concurrent requests. `R30` §8 records the same hole |
+| 31.4 | whether the `TaskDecorator` is applied to the **virtual-thread** executor | **a** | 30 | M | `spring.threads.virtual.enabled=true` replaces the executor (`R33` §3.1); nothing checked the decorator survives the swap |
+| 31.5 | no log line was read | **a** | 20 | L | the MDC is asserted through `MDC.get`, not by reading what the appender wrote. A correlation id in the MDC and absent from the pattern is unchecked |
+| 32.1 | `parallelStream()` contention against a **request path** | **a** | 90 | M | §3.3 starves one test thread with another. 200 concurrent requests were not tried |
+| 32.2 | pool 4's parallelism under a CPU quota | **a** | 45 | M | `R23` found the heap following a cgroup. Inside a 2-CPU container `parallelism` would be 1 and `parallelStream()` a slower sequential stream |
+| 32.3 | ⭐ `CompletableFuture`'s no-executor overloads use the same pool | **a** | 60 | **H** | `supplyAsync(fn)` with no executor is the common pool, and it appears in code with no stream in it. A far more common entry into this defect than `parallelStream()`, and completely unmeasured |
+| 32.4 | no dependency's use of the common pool was checked | **a** | 60 | M | the search covered this repository's source, not its classpath. A library holding the pool reproduces §3.3 with nothing in the tree to find |
+| 32.5 | `ManagedBlocker` compensation was avoided, not measured | **a** | 45 | L | §2.1 explains the choice. How far the pool grows through a synchroniser, and whether it shrinks back, is unmeasured — §5 option D is rejected on reasoning |
+| 33.1 | ⭐ the observability claim's *consequence* is unmeasured | b | — | — | that the gauges return 404 is checked. That an operator would therefore miss the incident is an argument: no dashboard was built, no alert rule tested, nobody paged |
+| 33.2 | arm V degrades across its own runs and why is unmeasured | **a** | 90 | M | 943.9 → 604.2 → 567.6 req/s, spread 1.66×. Candidates: heap pressure from continuations, a scheduler effect, something else. ⭐ **The gauges that would narrow it down are the ones this report shows report `-1` in that configuration** |
+| 33.3 | `Thread.sleep` unmounts a virtual thread and a blocking client call may not | **a** | 120 | **H** | the gateway's 150 ms is the largest component of the request and it became cheap to wait on under virtual threads. A real HTTP client would not necessarily behave the same, so arm V may flatter the configuration |
+| 33.4 | the pinning search covered this repository's source, not its classpath | **a** | 60 | M | zero `synchronized` in `api/src/main` and `seed/src/main` is a fact about code written here. The JDBC driver, the pool, the container and the ORM were probed only by running them |
+| 33.5 | the carrier pool's actual size was never read | **a** | 20 | L | `jdk.virtualThreadScheduler.parallelism` is recorded as *unset*, which is not the same as reading what the scheduler resolved it to |
+| 33.6 | how far the virtual-thread scheduler compensates for a pinned carrier | **a** | 60 | M | `VirtualThreadPinningTest` prints this rather than asserting it, because asserting it would be writing a JDK internal from memory |
+| 33.7 | ⭐ **no instrument in this repository distinguishes "metric missing" from "metric unreadable"** | **a** | 45 | **H** | every harness here asks *did my parser produce a number*. That cannot tell a `404` from a value the regex failed on, and they are opposite findings. `R33` §3.1.1 is what it cost. The fix is to read the status code beside the value; nothing does yet |
+| 33.8 | the pinning sample is 200 requests, not the 4,000 intended | **a** | 45 | M | the drive was bound by curl process creation. Wherever the zero appears the 200 appears with it, but a proper sample would use one client process |
+
+### `R34`–`R38` — round three, slice E
+
+**Transcribed from `_ROUND3-E-HANDOFF.md` §7, not composed here.** 19 rows.
+
+> ⚠️ **No row from `R34`, `R38`.** Those reports have §8 sections and they are not empty — this slice simply filed no `미측정` entry from them. **Whether that means no (a)-class gap or a gap the sweep did not reach is 미측정, and the integrator did not invent rows to close the appearance.** A missing row is a gap a reader can see; a composed one would be a gap that reads as filled — `D.22`.
+
+| # | Subject | Class | Cost | Flip | Note |
+| --- | --- | --- | --- | --- | --- |
+| 35.1 | entry loss is 1,939 then 1,968; no distribution characterised | **a** | 60 | L | direction stable, magnitude not |
+| 35.2 | `loads` moved **8 → 2** between two consecutive runs; no distribution | **a** | 60 | M | two samples prove instability and characterise nothing |
+| 35.3 | no `ConcurrentModificationException` in either run — a negative result on one JVM | **a** | 45 | L | `modCount` is best-effort; a different interleaving would throw |
+| 35.4 | thread count and key count never swept | **a** | 90 | L | 8 and 2,000 are chosen numbers |
+| 35.5 | **the application's own beans were never swept for mutable fields** | **a** | 90 | **H** | this is what turns `R35` from a demonstration into a finding about `proxima`; cheapest valuable thing left in E2 |
+| 35.6 | nothing inspected the table for structural corruption short of entry loss | **a** | 60 | L | `size()` correctness not separately checked |
+| 36.1 | the spin bound was never varied | **a** | 45 | L | whether a smaller bound flips the verdict |
+| 36.2 | the warm-up was never varied | **a** | 60 | M | at what warm-up the hoist first appears — i.e. how fast a real background thread goes deaf |
+| 36.3 | no `-Xint` / `-XX:TieredStopAtLevel=1` control | **a** | 45 | M | §4's mechanism is a strong inference, not a measurement |
+| 36.4 | one machine, one JVM, one JIT | **b** | — | — | needs hardware this repository does not own; rule 3 forbids combining with a CI run |
+| 36.5 | no production caller spins on a plain flag | **c** | — | — | proves the class is reachable, not that it is present |
+| 37.1 | how long the losing client waits before it learns; `deadlock_timeout` is a floor, not a value | **a** | 45 | M | needs the measurement lock and a quiet machine |
+| 37.2 | `deadlock_timeout` was read, never varied | **a** | 60 | L | including whether a large value lets something else expire first |
+| 37.3 | `lock_timeout` and `statement_timeout` are both `0`; every §5 conclusion assumes nothing else ends the wait | **a** | 60 | **H** | a production server with either set takes a different path entirely |
+| 37.4 | `log_lock_waits=off`, so what the server would say in the log is unknown | **a** | 30 | L | the answer at this setting is *nothing* |
+| 37.5 | ten pairs; `bothDied=0` has no counter-example and that is not a guarantee | **a** | 30 | L | |
+| 37.6 | the retry is argued from Spring's type hierarchy, not run | **a** | 45 | M | `TransientDataAccessException` is a reading of a class |
+| 37.7 | only two rows, only `for update`, only `READ COMMITTED` | **a** | 180 | M | three-way cycles, FK locks, `update`-induced cycles all untouched |
+| 37.8 | nothing can enforce the lock-order convention | **c** | — | — | not a measurement; routed to `ADR-019` |
+
+### `R39`–`R42` — round three, slice G
+
+**Transcribed from `_ROUND3-G-HANDOFF.md` §7, not composed here.** 7 rows.
+
+> ⚠️ **No row from `R42`.** Those reports have §8 sections and they are not empty — this slice simply filed no `미측정` entry from them. **Whether that means no (a)-class gap or a gap the sweep did not reach is 미측정, and the integrator did not invent rows to close the appearance.** A missing row is a gap a reader can see; a composed one would be a gap that reads as filled — `D.22`.
+
+| # | Subject | Class | Cost | Flip | Note |
+| --- | --- | --- | --- | --- | --- |
+| 39.1 | whether a static rule can distinguish a hand-written `hashCode` computed from `id` from a safe one | **a** | 30 | M | `ENTITIES_ARE_NOT_DATA_CLASSES` refuses a **keyword**, not a defect. `R39` §7 |
+| 39.2 | whether `BaseEntity`'s type check can be satisfied **without initialising a proxy** | **a** | 45 | **H** | `Hibernate.getClass` costs 1 statement per proxy operand. Needs its own red/green pair — it changes equality for every entity. `R39` §5 |
+| 39.3 | the **incidence** of proxy-operand comparison on shipped paths | **a** | 60 | M | `R39` measured the per-comparison cost, not how often the application pays it |
+| 40.2 | **a green from a check whose subject may legitimately be absent cannot be made self-verifying** | **c** | — | **H** | **closed on arrival — the entry names no unmeasured quantity.** `R43` §3.5's green was *vacuous* and has a guard; this one is *thin* and admits none, because no workflow can check whether its subject was ever going to be present. Filing it (a) would put a permanent property on a work list forever — `ADR-003`'s *"a deadline that cannot arrive is not a deadline"* |
+| 40.3 | whether any static analysis could see a Kotlin method's escaping checked exceptions | **a** | 40 | M | the `Exceptions` attribute is absent from the class file — `R40` §3.2. If a future Kotlin emits one, `R40` §7's reasoning expires |
+| 41.1 | what the tie-break costs `V2`'s index **in time**, as distinct from in plan shape | **a** | 40 | **H** | the unclosed half of `44.3` |
+| 41.2 | whether the `OFFSET`-driven plan flip happens at a comparable **page depth** on a table the size of `attempt` | **a** | 45 | **H** | `R41` §3.2 observed it on 100 rows, and row count is what drives it. ⛔ `offset 30` is this table's crossover, not a threshold |
 
 ### Outside any §8 section
 
@@ -563,6 +677,12 @@ their duplicate marked; they are not counted twice in the totals.
 | D.14 | `R3` §7 | nothing asserts on `EXPLAIN` output | **a** | 90 | L | **duplicate of 3.1** |
 | D.15 | `R9` §3.6 | CI time before and after container reuse | c | — | — | the question does not apply — a fresh runner has nothing to reuse |
 | D.16 | `R15` §1, `R16` §1, `R16` §5 | what the `T9` token filter costs the request path | c | — | — | **three occurrences, one question, closed by `R16`** at ≤ 0.9 µs/req — below that harness's floor. **This row was missing from the first commit of this file** and is what made the totals short; see the annotation in §The split |
+| D.17 | `.wslconfig` (host, outside the tree); `measurement-discipline.md` §*The environment block* | whether this WSL build honours `autoMemoryReclaim=gradual`, or has guest page-cache reclaim enabled by default | **a** | 15 | **H** | **The procedure is written here so this is a 15-minute errand rather than a re-derivation.** Machine quiet → `dmesg \| grep -iE 'free page reporting\|cold memory discard'` with the key set → comment the key out → `wsl --shutdown` → start one distribution → repeat the grep. **Lines gone = the key drives it. Lines unchanged = the default does**, and `.wslconfig`'s own comment says what follows: *"it can simply be removed - it is inert, not harmful."* Established 2026-08-22: WSL `2.6.3.0` prints `Free page reporting enabled` and `Cold memory discard hint enabled with order 9` at guest boot, so **the machinery is present**; which route enabled it is **미측정**. **`H` because `ADR-005` §1's `576.8 ms`/`140 ms` pair is a measurement of guest page-cache state** — the pair is *marked*, not withdrawn, and `R2` §3 is the unmarked source. ⭐ **The doubt was written beside the setting by the person who set it, on the day they set it, and nothing in this repository had ever opened the file** — `R43`'s class, and harder, because a KDoc has a corpus a gate can sweep and this file is outside the tree |
+| D.18 | `_ROUND3-ORCHESTRATION.md` §3.8 | **property ②: a derivable value written down instead of derived.** Seven instances in one round — a pinned digest, a freshness boundary, a section heading's own count, two commit counts, this document's *"eight"*, and a block-form table | c | — | — | ⛔ **A property, not an errand — no check is built and none should be.** A check for *"is this number derived?"* has to read intent, and a check that reads intent produces judgement calls; `R19` §7 drew that line. ⛔ **Do not soften the asymmetry when citing this**: `git rev-list --count` was available for every one of the seven, so **cost was never the reason.** An excuse that was never true is worth more than one that was. The clause it needed: *derive the value from the thing it describes — and derive it through a clock the thing itself is measured on*, because `btime` steps on this host (`D.20`) |
+| D.19 | `_ROUND3-ORCHESTRATION.md` §6.2 | **property ③: a search that cannot exclude itself.** Six instances, six different targets — `ps` and `pgrep` matching their own command lines (D, G, orchestrator ×2), a `grep -c` counting the gate's own `FAIL:` line, a `§9(f)` sweep matching the self-check question that asks about it, and an assertion count of eight of which four were KDoc prose containing the word | **a** | 120 | M | **Not property ②** — nothing here was written down beside anything. **The instrument is inside its own corpus.** The bracket trick (`grep '[G]radleDaemon'`) defeats thecommand-line case and **nothing defeats the corpus case**: a document that reports a count of documents joins the population it counts, which is why *"31 of 31"* became `32` and then `31` again with the tree unchanged. ✅ **A gate is a real axis and it is the NEXT round's.** `F` is already the largest pass in this repository's history |
+| D.20 | `R36`; `_ROUND3-ORCHESTRATION.md` §3.8 | `btime` steps on this host, so every process-derived timestamp moves | c | — | — | **Measured twice, by two sessions.** `R36` found it; `F` reproduced it independently on 2026-08-22 — `1787395345` → `1787395380`, a **+35 s step**, identical across three reads inside one process. `ps -o lstart=` is `btime + starttime`, so `lstart` moved four times for a process that started once. ⛔ **Not an errand**: nothing here can stop the clock stepping. The consequence is a rule — **compare a file mtime to a file mtime**, one clock, and a step cannot move the comparison |
+| D.21 | `_ROUND3-ORCHESTRATION.md` §7.3, §7.4 | two launcher properties that cost this round five test runs, and neither is visible to any check the repository owns | **a** | 30 | M | **① `./gradlew --stop` does not stop the Kotlin compile daemons.** They run with `--daemon-autoshutdownIdleSeconds=7200` and survive it, so *"a clean floor"* was an unverified claim; one wedged daemon was inherited by a later run and cost it 22 minutes. **A tool reporting something it did not do** — `--stop` is a verdict, `0 java processes` is a measurement. **② A ~60-minute cap on the launcher** killed two full suites by client disconnection — `20:07:13`→`21:07:13` exactly, and `BUILD FAILED in 1h` *while executing* `:api:test` with results written 14 s before the cut. **A cut run produces no XML at all**, so the failure mode is an hour spent for nothing rather than a partial number. **The errand is the four-item quiet-machine check**, which found both on its first real use |
+| D.22 | `measurement-discipline.md`; `223c1fa` | **never commit a citation to a document that has not been written** | c | — | — | ⛔ **A rule, and it is here because it was broken deliberately.** `223c1fa` committed two documents citing `ADR-014` `D.17` **before `D.17` existed** — closed by the row above, in the same pass, on a fuse the author set and wrote down. **A missing note is a gap a reader can see. A citation to nothing is a gap that reads as filled**: the reader follows it, finds that the procedure "exists", and stops looking. ⭐ **This is not `R43`'s class.** `R43`'s KDoc, `.wslconfig`'s comment and `223c1fa`'s own blind spot were **true sentences nobody read**; this was a **false sentence written knowingly**, safe only because the author held the fuse. **The next author will not** |
 
 ## What the sweep found that no `미측정` marks
 
@@ -602,7 +722,7 @@ afterwards.
 | --- | --- |
 | **(a) entries closed** | **2 — `9.1` and `D.8`**, both by `R25`, exactly the two this file named |
 | **(a) entries partly closed** | **1 — `D.1`.** `R25` §3.7 read `-Xmx512m` off the Gradle test worker's command line. That is the test lane and Gradle's own default; the `bootRun` lane every load number came from is a different JVM and is still `미측정` |
-| **(a) entries remaining** | **66** |
+| **(a) entries remaining** | **66** — ⚠️ **as of that round.** Recounted after round three: **132**, and the recount's unit is stated above rather than assumed |
 | entries whose class this round would change | **none** |
 | **findings that were in no ledger entry** | **1**, and it became `R27` and `OPEN-10` |
 

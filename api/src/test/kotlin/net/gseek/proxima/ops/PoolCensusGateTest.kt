@@ -1,5 +1,6 @@
 package net.gseek.proxima.ops
 
+import io.micrometer.core.instrument.MeterRegistry
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -38,6 +39,8 @@ import org.springframework.context.annotation.Import
 class PoolCensusGateTest {
 
     @Autowired private lateinit var census: PoolCensus
+    @Autowired private lateinit var meters: org.springframework.beans.factory.ObjectProvider<MeterRegistry>
+    @Autowired private lateinit var environment: org.springframework.core.env.Environment
 
     /**
      * `R29` §3.1. ⭐ **The inequality the whole slice is about.**
@@ -129,6 +132,59 @@ class PoolCensusGateTest {
             sizes.carrierPoolParallelismProperty,
             "and the fifth pool, the virtual-thread carrier scheduler, is unconfigured too. " +
                 "R33 §3 measures what turning virtual threads on does to the other four",
+        )
+    }
+
+    /**
+     * `R29` §6 — **the green commit, asserted through its effect rather than through the property
+     * that produced it.**
+     *
+     * This is the whole of what shipped from `R29`: three gauges that **did not exist**. With
+     * `server.tomcat.mbeanregistry.enabled` at its default of `false`, the actuator metrics
+     * endpoint answers `404` for all three and the pool holding two hundred threads is
+     * unmeasurable — while the pool holding ten has six gauges. `R29` §3 could not have been
+     * taken without the flag.
+     *
+     * **Asserted against the registry rather than against the property**, because the property is
+     * an input and the gauge is the outcome. A future Boot that stopped binding Tomcat's metrics
+     * would leave the property true and this test red, which is the correct direction.
+     */
+    @Test
+    fun `the shipped configuration gives the worker pool the gauges it otherwise has none of`() {
+        val registry = meters.ifAvailable ?: error(
+            "no MeterRegistry in this context, so this assertion cannot mean anything. " +
+                "That is a broken test rather than a passing one -- R9 §7 on vacuous gates",
+        )
+
+        listOf("tomcat.threads.config.max", "tomcat.threads.current", "tomcat.threads.busy")
+            .forEach { name ->
+                assertNotNull(
+                    registry.find(name).gauge(),
+                    "`$name` does not exist. Without server.tomcat.mbeanregistry.enabled=true " +
+                        "there is no gauge at all for the pool that holds 200 threads, and the " +
+                        "incident R29 measured -- every worker alive, most of them blocked, " +
+                        "0.00 % errors and nothing logged -- has no instrument. R29 §5 option D",
+                )
+            }
+    }
+
+    /**
+     * `R31` §6 — the other half of the green commit.
+     *
+     * ⚠️ **This one is a property assertion and is weaker than the test above**, deliberately and
+     * with its weakness named: the executor this decorator is applied to has **no callers on any
+     * request path**, so there is no outcome to observe in the default context.
+     * `AsyncBoundaryWithContextCopyTest` proves the mechanism and the wiring under an explicit
+     * property; this asserts only that the shipped default selects that arm.
+     */
+    @Test
+    fun `the shipped configuration selects the async context arm R31 chose`() {
+        assertEquals(
+            "copy-mdc",
+            environment.getProperty("proxima.ops.async-context"),
+            "R31 §5 chose option B. Shipping `none` would leave the MDC absent from every log " +
+                "line written on an async thread -- and ADR-018 records why this ships while " +
+                "R30's queue bound does not",
         )
     }
 }

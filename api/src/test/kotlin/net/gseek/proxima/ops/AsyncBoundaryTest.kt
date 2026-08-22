@@ -36,6 +36,7 @@ import org.springframework.test.context.TestPropertySource
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration::class)
+@TestPropertySource(properties = ["proxima.ops.async-context=none"])
 class AsyncBoundaryTest {
 
     @Autowired private lateinit var caller: TransactionalAsyncCaller
@@ -90,14 +91,16 @@ class AsyncBoundaryTest {
             onAsync.requestAttributesPresent,
             "request-scoped beans are unreachable. This repository has no Spring Security, " +
                 "so the request attribute is the analogue of the security context here -- " +
-                "RecommendationController reads its subject from one. R31 §3.3",
+                "RecommendationController reads its subject from one. R31 §3.1 -- and §3.2 " +
+                "marks this row as the one with no control, because a JUnit thread has no " +
+                "request attributes to lose either",
         )
         assertNull(onAsync.mdcValue, "the log line from the async thread carries no correlation id")
         assertNull(onAsync.threadLocalValue, "and a bare ThreadLocal does not travel either")
     }
 
     /**
-     * `R31` §3.4. ⭐ **The caller rolls back and the async write does not.**
+     * `R31` §3.3. ⭐ **The caller rolls back and the async write does not.**
      *
      * Both rows are written inside one `@Transactional` method that then throws. A reader who
      * believes `@Async` work participates in the caller's transaction expects to find neither.
@@ -109,14 +112,14 @@ class AsyncBoundaryTest {
 
         val sync = count("r31-sync")
         val async = count("r31-async")
-        println("R31 §3.4 after rollback: sync rows=$sync async rows=$async")
+        println("R31 §3.3 after rollback: sync rows=$sync async rows=$async")
 
         assertEquals(0, sync, "the caller's own write rolled back, as anybody would expect")
         assertEquals(
             1, async,
             "and the async write survived. It was never in that transaction to be rolled " +
                 "back -- and no propagation setting was involved, unlike MasteryCounter's " +
-                "REQUIRES_NEW where a reader can at least see the word. R31 §3.4",
+                "REQUIRES_NEW where a reader can at least see the word. R31 §3.3",
         )
     }
 

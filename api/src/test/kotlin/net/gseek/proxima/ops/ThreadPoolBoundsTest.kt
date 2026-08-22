@@ -149,7 +149,14 @@ class ThreadPoolBoundsTest {
                 peakPoolSize = pool.poolSize,
                 queued = pool.queue.size,
                 rejected = rejected.get(),
-            )
+            ).also {
+                println(
+                    "R30 §3 core=$core max=$max queue=" +
+                        (if (queue == Int.MAX_VALUE) "unbounded" else "$queue") +
+                        " tasks=$tasks -> poolSize=${it.peakPoolSize} queued=${it.queued} " +
+                        "rejected=${it.rejected} started=${accepted.get()}",
+                )
+            }
         } finally {
             release.countDown()
             executor.shutdown()

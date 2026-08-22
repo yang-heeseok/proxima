@@ -52,6 +52,33 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+# WHY THE TOMCAT MBEAN REGISTRY IS ON, AND WHY IT IS AN INSTRUMENT RATHER THAN A SETTING.
+#
+#   With this at its default of `false`, `tomcat.threads.busy`, `tomcat.threads.current` and
+#   `tomcat.threads.config.max` DO NOT EXIST. The actuator metrics endpoint answers 404 for all
+#   three -- they are not zero and they are not an empty series. Measured both ways, R29 section 6.
+#
+#   That is not a missing convenience. THE POOL HOLDING TWO HUNDRED THREADS HAD NO GAUGE AT ALL
+#   while the pool holding ten had six. At 200 VU roughly 115 of those 200 workers are blocked
+#   waiting for one of ten connections at any instant -- and the error rate is 0.00 %, every
+#   request answers 200, and each arm's JVM logs 54 lines, ZERO of them WARN or ERROR, all of
+#   them the startup banner. R29 is the report. Half of its section 3 could not have been taken
+#   without this flag, which is another way of saying the incident is invisible to whoever
+#   operates this until it is on.
+#
+#   ITS OWN COST IS 미측정. Every arm in R29 ran with it enabled, so the arms are comparable with
+#   each other and none of them prices the flag against `false`. ADR-018 records that it ships on
+#   that basis; ADR-014's ledger carries it as 29.2.
+#
+#   THIS IS NOT THE SAME MOVE AS PINNING A DEFAULT TO QUIETEN A WARNING. The note at the top of
+#   this file rejects that for open-in-view -- writing a default down keeps the behaviour and
+#   loses the notice. This ADDS a notice that did not exist. PoolCensusGateTest asserts the five
+#   pool sizes rather than application.yml stating them, for the same reason.
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
+
 # WHAT THIS LIST IS, MEASURED. docs/reports/R10.
 #
 #   An earlier version of this comment said the exposure was "left at its default" and that
@@ -88,6 +115,27 @@ management:
 #   ones are: a missing environment variable should fail at startup rather than fall back to
 #   something that happens to work on one machine. The test profile supplies its own.
 proxima:
+  # WHAT CROSSES AN @Async BOUNDARY. docs/reports/R31.
+  #
+  #   none      nothing crosses. No transaction, no request attributes, no MDC, no ThreadLocal.
+  #             `red`, and it is what an executor with no TaskDecorator does.
+  #   copy-mdc  the MDC crosses. NOTHING ELSE DOES, and that is deliberate -- R31 section 5
+  #             refuses to copy request attributes, because the request they belong to may
+  #             already be complete and recycled, which replaces a loud null with a quiet wrong
+  #             answer.
+  #
+  #   THE TRANSACTION STILL DOES NOT CROSS AND NO DECORATOR CAN CARRY IT. A transaction here is a
+  #   JDBC connection bound to one thread; re-binding it to a second concurrent thread is two
+  #   threads on one connection rather than propagation. R31 section 5.1.
+  #
+  #   THIS IS INERT TODAY. No @Async call exists on any request path -- ops/AsyncBoundary.kt is a
+  #   measurement fixture. It ships because it is correct and free: ADR-018 draws the line at
+  #   whether a remedy has a trade-off to get wrong. This one has none. Bounding the task
+  #   executor's queue (R30) does -- it means choosing a rejection policy for a load that does
+  #   not exist -- so that one did not ship.
+  ops:
+    async-context: copy-mdc
+
   # HOW ONE RECORDING MOVES A MASTERY ROW. docs/reports/R12.
   #
   #   read-modify-write  read the row, mutate it, save it -- R6's `entity + @Version` arm,

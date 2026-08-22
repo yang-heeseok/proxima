@@ -245,6 +245,33 @@ what is stored changed. What changed is what an in-transaction observer can see.
 **Same literal, three mechanisms, and the test cannot tell them apart** — `R12`'s thesis arriving a
 second time, from a change `R12` never contemplated.
 
+#### ✅ Repaired at `fbed46b`, and the repair is the finding
+
+⛔ **The obvious repair was wrong.** Asserting `null` with a KDoc naming the three causes
+**documents** the ambiguity without removing it — a fourth mechanism producing `null` would pass
+silently and the KDoc would go on being true and useless.
+
+**The test now asserts on what `record` reported.** A `Rejected` outcome carrying the guard's
+`IllegalArgumentException` proves the recording was **attempted and refused**, which is what
+separates this run from *never attempted* and from *written and rolled back* — three states the
+row prints identically from inside that transaction. The row is still asserted, as a consequence
+rather than as the evidence.
+
+⭐ **Slice E made the same move in a different subsystem on the same afternoon.** `R38` found
+`assertEquals(100, afterNested)` green because `NESTED` was refused, the inner work never ran, and
+the row read `100` whether a savepoint rolled back or nothing happened at all; its fix was to
+assert on what the inner call threw. **When an observable is reachable by several routes, assert
+on the route, not the destination.** Neither slice could see the other.
+
+Verified: `AttemptRecordingServiceTest` **2 / 0 / 0**, `AttemptRecordingAtomicityTest` **1 / 0 / 0**,
+BUILD SUCCESSFUL in 7m58s, 12 tasks executed.
+
+⚠️ **AND THE VERIFICATION GAP IS STATED RATHER THAN GLOSSED.** `fbed46b` was verified by a
+**targeted run of two classes**, not by a full suite. The last full-suite reading is `d9b7cb3`,
+one commit earlier. ⛔ **There is no full-suite green on the final tip and this document does not
+claim one.** The repair is test-only and touches one class; that makes the gap small, **not
+absent**, and `R17` is the report about a count that was assumed to still hold.
+
 ⭐ **The baseline is corroborated, not merely remembered.** The orchestrator counted 48 / 125 / 0
 from the same XML independently before it was overwritten. The `:seed:test` XML survives on disk.
 

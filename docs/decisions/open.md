@@ -20,6 +20,7 @@ silence, and it discharges the `PUB-4` row that says so.
 
 | # | Question | Why it is not decided yet | Deadline |
 | --- | --- | --- | --- |
+| `OPEN-13` | **Must the connection pool be able to report its own exhaustion before the recording path acquires a transactional caller?** | ⭐ **Three slices measured three facts today and no two of them meet anywhere except here.** Slice D measured the pool at **10**, with roughly **115 of 200 workers blocked waiting for a connection** — and **zero WARN, zero ERROR across 54 log lines, at a `0.00 %` error rate**, so the queue is invisible to everything this application can report. Slice E measured `REQUIRES_NEW` holding **2 connections** for the duration of the inner call. Slice G's `ADR-020` makes `AttemptRecorder.record` `REQUIRES_NEW`, doubling connection demand on the recording path — **but only when a transactional caller exists, and none does.** So nothing is broken today and no measurement is outstanding: the pool figure, the connection count and the propagation are all measured. **What is missing is a judgement.** Reverting to `REQUIRED` is not the cheap option — `R40` §3.4 measured it losing **4 of 4 valid recordings** to `UnexpectedRollbackException` — so the trade is not correctness against connections. It is *whether a path may be allowed to double its demand on the binding constraint while that constraint cannot say it is exhausted.* ⛔ **Not a ledger entry**: `ADR-014` is for the measurable-but-not-done, priced in minutes, and there is no number of minutes that settles this. `R19` §7 drew that line and `OPEN-6` is what it costs when nobody asks | **before any `@Transactional` caller of `AttemptRecordingService.recordAll` is written.** ⚠️ A condition, not a date — and `ADR-003`'s *"a deadline that cannot arrive is not a deadline"* applies, so it is written as an event a reviewer can actually observe in a diff rather than as a month |
 
 **The table was filled and emptied inside forty-eight hours, and this time the claim below is
 established rather than assumed.** `OPEN-10`, `OPEN-11` and `OPEN-12` opened on 2026-08-21 and
@@ -27,6 +28,17 @@ all three closed on 2026-08-22, by `ADR-015`, `ADR-016` and `ADR-017`. `OPEN-10`
 row opened since `R19` filled and `ADR-007`–`ADR-009` cleared it on 2026-08-18, and it arrived
 the way the paragraph below asks for: out of a *남는 위험* bullet — `R27` §8's first — that
 nobody can act on without a judgement.
+
+> ⚠️ **The table is not empty any more, and this paragraph said it was.** `OPEN-13` opened on
+> 2026-08-22 out of `R40` §8, and it arrived exactly the way the sentence below asks for: out of
+> a *남는 위험* bullet nobody can act on without a judgement. **The paragraph beneath is left
+> standing rather than rewritten** — it is a true account of the state that produced it, and
+> `R19` §3.4 is the report about bullets read as standing claims when they were written about
+> one instant. This note is the annotation that distinction requires.
+>
+> ⭐ **`OPEN-13` is also the first row here opened from measurements three different sessions
+> took**, none of which could see the others: D measured the pool, E measured the propagation's
+> connection count, and G changed the line where they meet.
 
 **What makes the empty table a claim today rather than a default.** Every one of the three was
 closed with an ADR naming what would flip it, and the sweep that would fill it again has been

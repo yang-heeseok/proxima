@@ -347,6 +347,28 @@ first commit and will be failing after my last, for a reason neither commit touc
 ⛔ A green CHECK 5 must not be read as "no comment in this tree is false" — including for the
 KDoc I added, which is substantial.
 
+### ⚠️ I scoped a regression check by package name, and the package name was an accident
+
+Recorded because it was caught by the orchestrator rather than by me, and because the reasoning
+that produced it looked sound.
+
+After the `022675b` production change I ran a targeted regression check and chose its scope like
+this: *the change is in `recording`, so run `net.gseek.proxima.recording.*`.* Sensible-sounding,
+and it had a hole.
+
+**`ConnectionHoldingGateTest` is `R4`'s gate. It exists to notice a connection held across a
+boundary. `022675b` changes how many connections are held at once. And it lives in
+`net.gseek.proxima.recommendation`, so my filter could not see it.** `QueryCountTest` lives in
+`perf` and was missed the same way.
+
+⛔ **Choosing test scope by package is choosing it by an accident of layout.** The correct unit is
+*what the change can affect*, and only then where those tests happen to live. The two are not the
+same set and nothing warns when they differ — a targeted run that misses the relevant gate is
+**green for the wrong reason**, which is the fifth instance of the shape `R39` §2.2 tabulates.
+
+**Resolved by not relying on the filter at all**: the slice's closing number is a full
+`:api:test :seed:test --rerun-tasks`, which cannot have this defect.
+
 ### New tables are a test fixture, NOT a migration
 
 ⭐ **An integrator reading "five new tables" will go looking for a `V6`. There is none.** The

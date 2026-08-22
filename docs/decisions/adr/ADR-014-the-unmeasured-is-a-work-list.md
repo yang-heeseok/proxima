@@ -512,10 +512,33 @@ this machine, and that is a property of its subject rather than of its diligence
 | 19.3 | `R0` §8's own example is stale and was left | c | — | — | a recorded judgement |
 | 19.4 | `R17` §8's CI-cost bullet might be stale | c | — | — | struck through; checked the same day |
 | 19.5 | §7's numbers are one tree and four findings | c | — | — | may not be re-scored, and says so |
-| 19.6 | nothing read code comments; the same sweep over KDoc | **a** | 120 | M | *"`R14`'s existence is evidence it would find something"* |
+| 19.6 | nothing read code comments; the same sweep over KDoc | **a** | 120 | M | **partly closed 2026-08-22 — `R43`.** `docs-consistency.yml` CHECK 5 reads KDoc and found **two** live false claims. *Not* the general sweep this row asks for: only index-existence claims, only KDoc, 172 of 552 comment blocks out of scope. The prediction it was filed with was right |
 | 19.7 | the remedy in §5 is procedure and is enforced by nothing | c | — | — | §7 is the argument |
 | 19.8 | three rows opened and none decided | c | — | — | all three decided the next day |
 | 19.9 | what would break it: a second reader re-drawing the line | b | — | — | needs a second party |
+
+### `R43`, `R44`, `R45` — round three, slice H
+
+Added 2026-08-22 by the slice that wrote them, not by a sweep. The sweep that produced the
+entries above read `docs/**/*.md`; **`R43` exists because that corpus never included a code
+comment**, so a sweep of this kind could not have found `43.1`–`43.4` at all.
+
+| # | Subject | Class | Cost | Flip | Note |
+| --- | --- | --- | --- | --- | --- |
+| 43.1 | how many index claims in this tree are phrased outside CHECK 5's four-pattern set | **a** | 30 | M | the set was written from a sample of two |
+| 43.2 | `Attempt.kt`, `RecommendationQueries` and `RecommendationService` each assert *"three million rows"* in prose and nothing checks it against `Scale.FULL` | **a** | 45 | **H** | the same defect class as `R43` itself, one field over |
+| 43.3 | CHECK 5's cost on a GitHub runner | **a** | 15 | L | **corrected 2026-08-22, not closed — the row was wrong in one half and right in the other.** The **self-test** step ran on the runner for `5ac5fd5` and passed. The step that runs CHECK 5 **against the real tree was SKIPPED**, behind CHECK 3's expected failure, so the axis has still never been executed against this repository's own comments — it first will when `F` adds the roadmap rows, and **`F` must read that run rather than assume it**. ⚠️ The self-test step is reported as **1s**, which is the Actions API's one-second timestamp resolution and therefore **a coarse upper bound, not a profiled cost**. `ADR-004` still forbids quoting the local figure |
+| 43.4 | whether the 172-block non-KDoc exclusion should be permanent | c | — | — | **a judgement, not work** — widening re-admits `R17` §5's false positive. Belongs in `open.md` |
+| 44.1 | **the date step 3's 30-day window stops excluding anything on the shipped seed — arithmetic on a measured maximum says ~2026-09-09, and it has never been observed** | **a** | 20 | **H** | **a dated prediction that nothing in the tree fails on.** `Generator.BASE_INSTANT` is fixed and the window is wall-clock, so the rule will start recommending items every learner has already attempted, silently. `R44` §8 |
+| 44.2 | whether the 15.8% band divergence is identical against the loaded database rather than the generator's output | **a** | 45 | M | every `R44` number is pre-database |
+| 44.3 | plan cost of `recentOutcomesByCount`'s `attempted_at desc, id desc` tie-break — does `V2`'s index still serve it without a sort | **a** | 40 | **H** | the comparison was **refused** rather than approximated |
+| 44.4 | how often the sliding window changes a band from one second to the next | **a** | 30 | **H** | H4. Instrument exists |
+| 44.5 | cost of a per-learner time-zone column, and the aggregation error from not having one | **a** | 120 | M | H3. Needs a migration from `V6` |
+| 44.6 | what the 15.8% becomes on a population with real cadence variation | b | — | — | needs a generator this repository does not have; changing it invalidates every published number |
+| 44.7 | `RecentAccuracy.bandFor`'s thresholds and `RecencyDefinitionTest`'s restatement are not related by anything | **a** | 30 | **H** | `ADR-006`'s shape **without** `ADR-006`'s gate |
+| 45.1 | whether any other ArchUnit rule here has the same shape — an exclusion added for a false positive that also hides the true one | **a** | 60 | **H** | `R45` found one. There are eight more rules |
+| 45.2 | **`TransactionBoundaryRulesSelfTest` has no default-argument fixture**, so the exact defect `R45` fixed would regress unnoticed | **a** | 25 | **H** | the self-test plants arm C, the spelling that was already caught. `R45` §7 says so and §8 named it — **and a gap recorded only in prose is a gap nobody schedules, which is what 19.6 just demonstrated** |
+| 45.3 | whether the bridge hop needs to follow more than one level — another bridge, an inline-class mangled name, a `suspend` state machine | **a** | 45 | M | nothing here is `suspend` today, so this is unexercised rather than known-good |
 
 ### Outside any §8 section
 

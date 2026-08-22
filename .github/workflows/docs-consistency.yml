@@ -235,6 +235,144 @@ jobs:
           fi
           echo "OK: every report carries a remaining-risk section."
 
+
+      # CHECK 5 -- a code comment may not deny an index that a migration creates.
+      #
+      # WHY THIS AXIS EXISTS, AND WHY IT IS THE ONE THAT WAS BUILT.
+      #
+      #   `R17` §8's last bullet says what the four checks above cannot reach:
+      #
+      #     "the checks are only as good as the corpus they scan. A document moved outside
+      #      `*.md`, or a claim moved out of prose into a diagram or A CODE COMMENT, leaves
+      #      the corpus entirely -- and code comments are where several of this repository's
+      #      load-bearing claims live"
+      #
+      #   That was written as a limitation and it was already a defect. CHECK 1 opens every
+      #   `.kt` in the tree, and reads it ONLY to harvest `class|object|interface` names so
+      #   that a document naming a type resolves. The prose in those same files -- the KDoc a
+      #   reader of the query actually reads -- was never a document to any check here.
+      #
+      #   Two comments in this repository said, in the present tense, that `attempt` has no
+      #   index on `(learner_id, attempted_at)`. `V2__attempt_learner_time_index.sql` creates
+      #   exactly that index and has since 2026-08-12. One of the two is the KDoc on
+      #   `RecommendationQueries`, where it is the stated reason that step 4 of the
+      #   recommendation rule is not implemented -- so a false sentence was carrying a
+      #   deviation from the documented rule.
+      #
+      # WHAT IT REFUSES, STATED EXACTLY.
+      #
+      #   A KDoc block that (a) contains an index-denial phrase from the closed set below,
+      #   and (b) names in backticks a table that some migration gives a `create index` to.
+      #
+      #   `create index` ONLY. A primary key and a unique constraint also produce an index --
+      #   that is `R16`'s whole subject -- and counting them would make this fire on comments
+      #   that are TRUE: `attempt` has carried a primary key since `V1`, in the months when
+      #   "no index for this query" was the correct thing to write.
+      #
+      # WHY KDOC AND NOT EVERY COMMENT, WHICH IS A NARROWING AND IS MEASURED.
+      #
+      #   Run against every comment this finds THREE sites. The third is
+      #   `BaselineMigrationTest`, and it reads:
+      #
+      #     "This assertion started as 'there must be NO performance index', which was
+      #      correct for as long as V1 was the whole story. V2 added one..."
+      #
+      #   That is a description of a past claim, and it is exactly, to the word, the failure
+      #   `R17` §5 discarded its prose check for: "A keyword check cannot tell a claim from a
+      #   description of a past claim." This axis reproduced that failure at 1 site in 3.
+      #
+      #   The narrowing is structural rather than a tuned exclusion, and the distinction is
+      #   the whole defence: KDoc documents the declaration it is attached to and is rendered
+      #   to a reader as what that declaration IS; a body comment narrates to a maintainer.
+      #   No phrase was added to an exclusion list and no threshold moved. 380 of the tree's
+      #   552 comment blocks are KDoc, so 172 blocks leave the corpus -- and a false index
+      #   claim written in `//` escapes this check. That is section 8 of `R43`, not a footnote.
+      #
+      #   Honest about the order: the principle was found BY the false positive, not before
+      #   it. `R43` §9 says so.
+      - name: no code comment denies an index a migration creates
+        run: |
+          set -eu
+          : > /tmp/c5_idx
+          for m in $(git ls-files 'api/src/main/resources/db/migration/*.sql'); do
+            grep -ohiE 'create( unique)? index [a-z0-9_]+ on [a-z0-9_]+ *\([^)]*\)' "$m" > /tmp/c5_stmts || true
+            while IFS= read -r stmt; do
+              [ -n "$stmt" ] || continue
+              name=$(printf '%s' "$stmt" | sed -E 's/^create( unique)? index ([a-z0-9_]+) on .*/\2/I')
+              tbl=$(printf  '%s' "$stmt" | sed -E 's/^create( unique)? index [a-z0-9_]+ on ([a-z0-9_]+) *\(.*/\2/I')
+              cols=$(printf '%s' "$stmt" | sed -E 's/^.*\(([^)]*)\).*/\1/' | tr -d ' ')
+              ver=$(basename "$m" | sed -E 's/^V([0-9]+)__.*/\1/')
+              printf '%s\t%s\t%s\t%s\t%s\n' "$tbl" "$name" "$cols" "$m" "$ver" >> /tmp/c5_idx
+            done < /tmp/c5_stmts
+          done
+
+          : > /tmp/c5_blocks
+          for f in $(git ls-files '*.kt' '*.java'); do
+            awk -v FN="$f" '
+              { line=$0; t=line; sub(/^[ \t]*/,"",t)
+                if (t ~ /^\/\*\*/) { inb=1; start=NR; buf="" }
+                if (inb) { l=line; gsub(/^[ \t]*(\/\*\*+|\*+\/?)[ \t]?/,"",l); buf = buf " " l }
+                if (inb && t ~ /\*\//) { print FN "\t" start "\t" buf; inb=0; buf="" } }
+            ' "$f" >> /tmp/c5_blocks
+          done
+
+          # BOTH INPUTS ARE ASSERTED, NOT ASSUMED.
+          #
+          #   This check is two greps over two harvested lists, and if either list comes
+          #   back empty it prints OK and refuses nothing. That is the shape `S3` had --
+          #   ADR-017: "a guard that stops finding its input and reports OK" -- and the
+          #   shape `fetch-depth: 1` would give the date checks above.
+          #
+          #   It is not hypothetical. Verifying this very step from WSL2, `git ls-files`
+          #   failed -- a git worktree's `.git` is a pointer to a Windows path that WSL
+          #   cannot resolve -- both lists came back empty, and the check printed OK on a
+          #   tree that had two real findings in it. It was caught only because that green
+          #   was expected and arrived too easily. The next reader will not have that
+          #   expectation, so the assertion is here instead.
+          [ -s /tmp/c5_idx ] || { echo 'FAIL: no create-index statement found in any migration. This check just became vacuous.'; exit 1; }
+          [ -s /tmp/c5_blocks ] || { echo 'FAIL: no KDoc block found in any tracked source. This check just became vacuous.'; exit 1; }
+
+          : > /tmp/c5_find
+          while IFS="$(printf '\t')" read -r file line body; do
+            printf '%s' "$body" | grep -qiE 'no index|without an index|lacks an index|no [a-z]+ index' || continue
+            printf '%s' "$body" | grep -qiE '\(to come\)|미작성|INDEX-CLAIM-EXEMPT' && continue
+            # A CLAIM THAT NAMES A MIGRATION IS A CLAIM ABOUT THAT MIGRATION.
+            #
+            #   `Attempt.kt` says "`V1` carries no index on `(learner_id, attempted_at)` on
+            #   purpose" and that is TRUE -- V1 carries none and V2 added it. Judged against
+            #   the whole tree it is a finding, and this check would then be refusing correct
+            #   text, which is what ADR-007 reason 3 and R17 section 5 each discarded a rule
+            #   for.
+            #
+            #   Measured rather than reasoned. With the table name backticked and no scope
+            #   handling this check fired on that true sentence -- it is silent today only
+            #   because that KDoc happens not to backtick `attempt`. Luck, not correctness.
+            #
+            #   So a block naming migrations is judged as of the HIGHEST one it names. An
+            #   unscoped claim is judged against the whole tree, which is the safe
+            #   direction: a passing mention of a late migration widens the evidence rather
+            #   than narrowing it.
+            scope=$(printf '%s' "$body" | grep -ohE '`V[0-9]+`' | tr -d '`V' | sort -n | tail -1)
+            for tbl in $(printf '%s' "$body" | grep -ohE '`[a-z0-9_]+`' | tr -d '`' | sort -u); do
+              hits=$(awk -F'\t' -v t="$tbl" -v s="${scope:-999}" \
+                       '$1==t && $5+0 <= s+0 {printf "    %s (%s) created by %s\n", $2, $3, $4}' /tmp/c5_idx)
+              [ -n "$hits" ] || continue
+              asof=""; [ -n "$scope" ] && asof=" (as of the V$scope this block names)"
+              printf '%s:%s denies an index on `%s`%s, and a migration creates one:\n%s\n' \
+                "$file" "$line" "$tbl" "$asof" "$hits" >> /tmp/c5_find
+            done
+          done < /tmp/c5_blocks
+
+          if [ -s /tmp/c5_find ]; then
+            cat /tmp/c5_find
+            echo ""
+            echo "FAIL: a KDoc comment denies an index that a migration creates."
+            echo "The migration is the authority. Correct the comment -- and if the sentence"
+            echo "is narrating a claim that WAS true, mark the block 'INDEX-CLAIM-EXEMPT' so"
+            echo "the exemption is a visible line in a diff rather than a widened regex."
+            exit 1
+          fi
+          echo "OK: no KDoc denies an index a migration creates."
   self-test:
     name: the guard refuses planted violations
     runs-on: ubuntu-latest
@@ -319,3 +457,92 @@ jobs:
 
           cd /; rm -rf "$w"
           echo "OK: every check fires on what it claims to catch, and none fires on the clean counterpart."
+
+      # CHECK 5's negative half is larger than its positive half, and deliberately.
+      #
+      # The check is a narrowing of a check that produced a false positive, so what needs
+      # watching is not mainly that it fires -- it is that it stays silent on the five shapes
+      # it was narrowed to stay silent on. Each is a decision recorded in the step above, and
+      # an untested decision is the shape `R17` §8 flagged about `.study/`.
+      - name: check 5 fires on a denied index, and on nothing else it was narrowed away from
+        run: |
+          set -eu
+          w=$(mktemp -d); git init -q "$w"
+          git -C "$w" config user.email t@t; git -C "$w" config user.name t
+          mkdir -p "$w/api/src/main/resources/db/migration" "$w/src"
+
+          # `hot` gets a performance index in V2. `cold` gets only a UNIQUE CONSTRAINT, which
+          # also produces an index -- R16's subject -- and which this check must NOT count.
+          cat > "$w/api/src/main/resources/db/migration/V1__x.sql" <<'SQL'
+          create table hot  (id bigint primary key, a bigint not null, b timestamptz not null);
+          create table cold (id bigint primary key, ref varchar(64) not null,
+                             constraint uk_cold_ref unique (ref));
+          SQL
+          cat > "$w/api/src/main/resources/db/migration/V2__y.sql" <<'SQL'
+          create index ix_hot_a_b on hot (a, b);
+          SQL
+
+          # (1) MUST FIRE -- KDoc denying an index on a table a migration indexes
+          printf '/**\n * reads `hot`, which has no index on `(a, b)`\n */\ninterface A\n' > "$w/src/A.kt"
+          # (2) MUST NOT  -- same sentence, table whose only index is a unique constraint
+          printf '/**\n * reads `cold`, which has no index for this\n */\ninterface B\n' > "$w/src/B.kt"
+          # (3) MUST NOT  -- a body comment, which is what the KDoc scope gives up
+          printf 'interface C {\n  // `hot` has no index -- narration, not a contract\n  fun f()\n}\n' > "$w/src/C.kt"
+          # (4) MUST NOT  -- an explicitly marked historical claim
+          printf '/**\n * `hot` had no index until V2. INDEX-CLAIM-EXEMPT\n */\ninterface D\n' > "$w/src/D.kt"
+          # (5) MUST NOT  -- KDoc naming an indexed table and denying nothing
+          printf '/**\n * reads `hot` in learner order\n */\ninterface E\n' > "$w/src/E.kt"
+          # (6) MUST NOT  -- TRUE because it scopes itself to `V1`. This is Attempt.kt's shape
+          #                 and the case that made this check refuse correct text once.
+          printf '/**\n * `hot` carries no index in `V1`, on purpose\n */\ninterface F\n' > "$w/src/F.kt"
+          # (7) MUST FIRE -- scoped to `V2`, and V2 is where the index arrives
+          printf '/**\n * as of `V2` the `hot` table still has no index\n */\ninterface G\n' > "$w/src/G.kt"
+          git -C "$w" add -A; git -C "$w" commit -qm fixtures
+          cd "$w"
+
+          : > /tmp/s5_idx
+          for m in $(git ls-files 'api/src/main/resources/db/migration/*.sql'); do
+            grep -ohiE 'create( unique)? index [a-z0-9_]+ on [a-z0-9_]+ *\([^)]*\)' "$m" > /tmp/s5_stmts || true
+            while IFS= read -r stmt; do
+              [ -n "$stmt" ] || continue
+              tbl=$(printf '%s' "$stmt" | sed -E 's/^create( unique)? index [a-z0-9_]+ on ([a-z0-9_]+) *\(.*/\2/I')
+              ver=$(basename "$m" | sed -E 's/^V([0-9]+)__.*/\1/')
+              printf '%s\t%s\n' "$tbl" "$ver" >> /tmp/s5_idx
+            done < /tmp/s5_stmts
+          done
+          cut -f1 /tmp/s5_idx | grep -qx 'hot'  || { echo "FAIL: self-test could not see V2's index on hot"; exit 1; }
+          cut -f1 /tmp/s5_idx | grep -qx 'cold' && { echo "FAIL: a unique CONSTRAINT was counted as an index. R16 is about exactly this."; exit 1; }
+
+          : > /tmp/s5_blocks
+          for f in $(git ls-files '*.kt'); do
+            awk -v FN="$f" '
+              { line=$0; t=line; sub(/^[ \t]*/,"",t)
+                if (t ~ /^\/\*\*/) { inb=1; start=NR; buf="" }
+                if (inb) { l=line; gsub(/^[ \t]*(\/\*\*+|\*+\/?)[ \t]?/,"",l); buf = buf " " l }
+                if (inb && t ~ /\*\//) { print FN "\t" start "\t" buf; inb=0; buf="" } }
+            ' "$f" >> /tmp/s5_blocks
+          done
+
+          : > /tmp/s5_find
+          while IFS="$(printf '\t')" read -r file line body; do
+            printf '%s' "$body" | grep -qiE 'no index|without an index|lacks an index|no [a-z]+ index' || continue
+            printf '%s' "$body" | grep -qiE '\(to come\)|미작성|INDEX-CLAIM-EXEMPT' && continue
+            scope=$(printf '%s' "$body" | grep -ohE '`V[0-9]+`' | tr -d '`V' | sort -n | tail -1)
+            for tbl in $(printf '%s' "$body" | grep -ohE '`[a-z0-9_]+`' | tr -d '`' | sort -u); do
+              awk -F'\t' -v t="$tbl" -v s="${scope:-999}" '$1==t && $2+0 <= s+0 {f=1} END{exit !f}' /tmp/s5_idx || continue
+              printf '%s\n' "$file" >> /tmp/s5_find
+            done
+          done < /tmp/s5_blocks
+
+          fire() { grep -q "$1" /tmp/s5_find || { echo "FAIL: check 5 missed $2"; exit 1; }; }
+          mute() { grep -q "$1" /tmp/s5_find && { echo "FAIL: check 5 fired on $2"; exit 1; }; return 0; }
+          fire 'A.kt' "a KDoc denying an index that a migration creates"
+          mute 'B.kt' "a table whose only index is a unique constraint -- that claim is TRUE"
+          mute 'C.kt' "a body comment -- the KDoc scope is what removed R17 §5's false positive"
+          mute 'D.kt' "a block marked INDEX-CLAIM-EXEMPT -- the exemption is the point"
+          mute 'E.kt' "a KDoc that denies nothing"
+          mute 'F.kt' "a claim scoped to V1, which is TRUE. This is Attempt.kt's shape"
+          fire 'G.kt' "a claim scoped to V2, which is where the index arrives"
+
+          cd /; rm -rf "$w"
+          echo "OK: check 5 fires on both denials and stays silent on all five narrowings."

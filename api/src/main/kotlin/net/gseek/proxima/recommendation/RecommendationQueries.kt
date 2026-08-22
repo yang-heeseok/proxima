@@ -16,12 +16,20 @@ import net.gseek.proxima.domain.Item
  * this query is fixed, not assembled from optional predicates, so the type-safe
  * construction `ADR-001` bought is not what this needs.
  *
- * **What is deliberately not implemented yet.** Step 4 of the rule filters to a difficulty
- * band matched to the learner's *recent accuracy*. Computing that means a second pass over
- * `attempt`, which is three million rows with **no index on `(learner_id, attempted_at)`**
- * — absent on purpose, see `ADR-002`, and the subject of `T4`. The band is passed in
- * instead. That is a real deviation from the documented rule and it is recorded here rather
- * than in a commit message, because the deviation belongs where someone reads the query.
+ * **What is deliberately not implemented yet — and the reason first recorded here expired
+ * ten days before anything noticed.** Step 4 of the rule filters to a difficulty band matched
+ * to the learner's *recent accuracy*. The reason written here was the cost of a second pass
+ * over `attempt`, three million rows whose only index at the time was its primary key.
+ * `V2__attempt_learner_time_index.sql` created `(learner_id, attempted_at)` on 2026-08-12 and
+ * `R3` measured that read at **0.056 ms against 36.6 ms** without it. The justification was
+ * spent from that day, and this sentence went on giving it until 2026-08-22 — because
+ * nothing here read a KDoc until `docs-consistency.yml` CHECK 5 did.
+ *
+ * The band is passed in instead, and that is still a real deviation from the documented rule.
+ * **What blocks step 4 now is a decision rather than a cost:** *recent* can mean a count of
+ * attempts or a span of days, and those are different questions that disagree on this
+ * dataset. Recorded here rather than in a commit message, because the deviation belongs
+ * where someone reads the query.
  */
 interface RecommendationQueries : Repository<Item, Long> {
 
@@ -125,6 +133,79 @@ interface RecommendationQueries : Repository<Item, Long> {
         @Param("notAttemptedSince") notAttemptedSince: Instant,
         @Param("limit") limit: Int,
     ): List<RecommendationRow>
+
+    /**
+     * **Step 4 read as *the last `n` attempts*** — fixes the sample size, lets the period it
+     * spans vary with whatever cadence the learner happens to have.
+     *
+     * One learner, newest first, small limit: the exact query shape `R3` measured `V2`'s
+     * index against. The outcomes are aggregated in the application rather than in SQL
+     * because the row count is bounded by `n` and returning them keeps the caller able to
+     * say **how many** the band came off, which `RecentAccuracy.Evidence` requires.
+     *
+     * **`a.id desc` is a tie-break and it is load-bearing.** `attempted_at` is not unique —
+     * nothing in the schema makes it so — and `ORDER BY` on a non-unique key leaves tied
+     * rows in an order the database is entitled to change between two runs of the same
+     * statement. Without this the twentieth row is whichever of the tied ones the plan
+     * happened to reach, so the band would wobble with the plan. `R44` §3 measures what the
+     * tie-break costs the index; the general form of this defect belongs to slice G.
+     */
+    @Query(
+        value = """
+        select a.correct
+          from attempt a
+         where a.learner_id = :learnerId
+         order by a.attempted_at desc, a.id desc
+         limit :n
+        """,
+        nativeQuery = true,
+    )
+    fun recentOutcomesByCount(
+        @Param("learnerId") learnerId: Long,
+        @Param("n") n: Int,
+    ): List<Boolean>
+
+    /**
+     * **Step 4 read as *the last `d` days*** — fixes the period, lets the sample size vary.
+     *
+     * Aggregated in SQL because the row count is **not** bounded here: it is however many
+     * attempts that learner made in the window, which for a heavy learner on this dataset is
+     * in the hundreds. Returning the rows to count them in the application would make the
+     * cost of this definition a function of the learner's activity, which is precisely the
+     * asymmetry between the two readings that `ADR-021` is deciding about.
+     *
+     * `count(*) filter (where …)` rather than `sum(case …)`: same plan, and it is the form
+     * that says what it means.
+     *
+     * ⚠️ **`since` is supplied by the caller and is not `now() - d`.** Whose clock, and
+     * whose midnight, is a separate question this method deliberately does not answer — see
+     * `RecommendationService` and `R45`.
+     */
+    @Query(
+        value = """
+        select count(*)                          as "attempts",
+               count(*) filter (where a.correct)  as "correct"
+          from attempt a
+         where a.learner_id = :learnerId
+           and a.attempted_at >= :since
+        """,
+        nativeQuery = true,
+    )
+    fun recentOutcomeCountsSince(
+        @Param("learnerId") learnerId: Long,
+        @Param("since") since: Instant,
+    ): OutcomeCounts
+}
+
+/**
+ * The two numbers a band is computed from, kept together.
+ *
+ * `attempts` is not a diagnostic. A band off three attempts and a band off three hundred are
+ * different claims and this is what carries the difference to the caller.
+ */
+interface OutcomeCounts {
+    val attempts: Long
+    val correct: Long
 }
 
 /** A row of the recommendation, fully materialised. Holds no reference to a session. */

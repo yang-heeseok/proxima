@@ -81,12 +81,22 @@ class QueryCountTest {
         val counted = counter.count { recommendations.nextRows(learnerId, 10) }
 
         assertTrue(counted.result.isNotEmpty(), "an empty result would assert nothing")
+        // WAS 1 UNTIL R44, AND THE CHANGE IS A FEATURE ARRIVING RATHER THAN A REGRESSION.
+        //
+        //   Step 4 of the documented rule -- band the difficulty by the learner's recent
+        //   accuracy -- was not implemented, and the band was the constant 3..7. R44
+        //   implements it, and reading a learner's recent accuracy is a second statement.
+        //
+        //   This assertion is re-baselined in the same commit as the report that measured
+        //   the cost, which is the process BaselineMigrationTest already records for V2's
+        //   index. It is NOT loosened: it is still exact, and a third statement still fails.
         assertEquals(
-            1, counted.statements,
-            "the recommendation read must be one statement. It returned " +
-                "${counted.result.size} rows in ${counted.statements}. If this rose, " +
-                "something reintroduced a per-row fetch -- see R4, which chose the " +
-                "projection over returning entities for exactly this reason",
+            2, counted.statements,
+            "the recommendation read must be the recent-accuracy read plus the rule -- two " +
+                "statements. It returned ${counted.result.size} rows in " +
+                "${counted.statements}. If this rose, something reintroduced a per-row " +
+                "fetch -- see R4, which chose the projection over returning entities for " +
+                "exactly this reason. If it fell to 1, step 4 stopped being computed",
         )
     }
 
@@ -107,8 +117,9 @@ class QueryCountTest {
         val service = counter.count { recommendations.nextItems(learnerId, 10) }
         assertTrue(service.result.isNotEmpty())
         assertEquals(
-            2, service.statements,
-            "the service alone should be the id query plus the entity load",
+            3, service.statements,
+            "the service alone should be the recent-accuracy read, the id query and the " +
+                "entity load -- three since R44 implemented step 4",
         )
     }
 
@@ -131,9 +142,10 @@ class QueryCountTest {
 
         assertTrue(counted.result.isNotEmpty())
         assertEquals(
-            2 + counted.result.size, counted.statements,
-            "expected the id query, the entity load, and one lazy concept fetch per row -- " +
-                "${counted.result.size} rows cost ${counted.statements} statements",
+            3 + counted.result.size, counted.statements,
+            "expected the recent-accuracy read, the id query, the entity load, and one lazy " +
+                "concept fetch per row -- ${counted.result.size} rows cost " +
+                "${counted.statements} statements",
         )
     }
 

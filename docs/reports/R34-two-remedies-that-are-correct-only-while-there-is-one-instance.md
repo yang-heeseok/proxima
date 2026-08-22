@@ -187,21 +187,31 @@ must not inherit the block above, which describes a machine running two other sl
                    `./gradlew --stop` -> "No Gradle daemons are running"
                    pgrep java = 0, pgrep -f 'gradle|kotlin|k6' = 0
                    docker ps  = 1 container (buildkit, idle), 8 cores, at 18:37:34 KST
-  ⚠ HOST REBOOT  : THE WSL2 VM RESTARTED AT 18:38:28 KST. Established, not inferred:
-                   /proc/stat btime = 1787391508, read on this host by this session, and
-                   cross-checked against /proc/uptime (1031 s at 18:55:40 KST -> 18:38:29).
-                   A container on the host stopped 39 s BEFORE that boot and started 7 s
-                   AFTER it, and restartCount=0 because the Docker daemon was itself
-                   cycling — no restart policy was ever involved. The container did not
-                   cycle; the whole virtual machine did.
-  ⭐ AND THEREFORE : THE MEASURED SECTION BEGAN 5m24.6s AFTER A HOST VM BOOT.
-                   Class start 18:43:52.644 KST, read from this run's own
-                   TEST-...LayeredCostTest.xml `timestamp` attribute rather than
-                   reconstructed. Being clear of the container cycle is NOT the same as
-                   being clear of the reboot that caused it, and only the first was checked
-                   at the time. Stated as a condition of the numbers rather than argued
-                   away: warm-up discarded, median of 3, full range and spread printed for
-                   every figure, and no arm here touches disk or the network.
+  ⚠ HOST REBOOT  : THE WSL2 VM RESTARTED AT APPROXIMATELY 18:38 KST. The reboot itself is
+                   established; the second is not, and cannot be. A container on this host
+                   stopped shortly before that boot and started shortly after it, with
+                   restartCount=0 because the Docker daemon was itself cycling — no restart
+                   policy was involved. The container did not cycle; the VM did.
+  ⚠ WHY 18:38 AND : /proc/stat `btime` ON THIS HOST IS NOT A CONSTANT. It is derived as
+     NOT 18:38:28   wall-clock minus uptime, and on WSL2 those drift apart, so the reported
+                   boot creeps FORWARD while the boot itself does not move. Same boot, read
+                   three times: 1787391504 (~18:54), 1787391508 (~18:55), 1787391526
+                   (18:58:48) — 22 s of travel in five minutes. Five reads two seconds apart
+                   at 18:58:48-18:58:56 were identical, so the drift is not visible in a
+                   ten-second window and IS visible across minutes.
+                   /proc/uptime is NOT an independent check on this: it is the same quantity
+                   computed the same way, which is why it agreed.
+  ⭐ AND THEREFORE : THE MEASURED SECTION BEGAN ROUGHLY 5.5 MINUTES AFTER A HOST VM BOOT.
+                   Class start 18:43:52.644 KST — read from this run's own
+                   TEST-...LayeredCostTest.xml `timestamp` attribute, and EXACT.
+                   ⛔ NO PRECISE INTERVAL IS AVAILABLE, and one is not offered. One end of it
+                   is an artefact written by the thing being measured; the other is a
+                   drifting derivation. A DURATION IS ONLY AS PRECISE AS ITS WORSE ENDPOINT.
+                   Being clear of the container cycle is not the same as being clear of the
+                   reboot that caused it, and only the first was checked at the time. Stated
+                   as a condition of these numbers rather than argued away: warm-up
+                   discarded, median of 3, full range and spread printed for every figure,
+                   and no arm here touches disk or the network.
   Repetitions    : 3, median reported, FULL RANGE AND SPREAD PRINTED FOR EVERY FIGURE
   Warm-up        : one discarded run per arm per thread count
   WHAT ELSE WAS RUNNING ON THIS MACHINE: nothing. That is what the floor check establishes
@@ -380,18 +390,26 @@ That last assertion is the one worth keeping. It fails if ② ever starts losing
 - **The 2 ms in-memory figure sits at the timer's resolution** (range 1–2 ms). **No ratio is
   computed from it anywhere in this report**, and the comparison is stated as *1,000 round trips
   against none* rather than as a multiple.
-- ⚠ **The measured section ran on a virtual machine that had booted 5m24.6s earlier**, and that
-  is a condition of every figure in §3.4 rather than a footnote. The host WSL2 VM restarted at
-  18:38:28 KST (`/proc/stat btime`, read here); the container stop that first drew attention was
-  a symptom of that reboot, not an independent event. **Checking that the arms cleared the
-  container cycle did not establish that they cleared the reboot, and only the first check was
-  made at the time.** For an in-memory sweep with no disk or network in it, with warm-up
-  discarded and medians of three, the effect is expected to be small — **but that is a judgement,
-  and the condition is stated so a reader can make it instead of inheriting it.**
+- ⚠ **The measured section ran on a virtual machine that had booted roughly five and a half
+  minutes earlier**, and that is a condition of every figure in §3.4 rather than a footnote. The
+  container stop that first drew attention was a symptom of that reboot, not an independent
+  event. **Checking that the arms cleared the container cycle did not establish that they
+  cleared the reboot, and only the first check was made at the time.** For an in-memory sweep
+  with no disk or network in it, with warm-up discarded and medians of three, the effect is
+  expected to be small — **but that is a judgement, and the condition is stated so a reader can
+  make it instead of inheriting it.**
+- ⛔ **The interval cannot be made precise and an earlier draft of this report claimed it to a
+  tenth of a second.** `5m24.6s` was published here and is retracted. `/proc/stat btime` on this
+  host drifts forward — 22 s across five minutes of the same boot — because it is wall clock
+  minus uptime and those two diverge on WSL2. **The class start is exact and the boot is soft**,
+  so the interval inherits the softness: **a duration is only as precise as its worse endpoint.**
+  A `btime` figure quoted to the second here would have looked measured because it had a
+  decimal point, which is the specific failure this repository refuses.
 - **Nothing establishes whether that reboot was a one-off.** If it is periodic, a future run of
   this class could begin inside one and **nothing in the harness would notice or say so.**
-  `미측정`, and it is the cheapest thing left to check here — one `btime` read before and after
-  any run that publishes a duration would do it.
+  `미측정`. A `btime` read either side of any duration-publishing run is the cheap partial fix,
+  **and it buys detection, not precision**: a reboot moves the value by minutes, far outside the
+  seconds of drift, so the jump is unambiguous — while the interval it implies still is not.
 - **`565` and `557` are two samples of a race.** Only `< 1000` is stable, and the gate asserts
   only that. **`500` did not move**, which supports §3.2's mechanism — but **two runs establish
   that a number is stable across two runs and nothing more.** A third could differ; the

@@ -363,6 +363,18 @@ E.
 
   **F must re-derive rather than inherit any of the three, and must publish the unit beside
   whatever number it arrives at.**
+- **One run was killed mid-flight and produced no evidence; it is discarded, not reported.** The
+  `NestedEnabledPropagationTest` invocation `bi3d1goja` returned `GRADLE_EXIT=143` having reached
+  only `kaptGenerateStubsTestKotlin`. **It wrote no test XML at all**, and the stale XML sitting
+  in `api/build/test-results/` was from the previous run 53 minutes earlier — I checked the file
+  timestamps rather than the contents, which is the only reason it was not read as a result.
+  ⛔ **I attributed that kill to the host VM reboot and that attribution is wrong.** The run's log
+  was last written at **18:34:26.659** (`stat`, KST), and the VM rebooted at approximately
+  **18:38** — roughly four minutes *later*, so the reboot cannot have caused it. An orchestrator
+  kill of a Gradle pid is reported at **18:34:41**, 15 s after my log stopped. **The two are
+  close and do not match, and I am not resolving a 15-second gap by choosing which clock to
+  trust.** What is established is only what it was *not*. Recorded because inventing a tidier
+  cause after the fact is the same error as leaving one unexamined.
 - **I have not merged, rebased or pushed.** The branch sits where it was created.
 
 ---

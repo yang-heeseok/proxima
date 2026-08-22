@@ -4,8 +4,8 @@
 > **Updated**: 2026-08-22
 > **Red commit**: `a108715` — two transactions take the same two rows in opposite order, and
 > the test asserts what both authors would have believed
-> **Green commit**: **not yet taken.** §6 is `미측정` and says so. This header will not say
-> *green* until there is a commit and a re-run behind it.
+> **Green commit**: **this one** — the ordered arm and the retry arm, both measured. §6
+> carries them.
 > **Answers**: `R6` §8's last-but-one bullet — *"one row, one column, one increment.
 > Multi-row transactions introduce lock ordering and deadlocks, **which this measured nothing
 > about**"* — and `ADR-014` ledger entry **`6.6`**, class **a**, the price it put on that
@@ -17,17 +17,19 @@
   OS             : Windows 11 Home 10.0.26200 + WSL2 Ubuntu 24.04
   Docker         : Docker Engine, NATIVE INSIDE WSL2 — not Docker Desktop
   JVM            : Temurin 21.0.12+8
-  PostgreSQL     : Testcontainers, pinned BY DIGEST and read out of
-                   TestcontainersConfiguration.POSTGRES_IMAGE at this commit —
+  PostgreSQL     : PostgreSQL 16.15 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0)
+                   15.2.0, 64-bit — read with `select version()` IN THIS RUN, not inherited.
+                   Pinned by digest, read out of TestcontainersConfiguration.POSTGRES_IMAGE:
                    sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
-                   Server version string: 미측정 in this session. `select version()` has not
-                   been run here, and measurement-discipline.md's block says "server 16.14"
-                   against a DIFFERENT digest (57c72fd2…), so it may not be copied — rule 9.
+                   measurement-discipline.md's block says "server 16.14" against a DIFFERENT
+                   digest (57c72fd2…) and was NOT copied — rule 9. This run confirms 16.15,
+                   which is what the pinned digest has always been.
                    Every setting below is read from pg_settings on the running server.
   Isolation      : READ COMMITTED — the default, unchanged. See §8.
   Contention     : 2 transactions, 2 rows, opposed order, CyclicBarrier BETWEEN the two locks
-  Repetitions    : 10 opposed pairs in one invocation
-  WHAT ELSE WAS RUNNING ON THIS MACHINE: slices D and G, concurrently, on other worktrees.
+  Repetitions    : 10 opposed pairs per arm, 3 arms, one invocation
+  WHAT ELSE WAS RUNNING ON THIS MACHINE: slice D's full test run was active, with its own
+                   Testcontainers up, plus slice G. Three Gradle daemons.
                    Stated because every published number here must state it. EVERY FIGURE IN
                    THIS REPORT IS A COUNT, A SQLSTATE, AN EXCEPTION TYPE OR A pg_settings ROW
                    VALUE. None is a duration, so none of them contends with D's or G's load.
@@ -98,15 +100,26 @@ two transactions taking the same two rows in opposite order both complete() FAIL
     nothing here violates anything ==> expected: <0> but was: <10>
 ```
 
-| | |
-| --- | --- |
-| opposed pairs run | **10** |
-| pairs that deadlocked | **10 of 10** |
-| casualties | **10** — exactly **one per pair** |
-| pairs where **both** died | **0** |
-| pairs where **neither** died | **0** |
-| distinct SQLSTATEs | **1** — `40P01`, ten times |
-| distinct exception types | **1** |
+And the two remedies, in the same invocation, against the same two rows:
+
+```
+E4 >>> ascending id order         pairs=10 casualties=0 bothDied=0 bothBetweenLocks=0
+E4 >>>   sqlstates={}
+E4 >>>   exceptions={}
+E4 >>> retry OUTSIDE, 3 attempts  pairs=10 casualties=0 bothDied=0 bothBetweenLocks=10
+E4 >>>   sqlstates={}
+E4 >>>   exceptions={}
+E4 >>>   retries=10 over 10 pairs
+```
+
+| arm | pairs | casualties | both died | **both between locks** | retries |
+| --- | --- | --- | --- | --- | --- |
+| **opposite order** | 10 | **10** — one per pair | **0** | **10** | — |
+| **ascending id order** | 10 | **0** | 0 | **0** | — |
+| **retry outside, 3 attempts** | 10 | **0** | 0 | **10** | **10** |
+
+`4 tests, 0 failures, 0 errors, 0 skipped` —
+`api/build/test-results/test/TEST-net.gseek.proxima.mastery.DeadlockTest.xml`.
 
 ### 3.1 The database detected every one, and killed exactly one side
 
@@ -160,6 +173,48 @@ Two things about that class matter and neither is guessable from the SQLSTATE:
 That classification is defensible here and §5 says why — but it is a claim about **this
 failure**, not about the transaction that suffered it.
 
+### 3.4 The remedy did not survive the race. It removed it — and that is a count.
+
+⭐ **`bothBetweenLocks` goes 10 → 0 the moment an order is imposed, and it is the most
+informative number in this report.**
+
+The rendezvous sits between the two locks and exists to build the cycle by construction. Under
+the **ordered** arm it can never be satisfied, and the reason is the remedy itself: both sides
+now want `rowA` first, so the second caller is queued on `rowA` while the first is still
+holding it. **They cannot both be sitting between their locks.** The barrier times out, and
+that timeout is the observation.
+
+This is why the arm reports `bothBetweenLocks=0` rather than simply `casualties=0`. Those are
+two different claims and only one of them is worth anything:
+
+| what a green ordered arm could mean | distinguished by |
+| --- | --- |
+| the order prevented the interleaving | `bothBetweenLocks=0` **and** `casualties=0` |
+| this run happened not to race at all | `bothBetweenLocks=0` and `casualties=0` — *identical* |
+
+…which is exactly the confusion `ADR-015` was written about, and the table above shows the
+pair of counts **cannot** separate them on its own. What separates them is that the **retry**
+arm ran in the same invocation against the same rows and reported `bothBetweenLocks=10`. The
+harness demonstrably still builds the cycle; the ordered arm is the only one where it cannot.
+
+**A single arm could not have established this.** `ADR-015` fixed `UniquenessRaceTest` by
+adding an instrument that proves the precondition; here the precondition is *unprovable by
+construction in the very arm that needs it*, and the control has to come from a sibling arm in
+the same run. That is a shape this repository has not had before.
+
+### 3.5 The retry recovered every casualty, on the second attempt
+
+`retries=10 over 10 pairs` — **exactly one retry per pair**, matching the unsorted arm's
+`casualties=10` one for one. Every pair lost one side, and every losing side succeeded when it
+was tried again.
+
+That is the arithmetic §5 predicted from Spring's type hierarchy and did not measure: by the
+time the loser retries, the survivor has committed and released both locks, so the second
+attempt finds no contention. `maxAttempts=3` was never exhausted — no pair needed a third.
+
+**The arm asserts `retries > 0` as its own precondition**, so a run in which the first attempts
+did not deadlock cannot pass it by doing nothing.
+
 ## 4. 원인 / Mechanism
 
 A row lock taken by `select … for update` is held **until the transaction ends**. It is not
@@ -191,8 +246,8 @@ cannot.
 | do nothing; rely on the detector | **no** — it breaks cycles, it does not prevent them | one aborted transaction per cycle, and `log_lock_waits=off` means no trace | |
 | `lock_timeout` | no | converts a detected failure into a slower, less specific one; `statement_timeout` would hit innocent statements too | |
 | `for update nowait` / `skip locked` | no | changes what the *first* lock does; a different feature answering a different question | |
-| retry the loser | no — a repair, not a prevention | 미측정 here; §6 | |
-| **take the lower id first, always** | **yes** | **nothing at run time. It costs a convention.** | **✔** |
+| retry the loser | no — a repair, not a prevention | **measured: recovers 10 of 10, one retry each**; a second round trip per casualty | | |
+| **take the lower id first, always** | **yes — measured, `bothBetweenLocks` 10 → 0** | **nothing at run time. It costs a convention.** | **✔** |
 | one statement instead of two locks | yes, where the work fits in one | unavailable whenever two rows must be held together | |
 
 **The remedy is `RowLocker.lockInAscendingIdOrder`, and the remedy is not the method.**
@@ -228,23 +283,27 @@ committed and released its locks by then, so the cycle is gone. But `R6` §3.3 i
 warning against reading that as *"a retry fixes it"*: a retry **inside** the transaction that
 failed recovered nothing and cost time, 180 → 135 increments with time going 3273 → 3425 ms. A
 deadlock aborts the whole transaction, so the retry must be **outside** it, and every unit of
-work between the first statement and the abort is discarded and must be re-done. Whether it in
-fact succeeds here is `미측정` and is §6's job.
+work between the first statement and the abort is discarded and must be re-done. **It does succeed here: `retries=10 over 10 pairs`, every loser recovered on its second
+attempt, no pair needing a third.** That makes the retry a genuine repair rather than a
+slower failure — and it still is not prevention, because the cycle formed all ten times and
+the work between the first statement and the abort was discarded all ten times.
 
 ## 6. 재계측 / Re-measurement
 
-**미측정. Not run, and this section is deliberately not written in advance.**
+Same invocation, same two rows, same ten pairs per arm.
 
-| Metric | Before (`a108715`) | After |
-| --- | --- | --- |
-| pairs deadlocking, of 10 | **10** | 미측정 |
-| casualties | **10** | 미측정 |
-| SQLSTATE `40P01` count | **10** | 미측정 |
-| pairs completing under retry-outside | 미측정 | 미측정 |
+| Metric | Opposite order | **Ascending id order** | **Retry outside** |
+| --- | --- | --- | --- |
+| pairs deadlocking, of 10 | **10** | **0** | 0 *(after retry)* |
+| casualties | **10** | **0** | **0** |
+| SQLSTATE `40P01` count | **10** | **0** | 0 *(final)* |
+| both sides between their locks | **10** | **0** | **10** |
+| retries needed | — | — | **10**, one per pair |
 
-The green arm is `lockInAscendingIdOrder` under the same barrier and the same ten pairs, plus a
-retry-outside arm against the unsorted one. Both are counts, so neither needs the timing lock
-this session is queueing for. **This report does not go green until they have run.**
+**Two remedies, both correct, and they are not interchangeable.** The ordered arm prevents the
+cycle; the retry arm lets it form ten times and recovers from all ten. §5's table is what
+chooses between them, and neither result changes that choice — it is now made against numbers
+instead of against a type hierarchy.
 
 ## 7. 회귀 게이트 / Regression gate
 
@@ -258,6 +317,11 @@ producing `40P01` here — a changed default, a changed detector, a different se
 repository would want to find out, because §5's entire argument rests on detection being what
 happens.
 
+**The ordered arm's own precondition is the part worth keeping.** It asserts
+`bothBetweenLocks == 0`, which is not a restatement of `casualties == 0` — it is what stops the
+arm passing because the harness stopped racing. §3.4 says why that check cannot be
+self-contained and has to lean on the retry arm running beside it.
+
 **What no gate here can do is enforce the convention.** A test can prove the sorted method does
 not deadlock. Nothing can prove that the next caller used it. That gap is not an oversight in
 the gate; it is §4's asymmetry showing up in the tooling, and `ADR-019` is where the decision
@@ -265,17 +329,25 @@ about it belongs rather than here.
 
 ## 8. 남는 위험 / Remaining risk
 
-- **The green half does not exist yet.** §6 is `미측정`, the header says so, and this report is
-  not finished until there is a green commit and a re-run behind it. Everything measured so far
-  is the red half.
 - **Ten pairs is ten pairs.** `casualties=10, bothDied=0` has no counter-example in this sample,
   and that is not the same as a guarantee. Nothing here establishes that `bothDied` is always 0
-  — only that it was 0 ten times.
+  — only that it was 0 ten times. The same applies to every arm: **each remedy is 10 pairs, in
+  one invocation, on one machine.** No arm was repeated across invocations, so run-to-run
+  stability of these counts is `미측정`.
+- **The ordered arm's green result rests on a control in a sibling arm, not in itself.** §3.4
+  is explicit that `bothBetweenLocks=0` cannot by itself separate *the order worked* from *the
+  harness stopped racing*; what separates them is the retry arm reporting `10` in the same
+  invocation. **If the two arms were ever run separately, that separation would be gone** and
+  the ordered arm would be exactly the vacuous shape `ADR-015` was written against.
+- **The retry arm was measured at `maxAttempts=3` and never needed more than 2.** No sweep was
+  run, and `R6` §8 carries the identical unmeasured item about its own chosen attempt count.
+  What a retry costs under contention higher than one opposed pair is `미측정`.
 - **This report publishes no duration at all, on purpose, and that is a real gap and not only a
   discipline.** *How long the losing client waits before it learns* is the number an operator
   actually needs, `deadlock_timeout=1000ms` is a floor on it rather than a value for it, and
-  **it is `미측정`** — slices D and G were running on this machine and a duration taken beside
-  them would have been unusable. It needs the measurement lock and a quiet machine.
+  **it is `미측정`** — slice D's own full test run was active throughout this invocation and a
+  duration taken beside it would have been unusable. It needs the measurement lock and a quiet
+  machine.
 - **The detection interval was read, not exercised.** `deadlock_timeout` is `1000ms` at
   `source=default`. Nothing here varied it, so *what a different value does to the outcome* is
   `미측정` — including whether a value large enough would let something else time out first.
@@ -290,8 +362,12 @@ about it belongs rather than here.
   and the whole of `REPEATABLE READ` are all untouched. `R6` §8 calls `REPEATABLE READ` *"the
   single biggest lever not pulled"* and it is still not pulled; `ADR-014` `6.5` prices it
   separately and this report does not close it.
-- **The retry is argued and not measured.** §5 reasons from Spring's type hierarchy that a
-  retry-outside would succeed. That is a reading of a class, not a run. `미측정`.
+- **The retry is measured, and what it is measured against is narrow.** §3.5 —
+  `retries=10 over 10 pairs`, every loser recovered on its second attempt. But that is one
+  opposed pair at a time. **A retry under real contention re-enters a queue that other writers
+  are also re-entering**, and nothing here measures whether the recovery rate holds when more
+  than two transactions are cycling. `R6` §5 makes the neighbouring point from the other side —
+  *"pessimistic wins when contention is high"* — and this report does not test it.
 - **What would break the conclusion:** a server that does not detect. Every sentence in §5 about
   the failure being bounded and attributable depends on `deadlock_timeout` being reachable and
   the detector running. Disable it, or push it past a `statement_timeout`, and *"one victim per
@@ -324,6 +400,18 @@ about it belongs rather than here.
 유일성 규칙을 제약조건으로 **옮겼다.** 그런데 잠금 순서는 옮길 데가 없다. 정렬한 호출과 정렬 안
 한 호출은 **문자 그대로 같은 두 문장**이고, `id`가 잠금을 정렬한다는 건 PostgreSQL이 모르는
 얘기다. R7의 결함은 DB에 넘길 수 있었고 이건 못 넘긴다 — 그 비대칭이 이번에 배운 것이다.
+
+네 번째는 초록 팔을 짜다가 걸린 건데 이게 제일 재밌었다. **사이클을 강제로 만들려고 넣은
+랑데부가, 순서를 매기고 나니 절대 성립하지 않았다.** 둘 다 `rowA`를 먼저 잡으러 가니까 두 번째
+호출자는 `rowA` 앞에 줄을 서 있고, 그래서 "둘 다 잠금 사이에 서 있는" 상태가 될 수가 없다.
+처음엔 하네스 버그인 줄 알고 고치려다가, **그게 바로 처방이 동작한다는 증거**라는 걸 알아챘다.
+그래서 타임아웃을 실패가 아니라 관측값으로 바꿔서 `bothBetweenLocks`로 셌다. 10 → 0.
+
+그런데 거기서 한 번 더 걸렸다. `bothBetweenLocks=0, casualties=0`은 **"순서가 막았다"와 "이번엔
+그냥 경합이 없었다"를 구분하지 못한다.** 두 경우의 숫자가 완전히 같다. ADR-015가 딱 이 문제로
+쓰인 건데, 이번엔 그 팔 안에서는 원리적으로 자기 전제를 증명할 수가 없었다 — 옆 팔(재시도)이
+같은 실행에서 `bothBetweenLocks=10`을 찍어줘야만 구분이 선다. **자기 전제를 스스로 증명 못 하는
+팔이 있을 수 있다는 걸 처음 봤다.**
 
 그리고 `bothDied=0`을 "DB가 알아서 해준다"로 읽고 싶은 유혹이 꽤 셌다. 안 해준다. **사이클은 10번
 다 생겼고, 버려진 작업도 10번 다 있었다.** 탐지기가 산 건 예방이 아니라 *멈춤을 실패로 바꾼 것*

@@ -1,7 +1,7 @@
 # R20. The graph was read one level deep, and the second level costs 138 statements
 
 > **Created**: 2026-08-21
-> **Updated**: 2026-08-21
+> **Updated**: 2026-08-22
 > **Red commit**: `b97cd6b` — the application-side walk, and its number
 > **Green commit**: `24b959a` — the same closure in one statement
 > **Migration**: `V4__concept_edge_by_concept.sql`, `eb7c445`
@@ -255,6 +255,17 @@ after  vacuum   Heap Fetches     0   buffers 3,618   3.032 ms
 `seed/`'s `Main.kt` runs `generate`, `load` (a `COPY`), and `analyze`. **It never runs
 `VACUUM`** — deliberately, because `T4` needed stale statistics — so the first row is the
 state every measurement in this repository is taken in.
+
+> **Measured 2026-08-22 — `R28`, closing `OPEN-11`. The finding holds and the attribution was
+> incomplete.** This section left the only cross-candidate comparison as *covering after
+> vacuum* against *single before*, which rule 3 refuses — so it could not say whether the
+> covering index lost because of the loader. It did not. **With both candidates vacuumed, the
+> covering one is 1.03–1.16× across four runs while the single-column arm's own spread is
+> 11.0–40.6%**, so the effect is inside the variance and 85% more space still buys nothing.
+> `ADR-016` leaves the loader alone on that measurement. Two clarifications this section's own
+> wording invites: `load` and `analyze` are **separate commands** rather than one path, and
+> what `VACUUM` uniquely supplies here is the **visibility map** — `analyze` already refreshes
+> the statistics `T4` was given a window before.
 
 ## 4. 원인 / Mechanism
 

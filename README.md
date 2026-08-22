@@ -3,7 +3,7 @@
 **An API that chooses a learner's next problem — and a record of how it actually breaks
 under load and concurrency.**
 
-> **Created**: 2026-08-10 · **Updated**: 2026-08-21
+> **Created**: 2026-08-10 · **Updated**: 2026-08-22
 > **Status: the nine traps on the roadmap are measured, in twelve reports — and round two
 > added eight more, `R20`–`R27`.** Spring Boot 4.1.0 on JDK 21, a schema that applies to a
 > real PostgreSQL under test, a generator that produces 3,963,719 rows from a fixed seed
@@ -26,6 +26,7 @@ the reports carry the environment each number was taken in.*
 
 | What | Before | After | Report |
 | --- | --- | --- | --- |
+| A covering index, both arms vacuumed at last — *2026-08-22* | **priced against two different conditions**, so the question could not be answered | **1.03–1.16× across four runs, inside an 11–41% spread** — 85% more space buys nothing | [`R28`](docs/reports/R28-the-remedy-two-reports-rejected-against-a-database-that-could-not-pay.md) |
 | A depth-6 prerequisite closure — statements per read — *2026-08-21* | 138 | **1, at any depth** | [`R20`](docs/reports/R20-the-graph-was-read-one-level-deep.md) |
 | The same closure at depth 12 — rows fed through `concept_edge` — *2026-08-21* | 98,937 | **5,424**, and 10.526 ms → 3.506 ms | [`R20`](docs/reports/R20-the-graph-was-read-one-level-deep.md) |
 | A prerequisite cycle, against four forms of the same read — *2026-08-21* | **three deaths, two reporting `57014` whether or not a cycle exists** | **unrepresentable** — one `CHECK` `V1` said could not exist | [`R21`](docs/reports/R21-a-cycle-kills-three-ways-and-two-look-identical.md) |

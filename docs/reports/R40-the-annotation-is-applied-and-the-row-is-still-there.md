@@ -108,13 +108,37 @@ against a real PostgreSQL through a real proxy and the committed row is counted 
 
 ### 3.2 Where Kotlin and Java diverge — and it is not the behaviour
 
-PENDING.
+**MEASURED 2026-08-22**, and this one needed no database at all.
 
-| Method | Declared checked exceptions, read from the class file |
+Read from the compiled class files with `javap -p`, at commit `4c25d2b`, after
+`./gradlew :api:compileTestKotlin :api:compileTestJava` (BUILD SUCCESSFUL, 4 tasks executed):
+
+```
+KotlinRollbackProbe.writeThenThrow(String, Failure)
+JavaRollbackProbe.writeThenThrowChecked(String) throws java.io.IOException
+JavaRollbackProbe.writeThenThrowRuntime(String)
+```
+
+| Method | Declared checked exceptions, in the `Exceptions` attribute |
 | --- | --- |
-| `JavaRollbackProbe.writeThenThrowChecked` | |
-| `JavaRollbackProbe.writeThenThrowRuntime` *(control)* | |
-| `KotlinRollbackProbe.writeThenThrow` | |
+| `JavaRollbackProbe.writeThenThrowChecked` | **`java.io.IOException`** |
+| `JavaRollbackProbe.writeThenThrowRuntime` *(control)* | **none** |
+| `KotlinRollbackProbe.writeThenThrow` | **none** |
+
+⭐ **Two independent methods, deliberately.** The figures above come from `javap` reading the
+class file. `RollbackRuleTest` reads the same fact at run time through
+`Method.getExceptionTypes()`. They are different instruments over the same artefact, and a
+disagreement between them would mean one of them is wrong rather than the finding being wrong.
+`R8` §3.3 is why this repository does not rest a claim on a single counter.
+
+**The control row is doing work.** `writeThenThrowRuntime` is Java, is annotated identically, and
+declares nothing — because there is nothing for the Java type system to have recorded. That is
+what shows the empty Kotlin row is a **language difference** rather than an artefact of how the
+attribute was read.
+
+⛔ **This is the fact §7 rests on, and it is why no ArchUnit rule is shipped for this defect.**
+The information a static rule would read exists in one half of this codebase and does not exist in
+the other.
 
 ### 3.3 The swallowed exception
 

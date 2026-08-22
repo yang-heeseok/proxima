@@ -89,7 +89,30 @@ The same placement is what keeps them out of Spring Boot's entity scan. Commit `
 fixture entities under `net.gseek.proxima` and **34 of 52 tests failed across six classes, none
 of them the one that caused it.** `PersistenceUnitGateTest` is what notices now.
 
-### 2.3 The tables are a test fixture, not a migration
+### 2.3 Three properties of the build the fixtures depend on, read out of the class files
+
+**MEASURED 2026-08-22** with `javap -p`, at commit `4c25d2b`. Recorded because all three were
+**assumptions** when the fixtures were written, and a clean compile does not establish any of
+them — the first two fail at *run time*, inside Hibernate, not at compile time.
+
+| Assumption | Read from the bytecode |
+| --- | --- |
+| `kotlin("plugin.jpa")` synthesises a no-arg constructor for an `@Entity` `data class` | **yes** — `public DataClassChild();` sits beside the primary constructor and the defaults bridge |
+| `@field:`-targeted JPA annotations land on the backing field, so Hibernate uses field access | **yes** — `private Long id` carries `@Id` and `@GeneratedValue(IDENTITY)`; `parent` and `secondary` carry `@ManyToOne(fetch=LAZY)` and `@JoinColumn`; `label` carries `@Column` |
+| the compiler plugin opens `@Entity` classes, **including `data class`es**, so Hibernate can proxy them | **yes** — all five fixture classes compile to `public class`, none `final` |
+
+⭐ **The third row was inferred before it was read, and the inference is worth keeping because it
+turned out to be right for a checkable reason.** `TransactionBoundaryRulesSelfTest` says each
+planted class *"violates exactly one rule"*. `proxima.planted.PlantedDataClassEntity` is a
+`data class` entity, and if the plugin did not open it, it would violate
+`ENTITIES_CAN_BE_SUBCLASSED` as well — two rules, not one. So the self-test's own sentence
+implied the plugin opens data classes. That is now read rather than deduced.
+
+⚠️ **A Kotlin `data class` cannot be declared `open`** — the compiler refuses the modifier. The
+opening is done to the bytecode by the plugin, so the source and the class file disagree about
+finality, and only the class file governs whether Hibernate can build a proxy.
+
+### 2.4 The tables are a test fixture, not a migration
 
 The five fixture tables are created by one `create schema` over JDBC plus `hbm2ddl` on a
 standalone `SessionFactory`, into a schema named `g_basics`, and dropped in `@AfterAll`.

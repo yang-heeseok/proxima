@@ -424,11 +424,32 @@ That last assertion is the one worth keeping. It fails if ② ever starts losing
   A second draft of this bullet said the drift was *"invisible at a ten-second sampling
   interval"*; that is contradicted by the other reader's sample and is corrected here rather
   than dropped.
-- **Nothing establishes whether that reboot was a one-off.** If it is periodic, a future run of
-  this class could begin inside one and **nothing in the harness would notice or say so.**
-  `미측정`. A `btime` read either side of any duration-publishing run is the cheap partial fix,
-  **and it buys detection, not precision**: a reboot moves the value by minutes, far outside the
-  seconds of drift, so the jump is unambiguous — while the interval it implies still is not.
+- ⭐ **The reboot is neither a one-off nor periodic. It is CAUSED, and an earlier draft of this
+  bullet guessed wrong in both directions.** That draft asked whether the cycle was periodic; it
+  is not. The Windows-side `.wslconfig` sets **`vmIdleTimeout=60000`** — changed 2026-07-25 from
+  `-1`, its own comment giving the reason as `-1` *"pins vmmemWSL in Windows memory long after
+  every project has been stopped"*. **Sixty seconds with no distribution running and the VM
+  terminates.** Read out of the file by this session rather than taken on report.
+
+  **The trigger is a person tidying up.** Three boots during this round, each following a
+  deliberate sweep of the machine to zero processes in order to hand somebody a clean floor —
+  and sixty seconds later the VM goes down and takes any container with it. **The hygiene
+  imposed to protect measurements is the thing that destroyed them**, which is this slice's own
+  subject in a different costume: a remedy that is correct in one scope and silently wrong in
+  another. A `btime` read either side of a timed run remains the cheap partial fix, and it buys
+  **detection, not precision**.
+- ⚠ **Two settings in that same file have never appeared in any environment block in this
+  repository, and one of them can move a measurement.** `[experimental] autoMemoryReclaim=gradual`
+  — its own comment: *"Return guest page cache to Windows while the VM is still running… 'gradual'
+  reclaims slowly when idle"*, with *"Measured before the change: 4.4 GB of the WSL VM was page
+  cache."* **Every buffer-cache-sensitive number this repository has taken was taken on a host
+  that may reclaim page cache underneath it**, and no block says so. `R2`'s 576.8 ms cold against
+  140 ms warm is exactly the kind of figure that lives or dies on this. `미측정`, out of scope for
+  `E1`, and flagged rather than investigated. `networkingMode=nat` is recorded for completeness.
+- **This report's own cost figures predate the mitigation and are unaffected by it.** §3.4 ran
+  18:43–18:49; the orchestrator-held keepalive that now prevents the idle shutdown began at
+  roughly 19:34. **A keepalive introduced an hour earlier would have been an extra process inside
+  the cost sweep**, which is why the ordering matters and is stated rather than assumed harmless.
 - **`565` and `557` are two samples of a race.** Only `< 1000` is stable, and the gate asserts
   only that. **`500` did not move**, which supports §3.2's mechanism — but **two runs establish
   that a number is stable across two runs and nothing more.** A third could differ; the

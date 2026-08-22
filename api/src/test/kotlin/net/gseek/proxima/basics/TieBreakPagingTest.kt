@@ -229,19 +229,19 @@ class TieBreakPagingTest {
             println()
 
             assertEquals(
-                emptyList(), tieBroken.duplicated,
+                emptyList<Long>(), tieBroken.duplicated,
                 "a unique tie-break must make the order total, so no row can repeat",
             )
             assertEquals(
-                emptyList(), tieBroken.missing(all),
+                emptyList<Long>(), tieBroken.missing(all),
                 "a unique tie-break must make the order total, so no row can be skipped",
             )
             assertEquals(
-                emptyList(), keyset.duplicated,
+                emptyList<Long>(), keyset.duplicated,
                 "keyset paging must not repeat a row",
             )
             assertEquals(
-                emptyList(), keyset.missing(all),
+                emptyList<Long>(), keyset.missing(all),
                 "keyset paging must not skip a row",
             )
             assertEquals(

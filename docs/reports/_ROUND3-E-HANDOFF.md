@@ -575,6 +575,73 @@ remedy removes the race instead of surviving it. Seven new entries replace it, w
 closure that was really paid for looks like.
 ```
 
+### `docs/roadmap.md` — R34, R35, R36, R38
+
+```markdown
+| **R34** | **Two remedies that are correct only while there is one instance.** `R6` compared six ways to add one to a counter and every one of them lived inside the database's understanding of the work. It never asked the question one layer up, the one an application asks first: does the exclusion have to be in the database at all? | **done** — `R34`, red `3b90db2` / green `35aadbb`. On **one** instance `synchronized`, CAS and the database all keep every increment of 1,000 — **the premise was measured rather than assumed**, with the unguarded control losing 874 in the same run to prove the harness was racing. On **two**, `synchronized` keeps 565 / 557 / 618 and CAS keeps **500 / 500 / 500**, both with `failures=0`, no exception, no rejection, no constraint and no log line; only the database remedy still holds 1,000. ⭐ **The finding is not the loss, it is that the two failures have different shapes.** `synchronized` fails like a race and moves every run. **CAS fails like a partition — exactly 500, three times, `inMemory=[500, 500]`** — no increment was lost by either process, every one was counted somewhere the other cannot see. Ask instance A: 500. Ask B: 500. Ask the database: 500. **Three self-consistent answers and no disagreement anywhere to investigate**, which is the state that survives a debugging session. The third run was taken inside the full 146-test suite, and **a busier machine moved the race arm and left the partition arm untouched** — the strongest available evidence they are not one failure wearing different numbers. **And the trap's own premise turned out false**: `synchronized` is the *most* expensive arm measured, not a cheap one, because a monitor does not remove a round trip, it serialises around two. The only genuinely cheap arm is the one that never writes, which is the same arm that fails at two instances: **the saving and the defect are one property — the work never left the process.** ⛔ The contention at which CAS and locking invert was swept from 1 to 32 threads on 8 cores and **no inversion occurred**; the headline is the absence, and extending the sweep until a crossing appeared was refused |
+| **R35** | **A cache in a bean, and the repair that fixes half of it.** Spring beans are singletons, so a field on one is process-wide state reached by every request thread at once — and the declaration is identical to a field on an object only one thread touches. There is no annotation to forget and no configuration to get wrong | **done** — `R35`, red `5d1554d` / green `8e526ec`. ⭐ **The first test in the file passes, and it is the most important one**: single-threaded, the plain `HashMap` cache is perfect at 2,000 of 2,000. That is the test anybody would actually write, and **there is no unit test that catches this single-threaded, because single-threaded there is nothing wrong.** At 8 threads with one writer per key the plain map loses entries in **every** run and **raises nothing**. `ConcurrentHashMap` keeps all 2,000 — **and that is the whole of what it fixes.** `get`-then-`put` on that same concurrent map loads once per *arriving thread* rather than once per key, where `computeIfAbsent` loads exactly **1**: both calls are individually atomic, the **pair** is not, and `Collections.synchronizedMap` is fully synchronised and still loads eight times, because the gap is between the caller's two calls and not inside either. **Kotlin's `getOrPut` is the eight, and it reads as a single call.** ⭐ Across five runs **the direction reproduces and the magnitude does not** — losses of 61 / 32 / 64 / 183 / 579, a factor of 18 — so **no mean, rate or percentage is published**. The arm that could have given the failure a *name* never fired: no `ConcurrentModificationException` in any run, so **both failure modes are silent**, and the absent exception is the worst news in the report rather than a relief. A reflection sweep of the running `ApplicationContext` — through `AopProxyUtils.ultimateTargetClass`, flagging non-`final` fields **and** `final` references to mutable types — found **0 findings across 19 beans and 39 fields**: the class of defect is reachable in this stack, **no shipped bean here is in it, and the reason is not that anyone guarded against it** |
+| **R36** | **A flag one thread wrote and another never saw.** The slice brief warned this might not reproduce, because on x86 a visibility defect that depended on the memory system would be rare and brief | **done** — `R36`, red `ba52381` / green `8e526ec`. **It reproduced 6 of 6 trials across two invocations** — the plain field's write was never observed, the loop running its full two-billion-iteration bound every single time, while the `@Volatile` control terminated every single time. ⭐ **The warning was correct about the wrong layer.** This is not a memory-system effect: it is **C2 hoisting the read out of the loop**, turning `while (running)` into `while (true)`, which is a *correct* compilation of a program that established no happens-before edge. That is a compiler decision, so once warm-up guarantees the loop has been compiled it is not a race at all — it is deterministic. **And the practical consequence inverts the usual advice about this bug class: it does not get rarer the longer a process runs, it gets more certain**, because the longer the loop runs the more surely it has been compiled. The background thread that has been up for a week is the one that cannot hear you. The instrument is built as a **pair** — the same loop over a plain field and a `@Volatile` one, same run, same warm-up — because without the control *the loop did not exit* and *the writer never ran* are the same output, which is `ADR-015`'s finding in a package with no database in it. The spin is **bounded**, which is what made the verdict a boolean and let the report be written without publishing a single duration. The gate asserts the control **exactly** and the defect **loosely**, because an exact assertion on a JIT decision becomes a flaky gate on hardware this repository does not own |
+| **R38** | **The propagation this repository has never used, and the test that passed without it.** `REQUIRES_NEW` sits on every transaction boundary this application owns and `NESTED` on none, and nothing had ever compared them in the same place | **done** — `R38`, red `98cbe2e` / green `35aadbb`. ⛔ **This is the smallest of the slice's five traps and is reported as small.** As shipped, `NESTED` does not run at all: `NestedTransactionNotSupportedException`, raised before a transaction, a connection or a savepoint exists, because `AbstractPlatformTransactionManager.nestedTransactionAllowed` defaults to `false` and Boot does not set it. ⭐ **The finding is the arm that passed while measuring nothing.** With the inner failure caught, the row reads **`100` whether a savepoint rolled back cleanly or the propagation was refused and nothing ran** — and the row was the entire assertion, so a test named for savepoint semantics was green on a stack with no savepoints enabled. **No assertion on the row can fix that**; it had to move onto what the inner call *threw*. This is `ADR-015`'s vacuous pass **in a test with not one thread in it**, which generalises the rule past races: *a vacuous pass is a property of any test whose observable is reachable by two routes when the test is named for only one of them.* Measured alongside: `REQUIRES_NEW` holds **2** pool slots for the duration of the inner call — the ×2 that `R2` sized a pool without, and that `R24` put three instances against `max_connections` without. Following the exception's own instruction did not lift the refusal in **two** attempts, and **why is `미측정`**: stopping was a decision rather than an omission |
+```
+
+### `README.md` — R34, R35, R36, R38
+
+```markdown
+| A counter incremented 1,000 times, at one instance and then two — *2026-08-22* | **`synchronized` and CAS both keep every increment** — and on a second instance keep **565** and **500**, with `failures=0` and nothing logged anywhere | **only the database remedy holds 1,000** — and CAS is wrong *identically*, `inMemory=[500, 500]`, every instance internally consistent and confidently wrong | [`R34`](docs/reports/R34-two-remedies-that-are-correct-only-while-there-is-one-instance.md) |
+| A cache field on a Spring singleton, 8 threads, 2,000 keys — *2026-08-22* | **entries lost in every run with nothing raised**, and `get`-then-`put` on a `ConcurrentHashMap` loading once per arriving thread | **2,000 of 2,000 kept and the loader run exactly once**, with `computeIfAbsent` — the map was never the axis; the compound operation was | [`R35`](docs/reports/R35-a-cache-in-a-bean-and-the-repair-that-fixes-half-of-it.md) |
+| A shutdown flag written by one thread, read by another — *2026-08-22* | **0 of 6 trials ever observed the write**; the loop ran its full bound every time | **6 of 6 with one keyword** — and the cause is the JIT hoisting the read, not the memory system, so it is **deterministic rather than rare** | [`R36`](docs/reports/R36-a-flag-one-thread-wrote-and-another-never-saw.md) |
+| `@Transactional(NESTED)` beside `REQUIRES_NEW` — *2026-08-22* | **refused outright**, and a test asserting savepoint behaviour **passed anyway**, because the row reads the same whether a savepoint rolled back or nothing ran | **the assertion moved off the row and onto what the inner call threw** — and `REQUIRES_NEW` is measured holding **2** pool slots, a multiplier two earlier pool reports never varied | [`R38`](docs/reports/R38-the-propagation-this-repository-has-never-used.md) |
+```
+
+### `R0` — the scorecard, R34, R35, R36, R38
+
+```markdown
+`R34` measured the premise it was handed instead of building on it, and the premise did not
+survive. The brief said `synchronized` and CAS are *"far cheaper"* than a database statement on
+one instance; **`synchronized` is the most expensive arm in the table**, because a monitor does
+not remove a round trip, it serialises around two. The one arm that is dramatically cheaper is
+cheaper **for exactly the reason that makes it wrong** — the work never left the process — so
+the saving and the defect are a single property. The brief also asked where CAS and locking
+invert and called that the headline; swept 1 to 32 threads on 8 cores, **they never inverted**,
+and the absence is reported rather than a sweep extended until a crossing appeared.
+
+`R35` retracted its own headline in its own body. It was drafted from one run claiming a
+compound operation loads *"once per thread"*; the second run returned a different number and the
+fifth widened the spread to a factor of 18. **What survives all five runs is a sentence and not
+a figure — the direction reproduces and the magnitude does not** — so no mean is published. Its
+gate then failed inside the full suite, correctly, because no thread overlapped and the arm had
+measured nothing; the repair was to make the overlap hold **by construction** rather than to
+loosen the assertion, and the report states what that narrowing costs as well as what it buys.
+
+`R36` was expected not to reproduce and reproduced 6 of 6. The expectation was sound and aimed
+one layer below the effect: the defect is **not** the memory system but the JIT hoisting a read,
+which makes it a compiler decision rather than a race. **The consequence inverts the usual
+advice — a visibility defect of this shape does not get rarer the longer a process runs, it gets
+more certain.** The report publishes no duration at all; bounding the spin is what turned the
+verdict into a boolean.
+
+`R38` is this round's second independent instance of a test that **passes while measuring
+nothing**, found in the same hour as slice G's and in a subsystem with nothing in common with
+it. One such report is evidence about one test; two, by sessions with no contact, is evidence
+about how often the shape occurs. The rule both arrived at — **assert on the route, not the
+destination** — has now been reached from a race, a propagation attribute, an ArchUnit exclusion
+and a sibling-arm control, which is why races are the instance and not the definition.
+```
+
+⚠ **None of the four `README.md` rows above quotes a duration**, for the same reason `R37`'s
+does not: this slice's only timings live in `R34` §3.4, they carry their own environment block
+and their own verified floor, and a headline figure lifted out of that block would arrive
+without either.
+
+⛔ **These four sets were promised in an earlier revision of this section and did not follow.**
+It said *"only `R37`'s rows are ready; the rest follow when their reports do."* The reports were
+finished within the hour and **the rows were never written, because nothing fired when the
+condition came true.** `R37`'s rows exist only because they were drafted before that report was
+finished. **That is a deferral whose trigger passed unnoticed — `ADR-014` D.3's exact shape** —
+and it is recorded here rather than quietly repaired, because the integrator asked for the rows
+and would otherwise have had to compose them, which the round forbids for good reason: a row
+composed by the integrator reads as a worker's finding.
+
 ⚠ **The `README.md` row above quotes no duration and that is deliberate**, not an omission to
 be filled in later from a similar run.
 

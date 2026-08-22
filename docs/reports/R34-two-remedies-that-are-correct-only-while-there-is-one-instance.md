@@ -170,6 +170,94 @@ and looks like a plausible business fact.
 to the **row**, and the row is the one thing every instance already shares. Adding instances
 does not dilute it because it was never held in a process to begin with.
 
+### 3.4 ⛔ Cost — and the inversion the brief asked for did not occur
+
+**Its own environment block, because these are the only durations slice E publishes and they
+must not inherit the block above, which describes a machine running two other slices.**
+
+```
+측정 환경 / Measurement environment — §3.4 ONLY
+  Machine floor  : VERIFIED BY ME BEFORE THE FIRST ARM, not asserted by anyone else —
+                   `./gradlew --stop` -> "No Gradle daemons are running"
+                   pgrep java = 0, pgrep -f 'gradle|kotlin|k6' = 0
+                   docker ps  = 1 container (buildkit, idle), 8 cores, at 18:37:34 KST
+  ⚠ PERTURBATION : one container on this host STOPPED AND RESTARTED at 18:37:49-18:38:35 KST,
+                   restartCount=0, CAUSE UNESTABLISHED. It was not a restart policy.
+                   The measured class started 18:43:52.644 KST — read from this run's own
+                   TEST-...LayeredCostTest.xml `timestamp` attribute, NOT reconstructed —
+                   so the arms began 5m17s after the cycle closed and DO NOT overlap it.
+                   Recorded because a correlation nobody can explain is not one to dismiss.
+  Repetitions    : 3, median reported, FULL RANGE AND SPREAD PRINTED FOR EVERY FIGURE
+  Warm-up        : one discarded run per arm per thread count
+  WHAT ELSE WAS RUNNING ON THIS MACHINE: nothing. That is what the floor check establishes
+                   and it is why this is the only section here that may carry a duration.
+```
+
+**In-memory: a monitor against a CAS loop, 2,000,000 increments, no database anywhere.**
+
+```
+E1 >>> threads  (1) synchronized                   (2) AtomicInteger                  ranking
+E1 >>> 1            85 ms (67-89, spread 25%)          25 ms (24-28, spread 16%)      (2) CAS
+E1 >>> 2            49 ms (48-78, spread 61%)          46 ms (40-47, spread 15%)      (2) CAS
+E1 >>> 4            86 ms (85-111, spread 30%)         34 ms (33-34, spread 2%)       (2) CAS
+E1 >>> 8           116 ms (102-119, spread 14%)        45 ms (41-64, spread 51%)      (2) CAS
+E1 >>> 16          130 ms (126-137, spread 8%)         48 ms (43-49, spread 12%)      (2) CAS
+E1 >>> 32          140 ms (130-169, spread 27%)        48 ms (42-51, spread 18%)      (2) CAS
+```
+
+⛔ **The brief asked where CAS and locking invert and told me to make that the headline. THEY
+DID NOT INVERT.** CAS won at every thread count from 1 to 32, on 8 cores — four threads per
+core at the top of the sweep. **The headline is the absence**, and manufacturing a crossing by
+extending the sweep until one appeared would have been the worst thing this report could do.
+
+What the sweep does show, and it is a shape rather than a ratio:
+
+- **`synchronized` degrades with contention**: 85 → 140 ms, rising monotonically from 4 threads
+  up. That is the expected half.
+- **The CAS loop does not**: 25 ms uncontended, then flat at 34–48 ms from 4 threads to 32. The
+  expected retry storm did not arrive at this contention on this counter.
+- **The 2-thread row is the noisiest in the table** — `synchronized` at 61 % spread, the two
+  arms 49 ms against 46 ms. **Those two figures are inside each other's range and this report
+  does not claim an ordering at 2 threads.** The `ranking` column says `(2) CAS`; it is
+  comparing medians and it should not be read as a finding there.
+
+⚠ **`R6` §8 warns about exactly this and it applies here**: several spreads are large (61 %,
+51 %, 30 %), so **the millisecond figures should not be quoted more precisely than the shape
+they support**, and no ratio between two arms of this table is offered.
+
+**With the database in place — 1,000 increments, 10 threads, `R6` §3's contention:**
+
+```
+E1 >>> (1) synchronized + read-modify-write     1486 ms (1454-1698, spread 16%)
+E1 >>> (2) CAS + write-through                  1190 ms (1152-1241, spread 7%)
+E1 >>> (3) one atomic statement                 1107 ms (984-1139, spread 14%)
+E1 >>> (2) CAS in memory, no round trip            2 ms (1-2, spread 50%)
+```
+
+⭐ **This contradicts the premise the trap was built on, and the contradiction is the finding.**
+The brief states that on a single instance ① and ② are *"far cheaper"* than ③. Measured:
+
+| arm | round trips per increment | median |
+| --- | --- | --- |
+| ① `synchronized` + read-modify-write | **2** | **1486 ms — the slowest arm** |
+| ② CAS + write-through | 1 | 1190 ms |
+| ③ one atomic statement | 1 | **1107 ms** |
+| ② CAS in memory, flushed once | **0** | 2 ms |
+
+**① is not cheaper than ③. It is the most expensive thing in the table**, because a monitor does
+not remove a round trip — it serialises *around* two of them. The primitive was never the cost;
+the round trip was.
+
+**Only the in-memory form is dramatically cheaper, and it is cheaper for the reason that makes
+it wrong**: it does not touch the database at all. ⛔ **The 2 ms is at the timer's resolution
+(range 1–2 ms, 50 % spread) and no ratio is computed from it.** The honest statement is not
+*"550× faster"* — it is **1,000 round trips against none**.
+
+⭐ **So "cheap is not wrong, it is narrower" is sharper than the brief put it.** The cheapest
+arm in this table is *exactly* the arm §3.2 shows failing at two instances — silently, at
+exactly half, with every instance internally consistent. **The saving and the defect are the
+same property**: the work never left the process.
+
 ## 4. 원인 / Mechanism
 
 All three remedies exclude concurrent writers. They differ in **what the exclusion is attached
@@ -197,11 +285,11 @@ when the process count goes up.** That is the whole of §5.
 
 | Option | Correct at 1 | Correct at 2 | Cost | Chosen |
 | --- | --- | --- | --- | --- |
-| read-modify-write | **no** — 126 | no | fastest, and wrong | |
-| ① `synchronized` | **yes** — 1,000 | **no** — 565 | 미측정 | |
-| ② CAS write-through | **yes** — 1,000 | **no** — 500 | 미측정 | |
-| ② CAS write-behind | **yes** — 1,000 | **no** — 500 | 미측정 | |
-| **③ one atomic statement** | **yes** — 1,000 | **yes** — 1,000 | 미측정 | **✔** |
+| read-modify-write | **no** — 126 | no | fast, and wrong | |
+| ① `synchronized` | **yes** — 1,000 | **no** — 565 | **1486 ms — the slowest** | |
+| ② CAS write-through | **yes** — 1,000 | **no** — 500 | 1190 ms | |
+| ② CAS write-behind | **yes** — 1,000 | **no** — 500 | **2 ms, and it never wrote** | |
+| **③ one atomic statement** | **yes** — 1,000 | **yes** — 1,000 | **1107 ms** | **✔** |
 
 ⭐ **The output of this report is not "use a database lock".** It is the **boundary** of each
 remedy, and the boundary is a deployment fact rather than a code fact:
@@ -218,10 +306,15 @@ process-local**: a per-instance metric, a cache of something derivable, a rate l
 allowed to be approximate per node. The defect is not using an in-process primitive. It is using
 one for state that is supposed to be global, and the test suite cannot tell the difference.
 
-⛔ **This report does not compare their cost, and will not until it can.** The environment block
-says `미측정` and §8 says what is missing. **Never conclude that CAS is faster than locking**:
-it inverts with contention, and the interesting number is where it inverts, not which side of
-that point one machine happened to be on.
+⛔ **And the cost measurement did not say what it was expected to say.** §3.4: ① is the *most*
+expensive arm here, not a cheap one, because a monitor serialises around two round trips rather
+than removing either. **The only genuinely cheap arm is the one that never wrote**, which is the
+same arm §3.2 shows failing at two instances. **The saving and the defect are one property.**
+
+⛔ **Do not read §3.4 as "CAS is faster than locking".** The sweep looked for the contention at
+which those two invert, from 1 thread to 32, and **found no inversion at all**. A ranking that
+holds across the whole range this machine can produce is not a law; it is a range this machine
+could not exhaust.
 
 ## 6. 재계측 / Re-measurement
 
@@ -255,11 +348,28 @@ That last assertion is the one worth keeping. It fails if ② ever starts losing
 
 ## 8. 남는 위험 / Remaining risk
 
-- ⛔ **The cost comparison does not exist, and it is half of what this trap was for.** The slice
-  brief asks for the contention level at which CAS and locking **invert**, and calls that the
-  headline. **`미측정`** — it is a duration sweep, it needs an exclusive machine, and slice D's
-  and G's work was on this one throughout. Nothing here should be read as a performance claim in
-  either direction.
+- ⛔ **The inversion the brief asked for was not found, and its absence is a weaker result than
+  finding it would have been.** 1 → 32 threads on 8 cores, CAS ahead at every point. **This does
+  not show that locking never overtakes CAS** — it shows this counter, on this CPU, at up to four
+  threads per core, did not reach the crossing. A longer critical section, a contended *object*
+  rather than a single field, real core count beyond 8, and a CAS loop doing more work between
+  attempts are all untried. **`미측정`, and it is the largest thing this report failed to
+  deliver.**
+- **Why an uncontended monitor costs 85 ms where a CAS costs 25 ms is not established here.**
+  There is an obvious candidate in how modern JVMs treat uncontended monitors, and **it is not
+  written down in this report because it was not measured** — rule 9. A JVM-flag sweep would
+  settle it and was not run.
+- **Several spreads in §3.4 are large** — 61 %, 51 %, 30 %. The 2-thread row has the two arms at
+  49 ms and 46 ms **inside each other's range, and no ordering is claimed there** despite what
+  the `ranking` column prints. The millisecond figures support a shape, not a ratio.
+- **The 2 ms in-memory figure sits at the timer's resolution** (range 1–2 ms). **No ratio is
+  computed from it anywhere in this report**, and the comparison is stated as *1,000 round trips
+  against none* rather than as a multiple.
+- ⚠ **A container on this host stopped and restarted at 18:37:49–18:38:35 with `restartCount=0`
+  and no established cause.** The measured class started 18:43:52.644 by its own XML timestamp,
+  so no arm overlaps it — but **if that cycle is periodic rather than a one-off, a future run of
+  this class could land inside one and nothing in the harness would notice.** Unestablished, and
+  recorded rather than dismissed.
 - **`565` and `557` are two samples of a race.** Only `< 1000` is stable, and the gate asserts
   only that. **`500` did not move**, which supports §3.2's mechanism — but **two runs establish
   that a number is stable across two runs and nothing more.** A third could differ; the

@@ -301,7 +301,8 @@ jobs:
               name=$(printf '%s' "$stmt" | sed -E 's/^create( unique)? index ([a-z0-9_]+) on .*/\2/I')
               tbl=$(printf  '%s' "$stmt" | sed -E 's/^create( unique)? index [a-z0-9_]+ on ([a-z0-9_]+) *\(.*/\2/I')
               cols=$(printf '%s' "$stmt" | sed -E 's/^.*\(([^)]*)\).*/\1/' | tr -d ' ')
-              printf '%s\t%s\t%s\t%s\n' "$tbl" "$name" "$cols" "$m" >> /tmp/c5_idx
+              ver=$(basename "$m" | sed -E 's/^V([0-9]+)__.*/\1/')
+              printf '%s\t%s\t%s\t%s\t%s\n' "$tbl" "$name" "$cols" "$m" "$ver" >> /tmp/c5_idx
             done < /tmp/c5_stmts
           done
 
@@ -335,11 +336,30 @@ jobs:
           while IFS="$(printf '\t')" read -r file line body; do
             printf '%s' "$body" | grep -qiE 'no index|without an index|lacks an index|no [a-z]+ index' || continue
             printf '%s' "$body" | grep -qiE '\(to come\)|미작성|INDEX-CLAIM-EXEMPT' && continue
+            # A CLAIM THAT NAMES A MIGRATION IS A CLAIM ABOUT THAT MIGRATION.
+            #
+            #   `Attempt.kt` says "`V1` carries no index on `(learner_id, attempted_at)` on
+            #   purpose" and that is TRUE -- V1 carries none and V2 added it. Judged against
+            #   the whole tree it is a finding, and this check would then be refusing correct
+            #   text, which is what ADR-007 reason 3 and R17 section 5 each discarded a rule
+            #   for.
+            #
+            #   Measured rather than reasoned. With the table name backticked and no scope
+            #   handling this check fired on that true sentence -- it is silent today only
+            #   because that KDoc happens not to backtick `attempt`. Luck, not correctness.
+            #
+            #   So a block naming migrations is judged as of the HIGHEST one it names. An
+            #   unscoped claim is judged against the whole tree, which is the safe
+            #   direction: a passing mention of a late migration widens the evidence rather
+            #   than narrowing it.
+            scope=$(printf '%s' "$body" | grep -ohE '`V[0-9]+`' | tr -d '`V' | sort -n | tail -1)
             for tbl in $(printf '%s' "$body" | grep -ohE '`[a-z0-9_]+`' | tr -d '`' | sort -u); do
-              hits=$(awk -F'\t' -v t="$tbl" '$1==t {printf "    %s (%s) created by %s\n", $2, $3, $4}' /tmp/c5_idx)
+              hits=$(awk -F'\t' -v t="$tbl" -v s="${scope:-999}" \
+                       '$1==t && $5+0 <= s+0 {printf "    %s (%s) created by %s\n", $2, $3, $4}' /tmp/c5_idx)
               [ -n "$hits" ] || continue
-              printf '%s:%s denies an index on `%s`, and a migration creates one:\n%s\n' \
-                "$file" "$line" "$tbl" "$hits" >> /tmp/c5_find
+              asof=""; [ -n "$scope" ] && asof=" (as of the V$scope this block names)"
+              printf '%s:%s denies an index on `%s`%s, and a migration creates one:\n%s\n' \
+                "$file" "$line" "$tbl" "$asof" "$hits" >> /tmp/c5_find
             done
           done < /tmp/c5_blocks
 
@@ -440,10 +460,10 @@ jobs:
 
       # CHECK 5's negative half is larger than its positive half, and deliberately.
       #
-      # The check is a narrowing of a check that produced a false positive, so what has to
-      # be watched is not mainly that it fires -- it is that it stays silent on the four
-      # shapes it was narrowed to stay silent on. Each one is a decision recorded in the
-      # step above, and an untested decision is the shape `R17` §8 flagged about `.study/`.
+      # The check is a narrowing of a check that produced a false positive, so what needs
+      # watching is not mainly that it fires -- it is that it stays silent on the five shapes
+      # it was narrowed to stay silent on. Each is a decision recorded in the step above, and
+      # an untested decision is the shape `R17` §8 flagged about `.study/`.
       - name: check 5 fires on a denied index, and on nothing else it was narrowed away from
         run: |
           set -eu
@@ -451,7 +471,7 @@ jobs:
           git -C "$w" config user.email t@t; git -C "$w" config user.name t
           mkdir -p "$w/api/src/main/resources/db/migration" "$w/src"
 
-          # `hot` gets a performance index. `cold` gets only a UNIQUE CONSTRAINT, which
+          # `hot` gets a performance index in V2. `cold` gets only a UNIQUE CONSTRAINT, which
           # also produces an index -- R16's subject -- and which this check must NOT count.
           cat > "$w/api/src/main/resources/db/migration/V1__x.sql" <<'SQL'
           create table hot  (id bigint primary key, a bigint not null, b timestamptz not null);
@@ -462,16 +482,21 @@ jobs:
           create index ix_hot_a_b on hot (a, b);
           SQL
 
-          # (1) MUST FIRE  -- KDoc denying an index on a table a migration indexes
+          # (1) MUST FIRE -- KDoc denying an index on a table a migration indexes
           printf '/**\n * reads `hot`, which has no index on `(a, b)`\n */\ninterface A\n' > "$w/src/A.kt"
-          # (2) MUST NOT   -- the same sentence about a table whose only index is a constraint
+          # (2) MUST NOT  -- same sentence, table whose only index is a unique constraint
           printf '/**\n * reads `cold`, which has no index for this\n */\ninterface B\n' > "$w/src/B.kt"
-          # (3) MUST NOT   -- a body comment, which is what the KDoc scope gives up
+          # (3) MUST NOT  -- a body comment, which is what the KDoc scope gives up
           printf 'interface C {\n  // `hot` has no index -- narration, not a contract\n  fun f()\n}\n' > "$w/src/C.kt"
-          # (4) MUST NOT   -- an explicitly marked historical claim
+          # (4) MUST NOT  -- an explicitly marked historical claim
           printf '/**\n * `hot` had no index until V2. INDEX-CLAIM-EXEMPT\n */\ninterface D\n' > "$w/src/D.kt"
-          # (5) MUST NOT   -- KDoc naming an indexed table and denying nothing
+          # (5) MUST NOT  -- KDoc naming an indexed table and denying nothing
           printf '/**\n * reads `hot` in learner order\n */\ninterface E\n' > "$w/src/E.kt"
+          # (6) MUST NOT  -- TRUE because it scopes itself to `V1`. This is Attempt.kt's shape
+          #                 and the case that made this check refuse correct text once.
+          printf '/**\n * `hot` carries no index in `V1`, on purpose\n */\ninterface F\n' > "$w/src/F.kt"
+          # (7) MUST FIRE -- scoped to `V2`, and V2 is where the index arrives
+          printf '/**\n * as of `V2` the `hot` table still has no index\n */\ninterface G\n' > "$w/src/G.kt"
           git -C "$w" add -A; git -C "$w" commit -qm fixtures
           cd "$w"
 
@@ -481,11 +506,12 @@ jobs:
             while IFS= read -r stmt; do
               [ -n "$stmt" ] || continue
               tbl=$(printf '%s' "$stmt" | sed -E 's/^create( unique)? index [a-z0-9_]+ on ([a-z0-9_]+) *\(.*/\2/I')
-              printf '%s\n' "$tbl" >> /tmp/s5_idx
+              ver=$(basename "$m" | sed -E 's/^V([0-9]+)__.*/\1/')
+              printf '%s\t%s\n' "$tbl" "$ver" >> /tmp/s5_idx
             done < /tmp/s5_stmts
           done
-          grep -qx 'hot'  /tmp/s5_idx || { echo "FAIL: self-test could not see V2's index on hot"; exit 1; }
-          grep -qx 'cold' /tmp/s5_idx && { echo "FAIL: a unique CONSTRAINT was counted as an index. R16 is about exactly this."; exit 1; }
+          cut -f1 /tmp/s5_idx | grep -qx 'hot'  || { echo "FAIL: self-test could not see V2's index on hot"; exit 1; }
+          cut -f1 /tmp/s5_idx | grep -qx 'cold' && { echo "FAIL: a unique CONSTRAINT was counted as an index. R16 is about exactly this."; exit 1; }
 
           : > /tmp/s5_blocks
           for f in $(git ls-files '*.kt'); do
@@ -501,17 +527,22 @@ jobs:
           while IFS="$(printf '\t')" read -r file line body; do
             printf '%s' "$body" | grep -qiE 'no index|without an index|lacks an index|no [a-z]+ index' || continue
             printf '%s' "$body" | grep -qiE '\(to come\)|미작성|INDEX-CLAIM-EXEMPT' && continue
+            scope=$(printf '%s' "$body" | grep -ohE '`V[0-9]+`' | tr -d '`V' | sort -n | tail -1)
             for tbl in $(printf '%s' "$body" | grep -ohE '`[a-z0-9_]+`' | tr -d '`' | sort -u); do
-              grep -qx "$tbl" /tmp/s5_idx || continue
+              awk -F'\t' -v t="$tbl" -v s="${scope:-999}" '$1==t && $2+0 <= s+0 {f=1} END{exit !f}' /tmp/s5_idx || continue
               printf '%s\n' "$file" >> /tmp/s5_find
             done
           done < /tmp/s5_blocks
 
-          grep -q 'A.kt' /tmp/s5_find || { echo "FAIL: check 5 missed a KDoc denying an index that a migration creates"; exit 1; }
-          grep -q 'B.kt' /tmp/s5_find && { echo "FAIL: check 5 fired on a table whose only index is a unique constraint. That claim is true."; exit 1; }
-          grep -q 'C.kt' /tmp/s5_find && { echo "FAIL: check 5 fired on a body comment. The KDoc scope is the narrowing that removed R17 §5's false positive."; exit 1; }
-          grep -q 'D.kt' /tmp/s5_find && { echo "FAIL: check 5 fired on a block marked INDEX-CLAIM-EXEMPT. The exemption is the point."; exit 1; }
-          grep -q 'E.kt' /tmp/s5_find && { echo "FAIL: check 5 fired on a KDoc that denies nothing"; exit 1; }
+          fire() { grep -q "$1" /tmp/s5_find || { echo "FAIL: check 5 missed $2"; exit 1; }; }
+          mute() { grep -q "$1" /tmp/s5_find && { echo "FAIL: check 5 fired on $2"; exit 1; }; return 0; }
+          fire 'A.kt' "a KDoc denying an index that a migration creates"
+          mute 'B.kt' "a table whose only index is a unique constraint -- that claim is TRUE"
+          mute 'C.kt' "a body comment -- the KDoc scope is what removed R17 §5's false positive"
+          mute 'D.kt' "a block marked INDEX-CLAIM-EXEMPT -- the exemption is the point"
+          mute 'E.kt' "a KDoc that denies nothing"
+          mute 'F.kt' "a claim scoped to V1, which is TRUE. This is Attempt.kt's shape"
+          fire 'G.kt' "a claim scoped to V2, which is where the index arrives"
 
           cd /; rm -rf "$w"
-          echo "OK: check 5 fires on the denial and stays silent on all four narrowings."
+          echo "OK: check 5 fires on both denials and stays silent on all five narrowings."
